@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Giỏ hàng</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="header">
+    <div class="logo">FASHION</div>
+    <div class="menu">
+        <a href="index.html">Trang chủ</a>
+        <a href="product.html">Nam</a>
+        <a href="product.html">Nữ</a>
+        <a href="product.html">Trẻ em</a>
+    </div>
+    <div class="search">
+        <input type="text" placeholder="Tìm kiếm sản phẩm...">
+    </div>
+    <a href="cart.html" class="cart">Giỏ hàng</a>
+</div>
+
+<div class="cart-page">
+    <h1>Giỏ hàng của bạn</h1>
+
+    <table class="cart-table">
+        <thead>
+            <tr>
+                <th>Sản phẩm</th>
+                <th>Giá</th>
+                <th>Số lượng</th>
+                <th>Tạm tính</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            <tr>
+                <td class="cart-product">
+                    <img src="https://picsum.photos/100/120?random=41">
+                    <span>Áo thun nam basic</span>
+                </td>
+                <td>299.000đ</td>
+                <td>
+                    <input type="number" value="1" min="1">
+                </td>
+                <td>299.000đ</td>
+            </tr>
+
+            <tr>
+                <td class="cart-product">
+                    <img src="https://picsum.photos/100/120?random=42">
+                    <span>Quần jean nam</span>
+                </td>
+                <td>499.000đ</td>
+                <td>
+                    <input type="number" value="1" min="1">
+                </td>
+                <td>499.000đ</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="cart-summary">
+        <h2>Tổng đơn hàng</h2>
+        <p>Tạm tính: <b>798.000đ</b></p>
+        <p>Giảm giá: <b>0đ</b></p>
+        <h3>Thanh toán: 798.000đ</h3>
+        <button class="btn-buy">Tiến hành đặt hàng</button>
+    </div>
+</div>
+
+<div class="footer">
+    © 2026 Fashion Shop
+</div>
+
+</body>
+</html>

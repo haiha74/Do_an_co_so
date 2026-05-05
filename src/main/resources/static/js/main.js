@@ -1,0 +1,1 @@
+console.log("Fashion Shop frontend loaded");

@@ -1,12 +1,12 @@
-package com.dacs.FashionWeb;
+package com.dacs.fashion;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class FashionWebApplication {
+public class FashionApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(FashionWebApplication.class, args);
+        SpringApplication.run(FashionApplication.class, args);
     }
 }
