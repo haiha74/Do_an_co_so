@@ -1,5 +1,6 @@
 package com.dacs.fashion.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -18,9 +19,12 @@ public class ProductImage {
 
     @ManyToOne
     @JoinColumn(name = "product_id", nullable = false)
+    @JsonIgnoreProperties({"images", "variants"})
     private Product product;
 
+    @Column(name = "image_url")
     private String imageUrl;
 
+    @Column(name = "is_main")
     private Boolean isMain;
 }
