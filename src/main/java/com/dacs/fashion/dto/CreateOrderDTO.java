@@ -9,4 +9,5 @@ import lombok.*;
 public class CreateOrderDTO {
     private Long userId;
     private String address;
+    private String voucherCode;
 }

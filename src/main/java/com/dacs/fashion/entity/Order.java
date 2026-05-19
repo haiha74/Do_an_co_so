@@ -58,4 +58,8 @@ public class Order {
     @OneToOne(mappedBy = "order", cascade = CascadeType.ALL)
     @JsonIgnoreProperties("order")
     private Payment payment;
+
+    @ManyToOne
+    @JoinColumn(name = "voucher_id")
+    private Voucher voucher;
 }

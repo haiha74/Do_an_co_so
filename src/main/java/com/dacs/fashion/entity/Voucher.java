@@ -2,6 +2,7 @@ package com.dacs.fashion.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -18,18 +19,17 @@ public class Voucher {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long voucherId;
 
-    @Column(nullable = false, unique = true)
     private String code;
 
     private String discountType;
 
     private BigDecimal discountValue;
 
+    private LocalDate endDate;
+
     private BigDecimal minOrderValue;
 
-    private LocalDate startDate;
-
-    private LocalDate endDate;
+    private Integer startDate;
 
     private String status;
 }

@@ -23,6 +23,8 @@ public class OrderService {
     private final CartItemRepository cartItemRepository;
     private final ProductVariantRepository variantRepository;
     private final PaymentRepository paymentRepository;
+    private final VoucherService voucherService;
+    
 
     public List<Order> getAll() {
         return orderRepository.findAll();
@@ -98,8 +100,24 @@ public class OrderService {
                 ? BigDecimal.ZERO
                 : BigDecimal.valueOf(30000);
 
+        BigDecimal discount = BigDecimal.ZERO;
+        Voucher voucher = null;
+
+        if (dto.getVoucherCode() != null && !dto.getVoucherCode().isBlank()) {
+            voucher = voucherService.validateVoucher(dto.getVoucherCode(), total);
+            discount = voucherService.calculateDiscount(voucher, total);
+        }
+
+        BigDecimal finalAmount = total.add(shipping).subtract(discount);
+
+        if (finalAmount.compareTo(BigDecimal.ZERO) < 0) {
+            finalAmount = BigDecimal.ZERO;
+        }
+
         order.setTotalAmount(total);
-        order.setFinalAmount(total.add(shipping));
+        order.setDiscountAmount(discount);
+        order.setFinalAmount(finalAmount);
+        order.setVoucher(voucher);
         order.setItems(orderItems);
 
         Order savedOrder = orderRepository.save(order);
@@ -114,6 +132,7 @@ public class OrderService {
     public Order checkout(CheckoutDTO dto) {
         CreateOrderDTO createOrderDTO = new CreateOrderDTO();
         createOrderDTO.setUserId(dto.getUserId());
+        createOrderDTO.setVoucherCode(dto.getVoucherCode());
         createOrderDTO.setAddress(
                 dto.getFullname() + " | " + dto.getPhone() + " | " + dto.getAddress()
         );

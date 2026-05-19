@@ -5,7 +5,8 @@ import com.dacs.fashion.repository.VoucherRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Service
 @RequiredArgsConstructor
@@ -13,33 +14,39 @@ public class VoucherService {
 
     private final VoucherRepository voucherRepository;
 
-    public List<Voucher> getAll() {
-        return voucherRepository.findAll();
+    public Voucher validateVoucher(String code, BigDecimal orderValue){
+
+        Voucher voucher = voucherRepository.findByCode(code)
+                .orElseThrow(() -> new RuntimeException("Voucher không tồn tại"));
+
+        if(!"ACTIVE".equalsIgnoreCase(voucher.getStatus())){
+            throw new RuntimeException("Voucher đã bị khóa");
+        }
+
+        if(voucher.getEndDate() != null &&
+                voucher.getEndDate().isBefore(LocalDate.now())){
+            throw new RuntimeException("Voucher đã hết hạn");
+        }
+
+        if(orderValue.compareTo(voucher.getMinOrderValue()) < 0){
+            throw new RuntimeException(
+                    "Đơn tối thiểu " + voucher.getMinOrderValue()
+            );
+        }
+
+        return voucher;
     }
 
-    public Voucher getById(Long id) {
-        return voucherRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy voucher"));
-    }
+    public BigDecimal calculateDiscount(Voucher voucher, BigDecimal total){
 
-    public Voucher create(Voucher voucher) {
-        return voucherRepository.save(voucher);
-    }
+        if("PERCENT".equalsIgnoreCase(voucher.getDiscountType())){
 
-    public Voucher update(Long id, Voucher data) {
-        Voucher voucher = getById(id);
-        voucher.setCode(data.getCode());
-        voucher.setDiscountType(data.getDiscountType());
-        voucher.setDiscountValue(data.getDiscountValue());
-        voucher.setMinOrderValue(data.getMinOrderValue());
-        voucher.setStartDate(data.getStartDate());
-        voucher.setEndDate(data.getEndDate());
-        voucher.setStatus(data.getStatus());
+            return total.multiply(
+                    voucher.getDiscountValue()
+                            .divide(BigDecimal.valueOf(100))
+            );
+        }
 
-        return voucherRepository.save(voucher);
-    }
-
-    public void delete(Long id) {
-        voucherRepository.deleteById(id);
+        return voucher.getDiscountValue();
     }
 }

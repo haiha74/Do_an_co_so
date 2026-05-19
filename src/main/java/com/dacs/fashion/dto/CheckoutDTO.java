@@ -11,4 +11,5 @@ public class CheckoutDTO {
     private String phone;
     private String address;
     private String paymentMethod;
+    private String voucherCode;
 }

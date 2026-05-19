@@ -12,6 +12,7 @@ let users = [];
 let orders = [];
 let variants = [];
 let brands = [];
+let vouchers = [];
 let currentTab = "overview";
 let selectedFile = null;
 
@@ -50,6 +51,7 @@ async function loadData(){
   try{ orders = await fetchJson(`${API_BASE}/orders`); }catch(e){ orders = []; }
   try{ variants = await fetchJson(`${API_BASE}/variants`); }catch(e){ variants = []; }
   try{ brands = await fetchJson(`${API_BASE}/brands`); }catch(e){ brands = []; }
+  try{ vouchers = await fetchJson(`${API_BASE}/vouchers`); }catch(e){ vouchers = []; }
 }
 
 function loginPage(){
@@ -96,7 +98,7 @@ function sidebar(){
     ["orders","Quản lý đơn hàng","receipt"],
     ["variants","Biến thể sản phẩm","palette"],
     ["users","Quản lý người dùng","users"],
-    ["promo","Khuyến mãi / Voucher","badge-percent"]
+    ["promo","Voucher","badge-percent"]
   ];
   return `<aside class="soft-card p-5 h-fit sticky top-28">
     <h2 class="font-bold text-xl mb-4">Menu quản trị</h2>
@@ -156,9 +158,6 @@ function userTable(){
   return `<div class="soft-card overflow-hidden"><div class="px-6 py-4 border-b"><h2 class="font-bold text-xl">Quản lý người dùng</h2></div><table class="w-full text-left"><thead class="bg-neutral-50 text-sm text-neutral-500"><tr><th class="p-4">Tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th></tr></thead><tbody>${users.map(u=>`<tr class="border-t"><td class="p-4 font-semibold">${u.fullname}</td><td>${u.email}</td><td><span class="rounded-full bg-neutral-100 px-3 py-1 text-sm">${u.role}</span></td><td>${u.status}</td></tr>`).join("") || `<tr><td class="p-6 text-neutral-500" colspan="4">Chưa có user hoặc API /api/users bị chặn</td></tr>`}</tbody></table></div>`;
 }
 
-function promoPanel(){
-  return `<div class="soft-card p-6"><h2 class="font-bold text-xl mb-4">Voucher & Báo cáo</h2><div class="grid gap-3">${["SALE50 - Giảm 50%","FREESHIP999 - Miễn phí ship","NEWUSER - Khách mới"].map(x=>`<div class="border rounded-2xl p-4 flex justify-between"><span>${x}</span><button class="text-red-800 font-bold">Sửa</button></div>`).join("")}</div><div class="mt-6 rounded-2xl bg-neutral-50 p-5"><b>Báo cáo nhanh</b><p class="text-neutral-600 mt-2">Top sản phẩm bán chạy được tổng hợp từ dữ liệu đơn hàng sau khi nối API order.</p></div></div>`;
-}
 
 function content(){
   if(currentTab === "products") return productTable();
@@ -167,7 +166,7 @@ function content(){
   if(currentTab === "orders") return orderTable();
   if(currentTab === "variants") return variantPanel();
   if(currentTab === "users") return userTable();
-  if(currentTab === "promo") return promoPanel();
+  if(currentTab === "promo") return voucherPanel();
   return `${statCards()}<div class="grid lg:grid-cols-2 gap-6">${productTable()}${orderTable()}</div>`;
 }
 
@@ -812,4 +811,167 @@ async function openOrderDetail(orderId){
 function closeOrderDetail(){
   document.getElementById("orderModal").classList.add("hidden");
   document.getElementById("orderModal").classList.remove("flex");
+}
+
+function voucherPanel(){
+  return `<div class="soft-card overflow-hidden">
+    <div class="px-6 py-4 border-b flex justify-between items-center">
+      <h2 class="font-bold text-xl">Quản lý voucher</h2>
+      <button onclick="openVoucherForm()" class="btn-primary">Thêm voucher</button>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left">
+        <thead class="bg-neutral-50 text-sm text-neutral-500">
+          <tr>
+            <th class="p-4">Mã</th>
+            <th>Loại</th>
+            <th>Giá trị</th>
+            <th>Đơn tối thiểu</th>
+            <th>Hết hạn</th>
+            <th>Trạng thái</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          ${
+            vouchers.length
+            ? vouchers.map(v => `
+              <tr class="border-t">
+                <td class="p-4 font-bold">${v.code}</td>
+                <td>${v.discountType}</td>
+                <td class="text-red-800 font-bold">
+                  ${v.discountType === "PERCENT" ? v.discountValue + "%" : money(v.discountValue)}
+                </td>
+                <td>${money(v.minOrderValue)}</td>
+                <td>${v.endDate || "-"}</td>
+                <td>
+                  <span class="rounded-full px-3 py-1 text-sm ${v.status === "ACTIVE" ? "bg-green-50 text-green-700" : "bg-neutral-100 text-neutral-500"}">
+                    ${v.status}
+                  </span>
+                </td>
+                <td class="space-x-2">
+                  <button onclick="openVoucherForm(${v.voucherId})" class="border rounded-full px-4 py-2 text-sm">Sửa</button>
+                  <button onclick="deleteVoucher(${v.voucherId})" class="bg-red-800 text-white rounded-full px-4 py-2 text-sm">Xóa</button>
+                </td>
+              </tr>
+            `).join("")
+            : `<tr><td colspan="7" class="p-6 text-neutral-500 text-center">Chưa có voucher</td></tr>`
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>${voucherModal()}`;
+}
+
+function voucherModal(){
+  return `<div id="voucherModal" class="fixed inset-0 bg-black/40 z-[999] hidden items-center justify-center p-5">
+    <div class="bg-white rounded-3xl p-7 w-full max-w-lg shadow-xl">
+      <div class="flex justify-between items-center mb-5">
+        <h2 id="voucherFormTitle" class="serif text-3xl">Thêm voucher</h2>
+        <button onclick="closeVoucherForm()" class="text-2xl">×</button>
+      </div>
+
+      <input type="hidden" id="voucherId">
+
+      <div class="space-y-4">
+        <input id="voucherCode" class="input-ui" placeholder="Mã voucher, VD: SALE10">
+
+        <select id="voucherType" class="input-ui">
+          <option value="PERCENT">Giảm theo %</option>
+          <option value="FIXED">Giảm tiền cố định</option>
+        </select>
+
+        <input id="voucherValue" type="number" class="input-ui" placeholder="Giá trị giảm">
+
+        <input id="voucherMinOrder" type="number" class="input-ui" placeholder="Đơn tối thiểu">
+
+        <input id="voucherEndDate" type="date" class="input-ui">
+
+        <select id="voucherStatus" class="input-ui">
+          <option value="ACTIVE">ACTIVE</option>
+          <option value="INACTIVE">INACTIVE</option>
+        </select>
+
+        <button onclick="saveVoucher()" class="btn-primary w-full">Lưu voucher</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function openVoucherForm(id=null){
+  document.getElementById("voucherModal").classList.remove("hidden");
+  document.getElementById("voucherModal").classList.add("flex");
+
+  document.getElementById("voucherFormTitle").innerText = id ? "Sửa voucher" : "Thêm voucher";
+  document.getElementById("voucherId").value = id || "";
+
+  const v = vouchers.find(x => x.voucherId === id);
+
+  document.getElementById("voucherCode").value = v?.code || "";
+  document.getElementById("voucherType").value = v?.discountType || "PERCENT";
+  document.getElementById("voucherValue").value = v?.discountValue || "";
+  document.getElementById("voucherMinOrder").value = v?.minOrderValue || 0;
+  document.getElementById("voucherEndDate").value = v?.endDate || "";
+  document.getElementById("voucherStatus").value = v?.status || "ACTIVE";
+}
+
+function closeVoucherForm(){
+  document.getElementById("voucherModal").classList.add("hidden");
+  document.getElementById("voucherModal").classList.remove("flex");
+}
+
+async function saveVoucher(){
+  const id = document.getElementById("voucherId").value;
+
+  const body = {
+    code: document.getElementById("voucherCode").value.trim(),
+    discountType: document.getElementById("voucherType").value,
+    discountValue: Number(document.getElementById("voucherValue").value),
+    minOrderValue: Number(document.getElementById("voucherMinOrder").value),
+    endDate: document.getElementById("voucherEndDate").value || null,
+    status: document.getElementById("voucherStatus").value
+  };
+
+  if(!body.code || !body.discountValue){
+    alert("Vui lòng nhập mã và giá trị voucher");
+    return;
+  }
+
+  const url = id ? `${API_BASE}/vouchers/${id}` : `${API_BASE}/vouchers`;
+  const method = id ? "PUT" : "POST";
+
+  const res = await fetch(url,{
+    method,
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify(body)
+  });
+
+  if(!res.ok){
+    alert(await res.text());
+    return;
+  }
+
+  closeVoucherForm();
+  await init();
+  currentTab = "promo";
+  render();
+}
+
+async function deleteVoucher(id){
+  if(!confirm("Xóa voucher này?")) return;
+
+  const res = await fetch(`${API_BASE}/vouchers/${id}`,{
+    method:"DELETE"
+  });
+
+  if(!res.ok){
+    alert("Xóa voucher thất bại");
+    return;
+  }
+
+  await init();
+  currentTab = "vouchers";
+  render();
 }

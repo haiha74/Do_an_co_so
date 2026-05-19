@@ -1,5 +1,7 @@
 const API_BASE = "http://localhost:8080/api";
 let cart = null;
+let appliedVoucher = null;
+let discountAmount = 0;
 
 function getUser(){
   return JSON.parse(localStorage.getItem("ha_user") || "null");
@@ -71,8 +73,8 @@ function renderPayment(){
     `;
   }).join("");
 
-  const shipping = subtotal >= 999000 ? 0 : 30000;
-  const total = subtotal + shipping;
+    const shipping = subtotal >= 999000 ? 0 : 30000;
+    const total = Math.max(subtotal + shipping - discountAmount, 0);
 
   document.getElementById("app").innerHTML = `
     <div class="max-w-6xl mx-auto px-6 py-10">
@@ -110,9 +112,35 @@ function renderPayment(){
               placeholder="Địa chỉ nhận hàng"
             >${user.address || ""}</textarea>
 
-            <h3 class="font-bold text-xl pt-4">
-              Phương thức thanh toán
-            </h3>
+            <div>
+                <h3 class="font-bold text-xl pt-4">
+                    Mã giảm giá
+                </h3>
+
+                <div class="flex gap-3 mt-3">
+                    <input
+                    id="voucherCode"
+                    class="flex-1 border rounded-2xl px-5 py-4"
+                    placeholder="Nhập mã voucher"
+                    value="${appliedVoucher?.code || ""}"
+                    >
+
+                    <button
+                    onclick="applyVoucher()"
+                    class="bg-black text-white rounded-2xl px-5 font-bold">
+                    Áp dụng
+                    </button>
+                </div>
+
+                <p id="voucherInfo"
+                class="mt-2 text-sm text-green-700 font-semibold">
+                ${appliedVoucher ? `Đã áp dụng mã ${appliedVoucher.code} - Giảm ${money(discountAmount)}` : ""}
+                </p>
+                </div>
+
+                <h3 class="font-bold text-xl pt-4">
+                Phương thức thanh toán
+                </h3>
 
             <label class="block border rounded-2xl p-4 cursor-pointer">
               <input type="radio" name="paymentMethod" value="CASH" checked>
@@ -157,6 +185,11 @@ function renderPayment(){
               <b>${shipping === 0 ? "Miễn phí" : money(shipping)}</b>
             </div>
 
+            <div class="flex justify-between">
+                <span>Giảm giá</span>
+                <b class="text-green-700">- ${money(discountAmount)}</b>
+            </div>
+
             <div class="flex justify-between text-xl">
               <span class="font-bold">Tổng cộng</span>
               <b class="text-red-800">${money(total)}</b>
@@ -193,6 +226,59 @@ function renderPayment(){
   });
 }
 
+async function applyVoucher(){
+  const code = document.getElementById("voucherCode").value.trim();
+
+  if(!code){
+    showToast("Thiếu mã", "Vui lòng nhập mã voucher", "error");
+    return;
+  }
+
+  const res = await fetch(`${API_BASE}/vouchers`);
+  const vouchers = await res.json();
+
+  const subtotal = (cart.items || []).reduce((sum,item)=>{
+    const v = item.variant;
+    const p = v.product;
+    const price = Number(v.price || p.basePrice || 0);
+    return sum + price * item.quantity;
+  },0);
+
+  const voucher = vouchers.find(v =>
+    v.code.toUpperCase() === code.toUpperCase()
+  );
+
+  if(!voucher){
+    showToast("Không hợp lệ", "Voucher không tồn tại", "error");
+    return;
+  }
+
+  if(voucher.status !== "ACTIVE"){
+    showToast("Không hợp lệ", "Voucher đã bị khóa", "error");
+    return;
+  }
+
+  if(voucher.minOrderValue && subtotal < voucher.minOrderValue){
+    showToast("Không đủ điều kiện", "Đơn hàng chưa đạt giá trị tối thiểu", "error");
+    return;
+  }
+
+  appliedVoucher = voucher;
+
+  if(voucher.discountType === "PERCENT"){
+    discountAmount = subtotal * Number(voucher.discountValue) / 100;
+  }else{
+    discountAmount = Number(voucher.discountValue);
+  }
+
+  document.getElementById("voucherInfo").innerText =
+    `Đã áp dụng mã ${voucher.code} - Giảm ${money(discountAmount)}`;
+
+  showToast("Thành công", "Áp dụng voucher thành công", "success");
+
+  renderPayment();
+}
+
 async function submitPayment(){
   const user = getUser();
 
@@ -218,7 +304,8 @@ async function submitPayment(){
       fullname,
       phone,
       address,
-      paymentMethod
+      paymentMethod,
+      voucherCode: appliedVoucher?.code || null
     })
   });
 
