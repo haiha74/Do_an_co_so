@@ -1,23 +1,3 @@
-<!doctype html>
-<html lang="vi">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Giỏ hàng - HA Fashion</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <style>
-    body{font-family:Inter,Arial,sans-serif;background:#faf7f3;color:#111}
-    .serif{font-family:Georgia,'Times New Roman',serif}
-    .wrap{max-width:1280px;margin:auto;padding:0 24px}
-    .soft-card{background:white;border:1px solid #e8e1da;border-radius:24px;box-shadow:0 10px 30px rgba(17,17,17,.04)}
-  </style>
-</head>
-<body>
-
-<div id="app"></div>
-
-<script>
 const API_BASE = "http://localhost:8080/api";
 
 function icon(n,c="w-6 h-6"){
@@ -34,8 +14,13 @@ function getUser(){
 
 function productImg(item){
   const p = item.variant?.product;
+
   if(p?.imageUrl) return p.imageUrl;
-  if(p?.images && p.images.length > 0) return p.images[0].imageUrl;
+
+  if(p?.images && p.images.length > 0){
+    return p.images[0].imageUrl;
+  }
+
   return "https://images.unsplash.com/photo-1539008835657-9e8e9680c956?q=80&w=900&auto=format&fit=crop";
 }
 
@@ -50,19 +35,21 @@ function header(){
     </div>
 
     <div class="wrap py-4 flex items-center gap-7">
-      <a href="/index.html" class="serif text-3xl lg:text-4xl tracking-[.22em] font-bold whitespace-nowrap">HA FASHION</a>
+      <a href="/" class="serif text-3xl lg:text-4xl tracking-[.22em] font-bold whitespace-nowrap">
+        HA FASHION
+      </a>
 
       <nav class="hidden lg:flex gap-7 font-semibold text-base flex-1">
-        <a href="/index.html" class="hover:text-red-800">Trang chủ</a>
-        <a href="/index.html?page=shop" class="hover:text-red-800">Sản phẩm</a>
-        <a href="/index.html?page=promo" class="hover:text-red-800">Khuyến mãi</a>
-        <a href="/index.html?page=store" class="hover:text-red-800">Cửa hàng</a>
+        <a href="/" class="hover:text-red-800">Trang chủ</a>
+        <a href="/products" class="hover:text-red-800">Sản phẩm</a>
+        <a href="/promo" class="hover:text-red-800">Khuyến mãi</a>
+        <a href="/store" class="hover:text-red-800">Cửa hàng</a>
       </nav>
 
       <div class="flex gap-5 items-center">
         ${icon("heart")}
-        <a href="/cart.html">${icon("shopping-bag")}</a>
-        <a href="/index.html?page=auth">${icon("user")}</a>
+        <a href="/cart">${icon("shopping-bag")}</a>
+        <a href="/auth">${icon("user")}</a>
       </div>
     </div>
   </header>`;
@@ -76,23 +63,30 @@ function footer(){
         <h2 class="serif text-3xl tracking-widest font-bold">HA FASHION</h2>
         <p class="mt-4 text-neutral-300">Thời trang nữ thanh lịch, hiện đại.</p>
       </div>
-      <div><b>Danh mục</b><p class="mt-3 text-neutral-300">Đầm nữ</p><p>Áo sơ mi</p><p>Blazer</p></div>
-      <div><b>Hỗ trợ</b><p class="mt-3">Đổi trả</p><p>Chọn size</p><p>Theo dõi đơn</p></div>
-      <div><b>Liên hệ</b><p class="mt-3">Hà Nội, Việt Nam</p><p>0900 888 999</p></div>
+
+      <div>
+        <b>Danh mục</b>
+        <p class="mt-3 text-neutral-300">Đầm nữ</p>
+        <p>Áo sơ mi</p>
+        <p>Blazer</p>
+      </div>
+
+      <div>
+        <b>Hỗ trợ</b>
+        <p class="mt-3">Đổi trả</p>
+        <p>Chọn size</p>
+        <p>Theo dõi đơn</p>
+      </div>
+
+      <div>
+        <b>Liên hệ</b>
+        <p class="mt-3">Hà Nội, Việt Nam</p>
+        <p>0900 888 999</p>
+      </div>
     </div>
   </footer>`;
 }
 
-function switchPanel(){
-  return `
-  <div class="fixed bottom-6 right-6 z-50">
-    <div class="flex gap-2">
-      <a href="/index.html" class="px-5 py-2 rounded-full font-bold bg-black text-white shadow">Shop</a>
-      <a href="/staff.html" class="px-5 py-2 rounded-full font-bold bg-neutral-700 text-white shadow">Staff</a>
-      <a href="/admin.html" class="px-5 py-2 rounded-full font-bold bg-red-800 text-white shadow">Admin</a>
-    </div>
-  </div>`;
-}
 
 let cart = null;
 
@@ -106,9 +100,11 @@ async function fetchCart(){
         <div class="soft-card p-10 text-center max-w-xl mx-auto">
           <h1 class="serif text-4xl">Bạn chưa đăng nhập</h1>
           <p class="mt-4 text-neutral-600">Vui lòng đăng nhập để xem giỏ hàng.</p>
-          <a href="/index.html?page=auth" class="inline-block mt-7 bg-red-800 text-white rounded-full px-8 py-3 font-bold">Đăng nhập</a>
+          <a href="/auth" class="inline-block mt-7 bg-red-800 text-white rounded-full px-8 py-3 font-bold">
+            Đăng nhập
+          </a>
         </div>
-      </main>` + footer() + switchPanel();
+      </main>` + footer();
 
     lucide.createIcons();
     return;
@@ -123,6 +119,7 @@ async function fetchCart(){
     }
 
     renderCart();
+
   }catch(e){
     document.getElementById("app").innerHTML =
       header() + `
@@ -131,7 +128,7 @@ async function fetchCart(){
           <h1 class="text-3xl font-bold text-red-800">Không tải được giỏ hàng</h1>
           <p class="mt-3 text-neutral-600">${e.message}</p>
         </div>
-      </main>` + footer() + switchPanel();
+      </main>` + footer();
 
     lucide.createIcons();
   }
@@ -157,9 +154,17 @@ function renderCart(){
     header() + `
     <main class="wrap py-12">
       <div class="mb-8">
-        <p class="text-red-800 tracking-widest uppercase font-bold">HA Fashion Cart</p>
-        <h1 class="serif text-5xl mt-2">Giỏ hàng của bạn</h1>
-        <p class="text-neutral-600 mt-3">Kiểm tra sản phẩm, số lượng và tiến hành đặt hàng.</p>
+        <p class="text-red-800 tracking-widest uppercase font-bold">
+          HA Fashion Cart
+        </p>
+
+        <h1 class="serif text-5xl mt-2">
+          Giỏ hàng của bạn
+        </h1>
+
+        <p class="text-neutral-600 mt-3">
+          Kiểm tra sản phẩm, số lượng và tiến hành đặt hàng.
+        </p>
       </div>
 
       ${
@@ -167,8 +172,14 @@ function renderCart(){
         ? `
           <div class="soft-card p-12 text-center">
             <h2 class="serif text-4xl">Giỏ hàng đang trống</h2>
-            <p class="mt-4 text-neutral-600">Hãy chọn sản phẩm yêu thích để thêm vào giỏ.</p>
-            <a href="/index.html?page=shop" class="inline-block mt-7 bg-red-800 text-white rounded-full px-8 py-3 font-bold">Mua sắm ngay</a>
+
+            <p class="mt-4 text-neutral-600">
+              Hãy chọn sản phẩm yêu thích để thêm vào giỏ.
+            </p>
+
+            <a href="/products" class="inline-block mt-7 bg-red-800 text-white rounded-full px-8 py-3 font-bold">
+              Mua sắm ngay
+            </a>
           </div>
         `
         : `
@@ -190,15 +201,27 @@ function renderCart(){
 
                   return `
                   <div class="p-6 border-b grid md:grid-cols-[96px_1fr_150px_130px_80px] gap-5 items-center">
+
                     <img src="${productImg(item)}" class="w-24 h-28 object-cover rounded-2xl border">
 
                     <div>
-                      <h3 class="font-bold text-lg">${p?.productName || "Sản phẩm"}</h3>
-                      <p class="text-neutral-500 mt-1">Size: <b>${v?.size || "-"}</b> · Màu: <b>${v?.color || "-"}</b></p>
+                      <h3 class="font-bold text-lg">
+                        ${p?.productName || "Sản phẩm"}
+                      </h3>
+
+                      <p class="text-neutral-500 mt-1">
+                        Size: <b>${v?.size || "-"}</b>
+                        ·
+                        Màu: <b>${v?.color || "-"}</b>
+                      </p>
+
                       <p class="text-sm mt-1 ${stock > 0 ? "text-green-700" : "text-red-800"}">
                         ${stock > 0 ? `Còn ${stock} sản phẩm` : "Hết hàng"}
                       </p>
-                      <p class="text-red-800 font-bold mt-2">${formatPrice(price)}</p>
+
+                      <p class="text-red-800 font-bold mt-2">
+                        ${formatPrice(price)}
+                      </p>
                     </div>
 
                     <div class="flex items-center border rounded-full w-fit">
@@ -212,7 +235,7 @@ function renderCart(){
                     </div>
 
                     <button onclick="removeItem(${item.cartItemId})" class="text-red-800 font-bold">
-                    Xóa
+                      Xóa
                     </button>
                   </div>`;
                 }).join("")}
@@ -220,9 +243,12 @@ function renderCart(){
             </section>
 
             <aside class="soft-card p-6 h-fit sticky top-36">
-              <h2 class="font-bold text-xl mb-5">Tổng đơn hàng</h2>
+              <h2 class="font-bold text-xl mb-5">
+                Tổng đơn hàng
+              </h2>
 
               <div class="space-y-3 text-neutral-700">
+
                 <div class="flex justify-between">
                   <span>Tạm tính</span>
                   <b>${formatPrice(subtotal)}</b>
@@ -237,13 +263,14 @@ function renderCart(){
                   <span class="font-bold">Tổng cộng</span>
                   <b class="text-red-800">${formatPrice(total)}</b>
                 </div>
+
               </div>
 
               <button onclick="goToPayment()" class="mt-7 w-full bg-red-800 text-white rounded-full py-4 font-bold">
-                  Đặt hàng
+                Đặt hàng
               </button>
 
-              <a href="/index.html?page=shop" class="block text-center mt-4 border rounded-full py-3 font-bold">
+              <a href="/products" class="block text-center mt-4 border rounded-full py-3 font-bold">
                 Tiếp tục mua sắm
               </a>
             </aside>
@@ -251,7 +278,7 @@ function renderCart(){
         `
       }
     </main>
-    ` + footer() + switchPanel();
+    ` + footer();
 
   lucide.createIcons();
 }
@@ -266,23 +293,40 @@ async function updateQty(itemId, quantity){
     method: "PUT"
   });
 
-  const data = await res.json().catch(()=>({}));
-
   if(!res.ok){
-    alert(data.message || "Cập nhật số lượng thất bại");
+    const text = await res.text();
+
+    let msg = "Vượt tồn kho";
+
+    if(text.includes("Vượt tồn kho")){
+      msg = "Vượt tồn kho";
+    }else if(text.includes("Không đủ tồn kho")){
+      msg = "Không đủ tồn kho";
+    }else if(text.includes("message")){
+      msg = text.replaceAll("{","")
+                .replaceAll("}","")
+                .replaceAll('"message":',"")
+                .replaceAll('"',"");
+    }
+
+    showToast("Không thể cập nhật", msg, "error");
     return;
   }
 
   await fetchCart();
 }
-
 async function removeItem(itemId){
   if(!itemId){
     alert("Không tìm thấy ID sản phẩm trong giỏ");
     return;
   }
 
-  if(!confirm("Xóa sản phẩm này khỏi giỏ hàng?")) return;
+  const ok = await showConfirm(
+    "Xóa sản phẩm",
+    "Bạn có chắc muốn xóa sản phẩm này khỏi giỏ hàng?"
+    );
+
+if(!ok) return;
 
   const res = await fetch(`${API_BASE}/cart/items/${itemId}`, {
     method: "DELETE"
@@ -291,63 +335,83 @@ async function removeItem(itemId){
   const data = await res.json().catch(()=>({}));
 
   if(!res.ok){
-    alert(data.message || "Xóa sản phẩm thất bại");
+    showToast("Thao tác thất bại", data.message || "Xóa sản phẩm thất bại", "error");
     return;
   }
 
+  showToast("Đã xóa", "Sản phẩm đã được xóa khỏi giỏ hàng", "success");
   await fetchCart();
 }
 
-async function createOrder(){
-  const user = getUser();
-
-  if(!cart?.items || cart.items.length === 0){
-    alert("Giỏ hàng trống");
-    return;
-  }
-
-  const address = prompt("Nhập địa chỉ nhận hàng:", user.address || "");
-
-  if(!address || !address.trim()){
-    alert("Vui lòng nhập địa chỉ nhận hàng");
-    return;
-  }
-
-  const res = await fetch(`${API_BASE}/orders/from-cart`, {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({
-      userId: user.userId,
-      address: address.trim()
-    })
-  });
-
-  const data = await res.json();
-
-  if(!res.ok){
-    alert(data.message || "Đặt hàng thất bại");
-    return;
-  }
-
-  await fetch(`${API_BASE}/cart/clear/${user.userId}`, {
-    method: "DELETE"
-  });
-
-  cart = {items: []};
-
-  alert("Đặt hàng thành công. Mã đơn: #" + data.orderId);
-  renderCart();
+function goToPayment() {
+  window.location.href = "/payment";
 }
 
 fetchCart();
-</script>
 
 
-<script>
-function goToPayment() {
-    window.location.href = "/payment.html";
+function showToast(title, text, type = "success"){
+
+  const old = document.getElementById("toast");
+  if(old) old.remove();
+
+  const toast = document.createElement("div");
+
+  toast.id = "toast";
+
+  toast.className =
+    `toast ${type === "error" ? "toast-error" : "toast-success"}`;
+
+  toast.innerHTML = `
+    <div class="toast-icon">
+      ${type === "error" ? "!" : "✓"}
+    </div>
+
+    <div>
+      <div class="toast-title">${title}</div>
+      <div class="toast-text">${text}</div>
+    </div>
+  `;
+
+  document.body.appendChild(toast);
+
+  setTimeout(()=>{
+    toast.remove();
+  },2500);
 }
 
-</script>
-</body>
-</html>
+
+function showConfirm(title, text){
+  return new Promise(resolve => {
+    const old = document.getElementById("confirmModal");
+    if(old) old.remove();
+
+    const modal = document.createElement("div");
+    modal.id = "confirmModal";
+    modal.className = "confirm-overlay";
+
+    modal.innerHTML = `
+      <div class="confirm-box">
+        <h3 class="text-2xl font-bold">${title}</h3>
+        <p class="text-neutral-600 mt-3">${text}</p>
+
+        <div class="confirm-actions">
+          <button class="btn-cancel" id="cancelConfirm">Hủy</button>
+          <button class="btn-confirm" id="okConfirm">Xóa</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    document.getElementById("cancelConfirm").onclick = () => {
+      modal.remove();
+      resolve(false);
+    };
+
+    document.getElementById("okConfirm").onclick = () => {
+      modal.remove();
+      resolve(true);
+    };
+  });
+}

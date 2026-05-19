@@ -1,27 +1,3 @@
-<!doctype html>
-<html lang="vi">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HA Fashion Admin</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <style>
-    body{font-family:Inter,Arial,sans-serif;background:#f5f2ee;color:#111}
-    .serif{font-family:Georgia,'Times New Roman',serif}
-    .container{max-width:1280px;margin:auto;padding:0 20px}
-    .soft-card{background:#fff;border:1px solid #e8e1da;border-radius:24px;box-shadow:0 10px 30px rgba(17,17,17,.04)}
-    .input-ui{width:100%;border:1px solid #e5e0dc;border-radius:16px;padding:14px 18px;font-size:16px;outline:none;background:#fff}
-    .input-ui:focus{border-color:#991b1b;box-shadow:0 0 0 4px rgba(153,27,27,.08)}
-    .btn-primary{background:#991b1b;color:white;border-radius:999px;padding:12px 22px;font-weight:700;transition:.2s}
-    .btn-primary:hover{background:#7f1d1d}
-    .btn-dark{background:#111;color:white;border-radius:999px;padding:12px 22px;font-weight:700}
-  </style>
-</head>
-<body>
-<div id="app"></div>
-
-<script>
 const API_BASE = "http://localhost:8080/api";
 const fallbackImages = [
   "https://images.unsplash.com/photo-1539008835657-9e8e9680c956?q=80&w=900&auto=format&fit=crop",
@@ -41,20 +17,21 @@ let selectedFile = null;
 
 function icon(n, cls="w-5 h-5"){return `<i data-lucide="${n}" class="${cls}"></i>`}
 function money(v){return Number(v || 0).toLocaleString("vi-VN") + "đ"}
-function productImg(p,i){
-    if(p.imageUrl) return p.imageUrl;
-
-    if(p.images && p.images.length > 0){
-      const mainImages = p.images.filter(img => img.isMain === true);
-      if(mainImages.length > 0){
-        return mainImages[mainImages.length - 1].imageUrl;
-      }
-      return p.images[p.images.length - 1].imageUrl;
-    }
-
-    return fallbackImages[i % fallbackImages.length];
-  }
 function admin(){return JSON.parse(localStorage.getItem("ha_admin") || "null")}
+
+function productImg(p,i){
+  if(p.imageUrl) return p.imageUrl;
+
+  if(p.images && p.images.length > 0){
+    const mainImages = p.images.filter(img => img.isMain === true);
+    if(mainImages.length > 0){
+      return mainImages[mainImages.length - 1].imageUrl;
+    }
+    return p.images[p.images.length - 1].imageUrl;
+  }
+
+  return fallbackImages[i % fallbackImages.length];
+}
 
 async function fetchJson(url){
   const res = await fetch(url);
@@ -93,41 +70,12 @@ function loginPage(){
           <button onclick="loginAdmin()" class="btn-primary w-full">Đăng nhập</button>
         </div>
         <p id="adminMsg" class="text-center mt-4 text-red-800 font-semibold text-sm"></p>
-        <a href="/index.html" class="block text-center mt-5 text-neutral-500 hover:text-red-800">← Quay lại shop</a>
+        <a href="/" class="block text-center mt-5 text-neutral-500 hover:text-red-800">← Quay lại shop</a>
       </div>
     </section>
   </main>`;
 }
 
-function header(){
-  const a = admin();
-  return `<header class="sticky top-0 z-50 bg-white border-b shadow-sm">
-    <div class="bg-black text-white text-xs">
-      <div class="container py-2 flex justify-between">
-        <span>Miễn phí vận chuyển cho đơn từ 999.000đ</span>
-        <span>Hotline: 0900 888 999 · Đổi trả trong 7 ngày</span>
-      </div>
-    </div>
-    <div class="container py-5 flex items-center justify-between gap-8">
-      <a href="/index.html" class="serif text-4xl tracking-[.25em] font-bold whitespace-nowrap">HA FASHION</a>
-      <nav class="hidden lg:flex gap-9 font-semibold text-lg">
-        <a href="/index.html" class="hover:text-red-800">Trang chủ</a>
-        <a href="/index.html?page=shop" class="hover:text-red-800">Sản phẩm</a>
-        <a href="/index.html?page=promo" class="hover:text-red-800">Khuyến mãi</a>
-        <a href="/index.html?page=store" class="hover:text-red-800">Cửa hàng</a>
-      </nav>
-      <div class="hidden md:flex flex-1 max-w-md rounded-full border bg-neutral-50 px-4 py-3 items-center gap-3">
-        ${icon("search","w-6 h-6")}
-        <input class="bg-transparent outline-none flex-1" placeholder="Tìm đầm, áo sơ mi, blazer..." />
-      </div>
-      <div class="flex items-center gap-4">
-        <span class="hidden xl:block text-sm text-neutral-600">${a?.fullname || a?.email || "Admin"}</span>
-        <a href="/index.html" title="Shop">${icon("shopping-bag","w-7 h-7")}</a>
-        <button onclick="logoutAdmin()" class="bg-black text-white rounded-full px-5 py-3 font-semibold">Đăng xuất</button>
-      </div>
-    </div>
-  </header>`;
-}
 
 function statCards(){
   const revenue = products.reduce((s,p)=>s + Number(p.basePrice || 0),0);
@@ -171,6 +119,126 @@ function productTable(){
   </div>${productModal()}`;
 }
 
+function categoryPanel(){
+  return `<div class="soft-card p-6">
+    <div class="flex justify-between mb-4"><h2 class="font-bold text-xl">Danh mục</h2><button onclick="openCategoryForm()" class="btn-primary">Thêm danh mục</button></div>
+    ${categories.map(c=>`<div class="border rounded-2xl p-4 mb-3 flex justify-between items-center"><div><b>${c.categoryName}</b><p class="text-sm text-neutral-500">${c.description || "Không có mô tả"}</p></div><div class="flex gap-2 items-center"><span class="text-red-800 font-bold">${c.status || "ACTIVE"}</span><button onclick="openCategoryForm(${c.categoryId})" class="border rounded-full px-4 py-2 text-sm">Sửa</button><button onclick="deleteCategory(${c.categoryId})" class="bg-red-800 text-white rounded-full px-4 py-2 text-sm">Xóa</button></div></div>`).join("") || `<p class="text-neutral-500">Chưa có danh mục</p>`}
+  </div>${categoryModal()}`;
+}
+
+function brandPanel(){
+  return `<div class="soft-card overflow-hidden">
+    <div class="px-6 py-4 border-b flex justify-between items-center">
+      <h2 class="font-bold text-xl">Quản lý thương hiệu</h2>
+      <button onclick="openBrandForm()" class="btn-primary">Thêm thương hiệu</button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left">
+        <thead class="bg-neutral-50 text-sm text-neutral-500">
+          <tr><th class="p-4">ID</th><th>Tên thương hiệu</th><th>Mô tả</th><th>Trạng thái</th><th>Thao tác</th></tr>
+        </thead>
+        <tbody>${brands.map(b=>`<tr class="border-t">
+          <td class="p-4 font-bold">#${b.brandId}</td>
+          <td class="font-semibold">${b.brandName}</td>
+          <td class="text-neutral-600">${b.description || 'Không có mô tả'}</td>
+          <td><span class="rounded-full ${b.status === 'ACTIVE' ? 'bg-green-50 text-green-700' : 'bg-neutral-100 text-neutral-500'} px-3 py-1 text-sm">${b.status || 'ACTIVE'}</span></td>
+          <td class="space-x-2">
+            <button onclick="openBrandForm(${b.brandId})" class="border rounded-full px-4 py-2 text-sm">Sửa</button>
+            <button onclick="deleteBrand(${b.brandId})" class="bg-red-800 text-white rounded-full px-4 py-2 text-sm">Xóa</button>
+          </td>
+        </tr>`).join('') || `<tr><td class="p-6 text-neutral-500" colspan="5">Chưa có thương hiệu</td></tr>`}</tbody>
+      </table>
+    </div>
+  </div>${brandModal()}`;
+}
+
+function userTable(){
+  return `<div class="soft-card overflow-hidden"><div class="px-6 py-4 border-b"><h2 class="font-bold text-xl">Quản lý người dùng</h2></div><table class="w-full text-left"><thead class="bg-neutral-50 text-sm text-neutral-500"><tr><th class="p-4">Tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th></tr></thead><tbody>${users.map(u=>`<tr class="border-t"><td class="p-4 font-semibold">${u.fullname}</td><td>${u.email}</td><td><span class="rounded-full bg-neutral-100 px-3 py-1 text-sm">${u.role}</span></td><td>${u.status}</td></tr>`).join("") || `<tr><td class="p-6 text-neutral-500" colspan="4">Chưa có user hoặc API /api/users bị chặn</td></tr>`}</tbody></table></div>`;
+}
+
+function promoPanel(){
+  return `<div class="soft-card p-6"><h2 class="font-bold text-xl mb-4">Voucher & Báo cáo</h2><div class="grid gap-3">${["SALE50 - Giảm 50%","FREESHIP999 - Miễn phí ship","NEWUSER - Khách mới"].map(x=>`<div class="border rounded-2xl p-4 flex justify-between"><span>${x}</span><button class="text-red-800 font-bold">Sửa</button></div>`).join("")}</div><div class="mt-6 rounded-2xl bg-neutral-50 p-5"><b>Báo cáo nhanh</b><p class="text-neutral-600 mt-2">Top sản phẩm bán chạy được tổng hợp từ dữ liệu đơn hàng sau khi nối API order.</p></div></div>`;
+}
+
+function content(){
+  if(currentTab === "products") return productTable();
+  if(currentTab === "categories") return categoryPanel();
+  if(currentTab === "brands") return brandPanel();
+  if(currentTab === "orders") return orderTable();
+  if(currentTab === "variants") return variantPanel();
+  if(currentTab === "users") return userTable();
+  if(currentTab === "promo") return promoPanel();
+  return `${statCards()}<div class="grid lg:grid-cols-2 gap-6">${productTable()}${orderTable()}</div>`;
+}
+
+function adminPage(){
+  const a = admin();
+
+  if(!a) return loginPage();
+
+  return `
+    <main class="container py-10">
+
+      <div class="soft-card p-8 mb-8">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+
+          <div>
+            <p class="uppercase tracking-widest text-red-800 font-bold mb-3">
+              Admin Panel
+            </p>
+
+            <h1 class="serif text-5xl leading-tight">
+              Quản trị hệ thống bán hàng
+            </h1>
+
+            <p class="text-neutral-600 mt-4 max-w-3xl">
+              Quản lý sản phẩm, danh mục, đơn hàng, người dùng, khuyến mãi và báo cáo thống kê.
+            </p>
+          </div>
+
+          <div class="flex items-center gap-4">
+            <div class="hidden md:block text-right">
+              <p class="text-sm text-neutral-500">Đang đăng nhập</p>
+              <p class="font-bold">${a?.fullname || a?.email || "Admin"}</p>
+            </div>
+
+            <button onclick="logoutAdmin()"
+              class="bg-black text-white rounded-full px-6 py-3 font-bold hover:bg-red-800 transition">
+              Đăng xuất
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="grid lg:grid-cols-[260px_1fr] gap-6">
+        ${sidebar()}
+
+        <section class="space-y-6">
+          ${content()}
+        </section>
+      </div>
+
+    </main>
+  `;
+}
+
+async function loginAdmin(){
+  const body = {email:document.getElementById("adminEmail").value.trim(), password:document.getElementById("adminPassword").value};
+  const res = await fetch(`${API_BASE}/auth/login`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+  const data = await res.json();
+  if(!res.ok){document.getElementById("adminMsg").innerText = data.message || "Đăng nhập thất bại"; return;}
+  if(data.role !== "ADMIN"){document.getElementById("adminMsg").innerText = "Tài khoản không có quyền Admin"; return;}
+  localStorage.setItem("ha_admin", JSON.stringify(data));
+  await init();
+}
+
+function logoutAdmin(){localStorage.removeItem("ha_admin"); render();}
+function setTab(tab){currentTab = tab; render();}
+function render(){document.getElementById("app").innerHTML = adminPage(); lucide.createIcons();}
+async function init(){await loadData(); render();}
+init();
+
 function productModal(){
   return `<div id="productModal" class="fixed inset-0 bg-black/40 z-[999] hidden items-start justify-center p-5 overflow-y-auto">
     <div class="bg-white rounded-3xl w-full max-w-xl shadow-xl my-8 max-h-[90vh] overflow-y-auto">
@@ -185,10 +253,7 @@ function productModal(){
           <textarea id="productDesc" class="input-ui" placeholder="Mô tả"></textarea>
           <input id="productPrice" type="number" class="input-ui" placeholder="Giá gốc">
           <select id="productCategory" class="input-ui"><option value="">Chọn danh mục</option>${categories.map(c=>`<option value="${c.categoryId}">${c.categoryName}</option>`).join('')}</select>
-          <select id="productBrand" class="input-ui">
-            <option value="">Không chọn thương hiệu</option>
-            ${brands.map(b=>`<option value="${b.brandId}">${b.brandName}</option>`).join('')}
-          </select>
+          <select id="productBrand" class="input-ui"><option value="">Không chọn thương hiệu</option>${brands.map(b=>`<option value="${b.brandId}">${b.brandName}</option>`).join('')}</select>
           <select id="productStatus" class="input-ui"><option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option></select>
           <div>
             <label class="font-semibold">Ảnh sản phẩm</label>
@@ -240,13 +305,6 @@ function variantModal(){
   </div>`;
 }
 
-function categoryPanel(){
-  return `<div class="soft-card p-6">
-    <div class="flex justify-between mb-4"><h2 class="font-bold text-xl">Danh mục</h2><button onclick="openCategoryForm()" class="btn-primary">Thêm danh mục</button></div>
-    ${categories.map(c=>`<div class="border rounded-2xl p-4 mb-3 flex justify-between items-center"><div><b>${c.categoryName}</b><p class="text-sm text-neutral-500">${c.description || "Không có mô tả"}</p></div><div class="flex gap-2 items-center"><span class="text-red-800 font-bold">${c.status || "ACTIVE"}</span><button onclick="openCategoryForm(${c.categoryId})" class="border rounded-full px-4 py-2 text-sm">Sửa</button><button onclick="deleteCategory(${c.categoryId})" class="bg-red-800 text-white rounded-full px-4 py-2 text-sm">Xóa</button></div></div>`).join("") || `<p class="text-neutral-500">Chưa có danh mục</p>`}
-  </div>${categoryModal()}`;
-}
-
 function categoryModal(){
   return `<div id="categoryModal" class="fixed inset-0 bg-black/40 z-[999] hidden items-center justify-center p-5">
     <div class="bg-white rounded-3xl p-7 w-full max-w-lg shadow-xl">
@@ -263,32 +321,6 @@ function categoryModal(){
   </div>`;
 }
 
-function brandPanel(){
-  return `<div class="soft-card overflow-hidden">
-    <div class="px-6 py-4 border-b flex justify-between items-center">
-      <h2 class="font-bold text-xl">Quản lý thương hiệu</h2>
-      <button onclick="openBrandForm()" class="btn-primary">Thêm thương hiệu</button>
-    </div>
-    <div class="overflow-x-auto">
-      <table class="w-full text-left">
-        <thead class="bg-neutral-50 text-sm text-neutral-500">
-          <tr><th class="p-4">ID</th><th>Tên thương hiệu</th><th>Mô tả</th><th>Trạng thái</th><th>Thao tác</th></tr>
-        </thead>
-        <tbody>${brands.map(b=>`<tr class="border-t">
-          <td class="p-4 font-bold">#${b.brandId}</td>
-          <td class="font-semibold">${b.brandName}</td>
-          <td class="text-neutral-600">${b.description || 'Không có mô tả'}</td>
-          <td><span class="rounded-full ${b.status === 'ACTIVE' ? 'bg-green-50 text-green-700' : 'bg-neutral-100 text-neutral-500'} px-3 py-1 text-sm">${b.status || 'ACTIVE'}</span></td>
-          <td class="space-x-2">
-            <button onclick="openBrandForm(${b.brandId})" class="border rounded-full px-4 py-2 text-sm">Sửa</button>
-            <button onclick="deleteBrand(${b.brandId})" class="bg-red-800 text-white rounded-full px-4 py-2 text-sm">Xóa</button>
-          </td>
-        </tr>`).join('') || `<tr><td class="p-6 text-neutral-500" colspan="5">Chưa có thương hiệu</td></tr>`}</tbody>
-      </table>
-    </div>
-  </div>${brandModal()}`;
-}
-
 function brandModal(){
   return `<div id="brandModal" class="fixed inset-0 bg-black/40 z-[999] hidden items-center justify-center p-5">
     <div class="bg-white rounded-3xl p-7 w-full max-w-lg shadow-xl">
@@ -300,10 +332,7 @@ function brandModal(){
       <div class="space-y-4">
         <input id="brandName" class="input-ui" placeholder="Tên thương hiệu">
         <textarea id="brandDesc" class="input-ui" placeholder="Mô tả"></textarea>
-        <select id="brandStatus" class="input-ui">
-          <option value="ACTIVE">ACTIVE</option>
-          <option value="INACTIVE">INACTIVE</option>
-        </select>
+        <select id="brandStatus" class="input-ui"><option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option></select>
         <button onclick="saveBrand()" class="btn-primary w-full">Lưu thương hiệu</button>
       </div>
     </div>
@@ -373,56 +402,6 @@ function orderDetailModal(){
       <div id="orderDetailContent"></div>
     </div>
   </div>`;
-}
-
-function userTable(){
-  return `<div class="soft-card overflow-hidden"><div class="px-6 py-4 border-b"><h2 class="font-bold text-xl">Quản lý người dùng</h2></div><table class="w-full text-left"><thead class="bg-neutral-50 text-sm text-neutral-500"><tr><th class="p-4">Tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th></tr></thead><tbody>${users.map(u=>`<tr class="border-t"><td class="p-4 font-semibold">${u.fullname}</td><td>${u.email}</td><td><span class="rounded-full bg-neutral-100 px-3 py-1 text-sm">${u.role}</span></td><td>${u.status}</td></tr>`).join("") || `<tr><td class="p-6 text-neutral-500" colspan="4">Chưa có user hoặc API /api/users bị chặn</td></tr>`}</tbody></table></div>`;
-}
-
-function promoPanel(){
-  return `<div class="soft-card p-6"><h2 class="font-bold text-xl mb-4">Voucher & Báo cáo</h2><div class="grid gap-3">${["SALE50 - Giảm 50%","FREESHIP999 - Miễn phí ship","NEWUSER - Khách mới"].map(x=>`<div class="border rounded-2xl p-4 flex justify-between"><span>${x}</span><button class="text-red-800 font-bold">Sửa</button></div>`).join("")}</div><div class="mt-6 rounded-2xl bg-neutral-50 p-5"><b>Báo cáo nhanh</b><p class="text-neutral-600 mt-2">Top sản phẩm bán chạy được tổng hợp từ dữ liệu đơn hàng sau khi nối API order.</p></div></div>`;
-}
-
-function content(){
-  if(currentTab === "products") return productTable();
-  if(currentTab === "categories") return categoryPanel();
-  if(currentTab === "brands") return brandPanel();
-  if(currentTab === "orders") return orderTable();
-  if(currentTab === "variants") return variantPanel();
-  if(currentTab === "users") return userTable();
-  if(currentTab === "promo") return promoPanel();
-  return `${statCards()}<div class="grid lg:grid-cols-2 gap-6">${productTable()}${orderTable()}</div>`;
-}
-
-function footer(){
-  return `<footer class="mt-16 bg-black text-white">
-    <div class="container py-12 grid md:grid-cols-4 gap-8">
-      <div><h2 class="serif text-3xl tracking-widest font-bold">HA FASHION</h2><p class="mt-4 text-neutral-300">Hệ thống bán hàng thời trang nữ cao cấp.</p></div>
-      <div><b>Danh mục</b><p class="mt-3 text-neutral-300">Đầm nữ</p><p>Áo sơ mi</p><p>Blazer</p></div>
-      <div><b>Hỗ trợ</b><p class="mt-3">Đổi trả</p><p>Chọn size</p><p>Theo dõi đơn</p></div>
-      <div><b>Liên hệ</b><p class="mt-3">Hà Nội, Việt Nam</p><p>0900 888 999</p></div>
-    </div>
-  </footer>`;
-}
-
-function switchPanel(){
-  return `<div id="switchPanel" class="fixed bottom-6 right-6 z-50"><div class="flex gap-2"><a href="/index.html" class="px-5 py-2 rounded-full font-bold bg-black text-white shadow hover:scale-105 transition">Shop</a><a href="/staff.html" class="px-5 py-2 rounded-full font-bold bg-neutral-700 text-white shadow hover:scale-105 transition">Staff</a><a href="/admin.html" class="px-5 py-2 rounded-full font-bold bg-red-800 text-white shadow hover:scale-105 transition">Admin</a></div></div>`;
-}
-
-function adminPage(){
-  const a = admin();
-  if(!a) return loginPage()+switchPanel();
-  return header()+`<main class="container py-10"><div class="mb-7"><p class="uppercase tracking-widest text-red-800 font-bold">Admin Panel</p><h1 class="serif text-5xl mt-2">Quản trị hệ thống bán hàng</h1><p class="text-neutral-600 mt-3">Quản lý sản phẩm, danh mục, đơn hàng, người dùng, khuyến mãi và báo cáo thống kê.</p></div><div class="grid lg:grid-cols-[260px_1fr] gap-6">${sidebar()}<section class="space-y-6">${content()}</section></div></main>`+footer()+switchPanel();
-}
-
-async function loginAdmin(){
-  const body = {email:document.getElementById("adminEmail").value.trim(), password:document.getElementById("adminPassword").value};
-  const res = await fetch(`${API_BASE}/auth/login`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
-  const data = await res.json();
-  if(!res.ok){document.getElementById("adminMsg").innerText = data.message || "Đăng nhập thất bại"; return;}
-  if(data.role !== "ADMIN"){document.getElementById("adminMsg").innerText = "Tài khoản không có quyền Admin"; return;}
-  localStorage.setItem("ha_admin", JSON.stringify(data));
-  await init();
 }
 
 async function openProductForm(id=null){
@@ -554,12 +533,24 @@ async function saveVariant(){
     status: document.getElementById('variantStatus').value
   };
 
-  if(!body.productId || !body.sku){ alert('Vui lòng chọn sản phẩm và nhập SKU'); return; }
+  if(!body.productId || !body.sku){
+    alert('Vui lòng chọn sản phẩm và nhập SKU');
+    return;
+  }
 
   const url = id ? `${API_BASE}/variants/${id}` : `${API_BASE}/variants`;
   const method = id ? 'PUT' : 'POST';
-  const res = await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  if(!res.ok){ alert(await res.text()); return; }
+
+  const res = await fetch(url,{
+    method,
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  });
+
+  if(!res.ok){
+    alert(await res.text());
+    return;
+  }
 
   closeVariantForm();
   await init();
@@ -567,8 +558,16 @@ async function saveVariant(){
 
 async function deleteVariant(id){
   if(!confirm('Xóa biến thể này?')) return;
-  const res = await fetch(`${API_BASE}/variants/${id}`,{method:'DELETE'});
-  if(!res.ok){ alert(await res.text()); return; }
+
+  const res = await fetch(`${API_BASE}/variants/${id}`,{
+    method:'DELETE'
+  });
+
+  if(!res.ok){
+    alert(await res.text());
+    return;
+  }
+
   await init();
 }
 
@@ -592,27 +591,119 @@ function closeCategoryForm(){
 
 async function saveCategory(){
   const id = document.getElementById('categoryId').value;
+
   const body = {
     categoryName: document.getElementById('categoryName').value.trim(),
     description: document.getElementById('categoryDesc').value.trim(),
-    parentId: document.getElementById('categoryParent').value ? Number(document.getElementById('categoryParent').value) : null,
+    parentId: document.getElementById('categoryParent').value
+      ? Number(document.getElementById('categoryParent').value)
+      : null,
     status: document.getElementById('categoryStatus').value
   };
 
-  if(!body.categoryName){ alert('Vui lòng nhập tên danh mục'); return; }
+  if(!body.categoryName){
+    alert('Vui lòng nhập tên danh mục');
+    return;
+  }
 
   const url = id ? `${API_BASE}/categories/${id}` : `${API_BASE}/categories`;
   const method = id ? 'PUT' : 'POST';
-  const res = await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  if(!res.ok){ alert(await res.text()); return; }
+
+  const res = await fetch(url,{
+    method,
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  });
+
+  if(!res.ok){
+    alert(await res.text());
+    return;
+  }
+
   closeCategoryForm();
   await init();
 }
 
 async function deleteCategory(id){
   if(!confirm('Xóa danh mục này?')) return;
-  const res = await fetch(`${API_BASE}/categories/${id}`,{method:'DELETE'});
-  if(!res.ok){ alert('Không thể xóa danh mục đang có sản phẩm hoặc danh mục con'); return; }
+
+  const res = await fetch(`${API_BASE}/categories/${id}`,{
+    method:'DELETE'
+  });
+
+  if(!res.ok){
+    alert('Không thể xóa danh mục đang có sản phẩm hoặc danh mục con');
+    return;
+  }
+
+  await init();
+}
+
+function openBrandForm(id=null){
+  document.getElementById('brandModal').classList.remove('hidden');
+  document.getElementById('brandModal').classList.add('flex');
+  document.getElementById('brandFormTitle').innerText = id ? 'Sửa thương hiệu' : 'Thêm thương hiệu';
+  document.getElementById('brandId').value = id || '';
+
+  const b = brands.find(x => x.brandId === id);
+  document.getElementById('brandName').value = b?.brandName || '';
+  document.getElementById('brandDesc').value = b?.description || '';
+  document.getElementById('brandStatus').value = b?.status || 'ACTIVE';
+}
+
+function closeBrandForm(){
+  document.getElementById('brandModal').classList.add('hidden');
+  document.getElementById('brandModal').classList.remove('flex');
+}
+
+async function saveBrand(){
+  const id = document.getElementById('brandId').value;
+
+  const body = {
+    brandName: document.getElementById('brandName').value.trim(),
+    description: document.getElementById('brandDesc').value.trim(),
+    status: document.getElementById('brandStatus').value
+  };
+
+  if(!body.brandName){
+    alert('Vui lòng nhập tên thương hiệu');
+    return;
+  }
+
+  const url = id ? `${API_BASE}/brands/${id}` : `${API_BASE}/brands`;
+  const method = id ? 'PUT' : 'POST';
+
+  const res = await fetch(url,{
+    method,
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  });
+
+  const data = await res.json().catch(()=>({}));
+
+  if(!res.ok){
+    alert(data.message || 'Lưu thương hiệu thất bại');
+    return;
+  }
+
+  closeBrandForm();
+  await init();
+}
+
+async function deleteBrand(id){
+  if(!confirm('Xóa thương hiệu này?')) return;
+
+  const res = await fetch(`${API_BASE}/brands/${id}`,{
+    method:'DELETE'
+  });
+
+  const data = await res.json().catch(()=>({}));
+
+  if(!res.ok){
+    alert(data.message || 'Không thể xóa thương hiệu đang có sản phẩm');
+    return;
+  }
+
   await init();
 }
 
@@ -675,7 +766,9 @@ async function openOrderDetail(orderId){
         ? order.items.map((item, index) => {
             const v = item.variant;
             const p = v?.product;
-            const img = p ? productImg(p, index) : fallbackImages[index % fallbackImages.length];
+            const img = p
+              ? productImg(p, index)
+              : fallbackImages[index % fallbackImages.length];
 
             return `
               <div class="p-4 border-b grid grid-cols-[70px_1fr_130px] gap-4 items-center">
@@ -720,73 +813,3 @@ function closeOrderDetail(){
   document.getElementById("orderModal").classList.add("hidden");
   document.getElementById("orderModal").classList.remove("flex");
 }
-
-function openBrandForm(id=null){
-  document.getElementById('brandModal').classList.remove('hidden');
-  document.getElementById('brandModal').classList.add('flex');
-  document.getElementById('brandFormTitle').innerText = id ? 'Sửa thương hiệu' : 'Thêm thương hiệu';
-  document.getElementById('brandId').value = id || '';
-
-  const b = brands.find(x => x.brandId === id);
-  document.getElementById('brandName').value = b?.brandName || '';
-  document.getElementById('brandDesc').value = b?.description || '';
-  document.getElementById('brandStatus').value = b?.status || 'ACTIVE';
-}
-
-function closeBrandForm(){
-  document.getElementById('brandModal').classList.add('hidden');
-  document.getElementById('brandModal').classList.remove('flex');
-}
-
-async function saveBrand(){
-  const id = document.getElementById('brandId').value;
-  const body = {
-    brandName: document.getElementById('brandName').value.trim(),
-    description: document.getElementById('brandDesc').value.trim(),
-    status: document.getElementById('brandStatus').value
-  };
-
-  if(!body.brandName){ alert('Vui lòng nhập tên thương hiệu'); return; }
-
-  const url = id ? `${API_BASE}/brands/${id}` : `${API_BASE}/brands`;
-  const method = id ? 'PUT' : 'POST';
-
-  const res = await fetch(url,{
-    method,
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(body)
-  });
-
-  const data = await res.json().catch(()=>({}));
-
-  if(!res.ok){
-    alert(data.message || 'Lưu thương hiệu thất bại');
-    return;
-  }
-
-  closeBrandForm();
-  await init();
-}
-
-async function deleteBrand(id){
-  if(!confirm('Xóa thương hiệu này?')) return;
-
-  const res = await fetch(`${API_BASE}/brands/${id}`,{method:'DELETE'});
-  const data = await res.json().catch(()=>({}));
-
-  if(!res.ok){
-    alert(data.message || 'Không thể xóa thương hiệu đang có sản phẩm');
-    return;
-  }
-
-  await init();
-}
-
-function logoutAdmin(){localStorage.removeItem("ha_admin"); render();}
-function setTab(tab){currentTab = tab; render();}
-function render(){document.getElementById("app").innerHTML = adminPage(); lucide.createIcons();}
-async function init(){await loadData(); render();}
-init();
-</script>
-</body>
-</html>
