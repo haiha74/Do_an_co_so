@@ -34,17 +34,34 @@ let products = [];
 let categories = [];
 let users = [];
 let orders = [];
+let variants = [];
 let currentTab = "overview";
 let selectedFile = null;
 
 function icon(n, cls="w-5 h-5"){return `<i data-lucide="${n}" class="${cls}"></i>`}
 function money(v){return Number(v || 0).toLocaleString("vi-VN") + "đ"}
-function productImg(p,i){return p.imageUrl || p.images?.[0]?.imageUrl || fallbackImages[i % fallbackImages.length]}
+function productImg(p,i){
+    if(p.imageUrl) return p.imageUrl;
+
+    if(p.images && p.images.length > 0){
+      const mainImages = p.images.filter(img => img.isMain === true);
+      if(mainImages.length > 0){
+        return mainImages[mainImages.length - 1].imageUrl;
+      }
+      return p.images[p.images.length - 1].imageUrl;
+    }
+
+    return fallbackImages[i % fallbackImages.length];
+  }
 function admin(){return JSON.parse(localStorage.getItem("ha_admin") || "null")}
 
 async function fetchJson(url){
   const res = await fetch(url);
-  if(!res.ok) throw new Error(url);
+  if(!res.ok){
+    const text = await res.text();
+    console.error("API lỗi:", url, text);
+    throw new Error(text);
+  }
   return res.json();
 }
 
@@ -53,6 +70,7 @@ async function loadData(){
   try{ categories = await fetchJson(`${API_BASE}/categories`); }catch(e){ categories = []; }
   try{ users = await fetchJson(`${API_BASE}/users`); }catch(e){ users = []; }
   try{ orders = await fetchJson(`${API_BASE}/orders`); }catch(e){ orders = []; }
+  try{ variants = await fetchJson(`${API_BASE}/variants`); }catch(e){ variants = []; }
 }
 
 function loginPage(){
@@ -125,6 +143,7 @@ function sidebar(){
     ["products","Quản lý sản phẩm","shopping-bag"],
     ["categories","Danh mục","list-tree"],
     ["orders","Quản lý đơn hàng","receipt"],
+    ["variants","Biến thể sản phẩm","palette"],
     ["users","Quản lý người dùng","users"],
     ["promo","Khuyến mãi / Voucher","badge-percent"]
   ];
@@ -179,6 +198,42 @@ function productModal(){
   </div>`;
 }
 
+function variantPanel(){
+  return `<div class="soft-card overflow-hidden">
+    <div class="px-6 py-4 border-b flex justify-between items-center">
+      <h2 class="font-bold text-xl">Quản lý biến thể sản phẩm</h2>
+      <button onclick="openVariantForm()" class="btn-primary">Thêm biến thể</button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left">
+        <thead class="bg-neutral-50 text-sm text-neutral-500">
+          <tr><th class="p-4">Sản phẩm</th><th>Size</th><th>Màu</th><th>SKU</th><th>Giá</th><th>Tồn kho</th><th>Trạng thái</th><th>Thao tác</th></tr>
+        </thead>
+        <tbody>${variants.map(v=>`<tr class="border-t"><td class="p-4 font-semibold">${v.product?.productName || 'Không rõ'}</td><td>${v.size || ''}</td><td>${v.color || ''}</td><td class="font-mono text-sm">${v.sku || ''}</td><td class="text-red-800 font-bold">${money(v.price)}</td><td class="font-bold">${v.stock ?? 0}</td><td><span class="rounded-full ${v.status === 'ACTIVE' ? 'bg-green-50 text-green-700' : 'bg-neutral-100 text-neutral-500'} px-3 py-1 text-sm">${v.status || 'ACTIVE'}</span></td><td class="space-x-2"><button onclick="openVariantForm(${v.variantId})" class="border rounded-full px-4 py-2 text-sm">Sửa</button><button onclick="deleteVariant(${v.variantId})" class="bg-red-800 text-white rounded-full px-4 py-2 text-sm">Xóa</button></td></tr>`).join('') || `<tr><td class="p-6 text-neutral-500" colspan="8">Chưa có biến thể sản phẩm</td></tr>`}</tbody>
+      </table>
+    </div>
+  </div>${variantModal()}`;
+}
+
+function variantModal(){
+  return `<div id="variantModal" class="fixed inset-0 bg-black/40 z-[999] hidden items-center justify-center p-5">
+    <div class="bg-white rounded-3xl p-7 w-full max-w-lg shadow-xl">
+      <div class="flex justify-between items-center mb-5"><h2 id="variantFormTitle" class="serif text-3xl">Thêm biến thể</h2><button onclick="closeVariantForm()" class="text-2xl">×</button></div>
+      <input type="hidden" id="variantId">
+      <div class="space-y-4">
+        <select id="variantProductId" class="input-ui"><option value="">Chọn sản phẩm</option>${products.map(p=>`<option value="${p.productId}">${p.productName}</option>`).join('')}</select>
+        <input id="variantSize" class="input-ui" placeholder="Size, ví dụ: S, M, L, XL">
+        <input id="variantColor" class="input-ui" placeholder="Màu sắc, ví dụ: Đen, Trắng">
+        <input id="variantSku" class="input-ui" placeholder="SKU, ví dụ: SP001-DEN-M">
+        <input id="variantPrice" type="number" class="input-ui" placeholder="Giá biến thể">
+        <input id="variantStock" type="number" class="input-ui" placeholder="Tồn kho">
+        <select id="variantStatus" class="input-ui"><option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option></select>
+        <button onclick="saveVariant()" class="btn-primary w-full">Lưu biến thể</button>
+      </div>
+    </div>
+  </div>`;
+}
+
 function categoryPanel(){
   return `<div class="soft-card p-6">
     <div class="flex justify-between mb-4"><h2 class="font-bold text-xl">Danh mục</h2><button onclick="openCategoryForm()" class="btn-primary">Thêm danh mục</button></div>
@@ -203,11 +258,68 @@ function categoryModal(){
 }
 
 function orderTable(){
-  const rows = orders.length ? orders : [
-    {orderId:"DH1028", user:{fullname:"Nguyễn Hà Anh"}, finalAmount:1250000, orderStatus:"PENDING"},
-    {orderId:"DH1027", user:{fullname:"Minh Trang"}, finalAmount:1380000, orderStatus:"CONFIRMED"}
-  ];
-  return `<div class="soft-card overflow-hidden"><div class="px-6 py-4 border-b flex justify-between"><h2 class="font-bold text-xl">Đơn hàng mới</h2><button class="border rounded-full px-4 py-2 text-sm">Xuất Excel</button></div><table class="w-full text-left"><thead class="bg-neutral-50 text-sm text-neutral-500"><tr><th class="p-4">Mã đơn</th><th>Khách hàng</th><th>Tổng tiền</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>${rows.map(o=>`<tr class="border-t"><td class="p-4 font-bold">#${o.orderId}</td><td>${o.user?.fullname || "Khách hàng"}</td><td class="text-red-800 font-bold">${money(o.finalAmount || o.totalAmount)}</td><td><span class="rounded-full bg-red-50 text-red-800 px-3 py-1 text-sm">${o.orderStatus || "PENDING"}</span></td><td><button class="bg-black text-white rounded-full px-4 py-2 text-sm">Chi tiết</button></td></tr>`).join("")}</tbody></table></div>`;
+  return `<div class="soft-card overflow-hidden">
+    <div class="px-6 py-4 border-b flex justify-between items-center">
+      <h2 class="font-bold text-xl">Quản lý đơn hàng</h2>
+      <button onclick="loadData().then(render)" class="border rounded-full px-4 py-2 text-sm">Làm mới</button>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left">
+        <thead class="bg-neutral-50 text-sm text-neutral-500">
+          <tr>
+            <th class="p-4">Mã đơn</th>
+            <th>Khách hàng</th>
+            <th>Địa chỉ</th>
+            <th>Tổng tiền</th>
+            <th>Trạng thái</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          ${
+            orders.length
+            ? orders.map(o => `
+              <tr class="border-t">
+                <td class="p-4 font-bold">#${o.orderId}</td>
+                <td>${o.user?.fullname || o.user?.email || "Khách hàng"}</td>
+                <td class="max-w-[240px] text-sm text-neutral-600">${o.address || "Chưa có"}</td>
+                <td class="text-red-800 font-bold">${money(o.finalAmount || o.totalAmount)}</td>
+                <td>
+                  <select onchange="updateOrderStatus(${o.orderId}, this.value)"
+                    class="border rounded-full px-3 py-2 text-sm font-semibold">
+                    ${["PENDING","CONFIRMED","SHIPPING","COMPLETED","CANCELLED"].map(s => `
+                      <option value="${s}" ${o.orderStatus === s ? "selected" : ""}>${s}</option>
+                    `).join("")}
+                  </select>
+                </td>
+                <td>
+                  <button onclick="openOrderDetail(${o.orderId})"
+                    class="bg-black text-white rounded-full px-4 py-2 text-sm">
+                    Chi tiết
+                  </button>
+                </td>
+              </tr>
+            `).join("")
+            : `<tr><td colspan="6" class="p-6 text-center text-neutral-500">Chưa có đơn hàng</td></tr>`
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>${orderDetailModal()}`;
+}
+
+function orderDetailModal(){
+  return `<div id="orderModal" class="fixed inset-0 bg-black/40 z-[999] hidden items-center justify-center p-5">
+    <div class="bg-white rounded-3xl p-7 w-full max-w-3xl shadow-xl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-5">
+        <h2 class="serif text-3xl">Chi tiết đơn hàng</h2>
+        <button onclick="closeOrderDetail()" class="text-2xl">×</button>
+      </div>
+      <div id="orderDetailContent"></div>
+    </div>
+  </div>`;
 }
 
 function userTable(){
@@ -222,6 +334,7 @@ function content(){
   if(currentTab === "products") return productTable();
   if(currentTab === "categories") return categoryPanel();
   if(currentTab === "orders") return orderTable();
+  if(currentTab === "variants") return variantPanel();
   if(currentTab === "users") return userTable();
   if(currentTab === "promo") return promoPanel();
   return `${statCards()}<div class="grid lg:grid-cols-2 gap-6">${productTable()}${orderTable()}</div>`;
@@ -274,7 +387,7 @@ async function openProductForm(id=null){
   document.getElementById('productImageFile').value = '';
 
   const preview = document.getElementById('previewImage');
-  const currentImg = p?.images?.[0]?.imageUrl || p?.imageUrl || '';
+  const currentImg = p ? productImg(p,0) : '';
   if(currentImg){
     preview.src = currentImg;
     preview.classList.remove('hidden');
@@ -353,6 +466,57 @@ async function deleteProduct(id){
   await init();
 }
 
+function openVariantForm(id=null){
+  document.getElementById('variantModal').classList.remove('hidden');
+  document.getElementById('variantModal').classList.add('flex');
+  document.getElementById('variantFormTitle').innerText = id ? 'Sửa biến thể' : 'Thêm biến thể';
+  document.getElementById('variantId').value = id || '';
+
+  const v = variants.find(x => x.variantId === id);
+  document.getElementById('variantProductId').value = v?.product?.productId || '';
+  document.getElementById('variantSize').value = v?.size || '';
+  document.getElementById('variantColor').value = v?.color || '';
+  document.getElementById('variantSku').value = v?.sku || '';
+  document.getElementById('variantPrice').value = v?.price || '';
+  document.getElementById('variantStock').value = v?.stock ?? '';
+  document.getElementById('variantStatus').value = v?.status || 'ACTIVE';
+}
+
+function closeVariantForm(){
+  document.getElementById('variantModal').classList.add('hidden');
+  document.getElementById('variantModal').classList.remove('flex');
+}
+
+async function saveVariant(){
+  const id = document.getElementById('variantId').value;
+  const body = {
+    productId: Number(document.getElementById('variantProductId').value),
+    size: document.getElementById('variantSize').value.trim(),
+    color: document.getElementById('variantColor').value.trim(),
+    sku: document.getElementById('variantSku').value.trim(),
+    price: Number(document.getElementById('variantPrice').value),
+    stock: Number(document.getElementById('variantStock').value),
+    status: document.getElementById('variantStatus').value
+  };
+
+  if(!body.productId || !body.sku){ alert('Vui lòng chọn sản phẩm và nhập SKU'); return; }
+
+  const url = id ? `${API_BASE}/variants/${id}` : `${API_BASE}/variants`;
+  const method = id ? 'PUT' : 'POST';
+  const res = await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!res.ok){ alert(await res.text()); return; }
+
+  closeVariantForm();
+  await init();
+}
+
+async function deleteVariant(id){
+  if(!confirm('Xóa biến thể này?')) return;
+  const res = await fetch(`${API_BASE}/variants/${id}`,{method:'DELETE'});
+  if(!res.ok){ alert(await res.text()); return; }
+  await init();
+}
+
 function openCategoryForm(id=null){
   document.getElementById('categoryModal').classList.remove('hidden');
   document.getElementById('categoryModal').classList.add('flex');
@@ -397,47 +561,116 @@ async function deleteCategory(id){
   await init();
 }
 
+async function updateOrderStatus(orderId, status){
+  const res = await fetch(`${API_BASE}/orders/${orderId}/status?status=${status}`, {
+    method: "PUT"
+  });
+
+  const data = await res.json().catch(()=>({}));
+
+  if(!res.ok){
+    alert(data.message || "Cập nhật trạng thái thất bại");
+    await init();
+    return;
+  }
+
+  await init();
+}
+
+async function openOrderDetail(orderId){
+  const res = await fetch(`${API_BASE}/orders/${orderId}`);
+  const order = await res.json();
+
+  if(!res.ok){
+    alert(order.message || "Không tải được đơn hàng");
+    return;
+  }
+
+  document.getElementById("orderModal").classList.remove("hidden");
+  document.getElementById("orderModal").classList.add("flex");
+
+  document.getElementById("orderDetailContent").innerHTML = `
+    <div class="grid md:grid-cols-2 gap-4 mb-6">
+      <div class="border rounded-2xl p-4">
+        <p class="text-neutral-500">Mã đơn</p>
+        <b>#${order.orderId}</b>
+      </div>
+
+      <div class="border rounded-2xl p-4">
+        <p class="text-neutral-500">Trạng thái</p>
+        <b class="text-red-800">${order.orderStatus || "PENDING"}</b>
+      </div>
+
+      <div class="border rounded-2xl p-4">
+        <p class="text-neutral-500">Khách hàng</p>
+        <b>${order.user?.fullname || order.user?.email || "Khách hàng"}</b>
+      </div>
+
+      <div class="border rounded-2xl p-4">
+        <p class="text-neutral-500">Địa chỉ</p>
+        <b>${order.address || "Chưa có"}</b>
+      </div>
+    </div>
+
+    <h3 class="font-bold text-xl mb-4">Sản phẩm trong đơn</h3>
+
+    <div class="border rounded-2xl overflow-hidden">
+      ${
+        order.items && order.items.length
+        ? order.items.map((item, index) => {
+            const v = item.variant;
+            const p = v?.product;
+            const img = p ? productImg(p, index) : fallbackImages[index % fallbackImages.length];
+
+            return `
+              <div class="p-4 border-b grid grid-cols-[70px_1fr_130px] gap-4 items-center">
+                <img src="${img}" class="w-16 h-20 object-cover rounded-xl border">
+
+                <div>
+                  <b>${p?.productName || "Sản phẩm"}</b>
+                  <p class="text-sm text-neutral-500">
+                    Size: ${v?.size || "-"} · Màu: ${v?.color || "-"} · SKU: ${v?.sku || "-"}
+                  </p>
+                  <p class="text-sm text-neutral-500">Số lượng: ${item.quantity}</p>
+                </div>
+
+                <b class="text-red-800">${money(item.price || item.unitPrice)}</b>
+              </div>
+            `;
+          }).join("")
+        : `<div class="p-5 text-neutral-500">Không có sản phẩm</div>`
+      }
+    </div>
+
+    <div class="mt-6 bg-neutral-50 rounded-2xl p-5 space-y-2">
+      <div class="flex justify-between">
+        <span>Tạm tính</span>
+        <b>${money(order.totalAmount)}</b>
+      </div>
+
+      <div class="flex justify-between">
+        <span>Giảm giá</span>
+        <b>${money(order.discountAmount)}</b>
+      </div>
+
+      <div class="border-t pt-3 flex justify-between text-xl">
+        <span class="font-bold">Tổng thanh toán</span>
+        <b class="text-red-800">${money(order.finalAmount)}</b>
+      </div>
+    </div>
+  `;
+}
+
+function closeOrderDetail(){
+  document.getElementById("orderModal").classList.add("hidden");
+  document.getElementById("orderModal").classList.remove("flex");
+}
+
 function logoutAdmin(){localStorage.removeItem("ha_admin"); render();}
 function setTab(tab){currentTab = tab; render();}
 function render(){document.getElementById("app").innerHTML = adminPage(); lucide.createIcons();}
 async function init(){await loadData(); render();}
 init();
 </script>
-
-<div id="switchPanel" class="fixed bottom-6 right-6 z-50">
-  <div class="flex gap-2">
-
-    <button onclick="goShop()"
-      class="px-5 py-2 rounded-full font-bold bg-black text-white">
-      Shop
-    </button>
-
-    <button onclick="goStaff()"
-      class="px-5 py-2 rounded-full font-bold bg-neutral-200">
-      Staff
-    </button>
-
-    <button onclick="goAdmin()"
-      class="px-5 py-2 rounded-full font-bold bg-red-800 text-white">
-      Admin
-    </button>
-
-  </div>
-</div>
-
-<script>
-function goShop(){
-  window.location.href = "/index.html";
-}
-
-function goAdmin(){
-  window.location.href = "/admin.html";
-}
-
-function goStaff(){
-  window.location.href = "/staff.html";
-}
-</script>
-
 </body>
 </html>

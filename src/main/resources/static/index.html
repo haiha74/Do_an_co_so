@@ -44,6 +44,10 @@ let selectedProduct = null;
 let selectedCategoryId = null;
 let searchKeyword = "";
 let authMode = "login";
+let selectedProductVariants = [];
+let selectedSize = "";
+let selectedColor = "";
+let selectedQty = 1;
 
 function setRoute(nextPage, params = {}){
   const url = new URL(window.location.href);
@@ -93,20 +97,40 @@ function getBrandName(p){
   return p.brand?.brandName || p.brandName || "HA FASHION";
 }
 
-function header(){return `<header class="sticky top-0 z-50 bg-white border-b shadow-sm">
-  <div class="bg-black text-white text-xs"><div class="wrap py-2 flex justify-between"><span>Freeship đơn từ 999.000đ</span><span>Hotline: 0900 888 999 · Đổi trả 7 ngày</span></div></div>
-  <div class="wrap py-4 flex items-center gap-7">
-    <button onclick="go('home')" class="serif text-3xl lg:text-4xl tracking-[.22em] font-bold whitespace-nowrap">HA FASHION</button>
-    <nav class="hidden lg:flex gap-7 font-semibold text-base flex-1">
-      <button onclick="go('home')" class="hover:text-red-800">Trang chủ</button>
-      <button onclick="go('shop')" class="hover:text-red-800">Sản phẩm</button>
-      <button onclick="go('promo')" class="hover:text-red-800">Khuyến mãi</button>
-      <button onclick="go('store')" class="hover:text-red-800">Cửa hàng</button>
-    </nav>
-    <div class="hidden md:flex w-[360px] rounded-full border bg-neutral-50 px-4 py-3 items-center gap-3">${icon("search","w-5 h-5")}<input id="searchInput" onkeydown="searchEnter(event)" class="bg-transparent outline-none flex-1" placeholder="Tìm sản phẩm..." /></div>
-    <div class="flex gap-5 items-center">${icon("heart")}${icon("shopping-bag")}<button onclick="go('auth')" title="Tài khoản">${icon("user")}</button></div>
-  </div>
-</header>`}
+function header(){
+  return `<header class="sticky top-0 z-50 bg-white border-b shadow-sm">
+    <div class="bg-black text-white text-xs">
+      <div class="wrap py-2 flex justify-between">
+        <span>Freeship đơn từ 999.000đ</span>
+        <span>Hotline: 0900 888 999 · Đổi trả 7 ngày</span>
+      </div>
+    </div>
+
+    <div class="wrap py-4 flex items-center gap-7">
+      <button onclick="go('home')" class="serif text-3xl lg:text-4xl tracking-[.22em] font-bold whitespace-nowrap">
+        HA FASHION
+      </button>
+
+      <nav class="hidden lg:flex gap-7 font-semibold text-base flex-1">
+        <button onclick="go('home')" class="hover:text-red-800">Trang chủ</button>
+        <button onclick="go('shop')" class="hover:text-red-800">Sản phẩm</button>
+        <button onclick="go('promo')" class="hover:text-red-800">Khuyến mãi</button>
+        <button onclick="go('store')" class="hover:text-red-800">Cửa hàng</button>
+      </nav>
+
+      <div class="hidden md:flex w-[360px] rounded-full border bg-neutral-50 px-4 py-3 items-center gap-3">
+        ${icon("search","w-5 h-5")}
+        <input id="searchInput" onkeydown="searchEnter(event)" class="bg-transparent outline-none flex-1" placeholder="Tìm sản phẩm..." />
+      </div>
+
+      <div class="flex gap-5 items-center">
+        ${icon("heart")}
+        <a href="/cart.html" title="Giỏ hàng">${icon("shopping-bag")}</a>
+        <button onclick="go('auth')" title="Tài khoản">${icon("user")}</button>
+      </div>
+    </div>
+  </header>`;
+}
 
 function footer(){return `<footer class="mt-16 bg-black text-white"><div class="wrap py-12 grid md:grid-cols-4 gap-8"><div><h2 class="serif text-3xl tracking-widest font-bold">HA FASHION</h2><p class="mt-4 text-neutral-300">Thời trang nữ thanh lịch, hiện đại.</p></div><div><b>Danh mục</b><p class="mt-3 text-neutral-300">Đầm nữ</p><p>Áo sơ mi</p><p>Blazer</p></div><div><b>Hỗ trợ</b><p class="mt-3">Đổi trả</p><p>Chọn size</p><p>Theo dõi đơn</p></div><div><b>Liên hệ</b><p class="mt-3">Hà Nội, Việt Nam</p><p>0900 888 999</p></div></div></footer>`}
 
@@ -132,7 +156,117 @@ function home(){return header()+hero()+categoryGrid()+`<section class="wrap py-1
 
 function shop(){return header()+`<main class="wrap py-12 grid lg:grid-cols-[260px_1fr] gap-7"><aside class="bg-white border rounded-3xl overflow-hidden shadow-sm h-fit sticky top-36"><h2 class="px-5 py-4 border-b font-bold text-lg uppercase">Bộ lọc</h2><button onclick="clearCategory()" class="w-full p-4 border-b text-left hover:bg-red-50 ${selectedCategoryId===null?'bg-red-50 text-red-800 font-bold':''}">Tất cả sản phẩm</button>${categories.map((c,i)=>`<button onclick="filterCategory(${c.categoryId})" class="w-full flex items-center gap-3 p-4 border-b text-left hover:bg-red-50 ${selectedCategoryId===c.categoryId?'bg-red-50 text-red-800 font-bold':''}"><img class="w-12 h-12 rounded-full object-cover" src="${fallbackImages[i % fallbackImages.length]}"><span>${c.categoryName}</span></button>`).join("")}</aside><section><div class="mb-7 flex justify-between items-end gap-4"><div><p class="text-red-800 tracking-widest uppercase font-bold">Shop</p><h1 class="serif text-5xl">Danh sách sản phẩm</h1><p class="text-neutral-600 mt-3">Chọn danh mục bên trái để chuyển nhanh sang nhóm sản phẩm khác.</p></div><select onchange="sortProducts(this.value)" class="bg-white border rounded-full px-5 py-3"><option value="default">Sắp xếp mặc định</option><option value="asc">Giá tăng dần</option><option value="desc">Giá giảm dần</option></select></div>${productGrid()}</section></main>`+footer()}
 
-function detailPage(){const p=selectedProduct || products[0]; if(!p) return header()+`<main class="wrap py-20">Không tìm thấy sản phẩm.</main>`+footer(); return header()+`<main class="wrap py-12 grid lg:grid-cols-2 gap-10"><div class="grid grid-cols-2 gap-4"><img class="col-span-2 h-[560px] w-full object-cover rounded-3xl" src="${getProductImg(p,0)}"><img class="h-56 w-full object-cover rounded-3xl" src="${getProductImg(p,1)}"><img class="h-56 w-full object-cover rounded-3xl" src="${getProductImg(p,2)}"></div><div class="bg-white rounded-3xl border shadow-sm p-9 h-fit sticky top-36"><p class="text-red-800 uppercase tracking-widest font-bold">${getBrandName(p)}</p><h1 class="serif text-5xl mt-3">${p.productName}</h1><p class="mt-4">⭐ 4.9 · Đánh giá tốt · Trạng thái: ${p.status || "ACTIVE"}</p><div class="mt-7"><b class="text-4xl text-red-800">${formatPrice(p.basePrice)}</b></div><p class="mt-6 text-neutral-600">${p.description || "Thiết kế thanh lịch, chất liệu cao cấp, phù hợp đi làm, dự tiệc và gặp gỡ khách hàng."}</p><h3 class="font-bold mt-7 mb-3">Kích thước</h3><div class="flex gap-3">${["S","M","L","XL"].map(s=>`<button class="border rounded-xl px-6 py-3 hover:border-red-800">${s}</button>`).join("")}</div><div class="mt-8 flex gap-4"><button onclick="addToCart(${p.productId})" class="flex-1 bg-black text-white rounded-full py-4 font-bold">Thêm vào giỏ</button><button class="flex-1 bg-red-800 text-white rounded-full py-4 font-bold">Mua ngay</button></div></div></main>`+footer()}
+function detailPage(){
+  const p = selectedProduct || products[0];
+
+  if(!p){
+    return header()+`<main class="wrap py-20">Không tìm thấy sản phẩm.</main>`+footer();
+  }
+
+  const activeVariants = selectedProductVariants.filter(v => v.status === "ACTIVE");
+  const sizes = [...new Set(activeVariants.map(v => v.size).filter(Boolean))];
+
+  const colors = selectedSize
+    ? [...new Set(activeVariants.filter(v => v.size === selectedSize).map(v => v.color).filter(Boolean))]
+    : [];
+
+  const selectedVariant = activeVariants.find(v =>
+    v.size === selectedSize && v.color === selectedColor
+  );
+
+  const displayPrice = selectedVariant?.price || p.basePrice;
+  const stock = selectedVariant?.stock ?? 0;
+
+  return header()+`
+  <main class="wrap py-12 grid lg:grid-cols-2 gap-10">
+
+    <div class="grid grid-cols-2 gap-4">
+      <img class="col-span-2 h-[560px] w-full object-cover rounded-3xl" src="${getProductImg(p,0)}">
+      <img class="h-56 w-full object-cover rounded-3xl" src="${getProductImg(p,1)}">
+      <img class="h-56 w-full object-cover rounded-3xl" src="${getProductImg(p,2)}">
+    </div>
+
+    <div class="bg-white rounded-3xl border shadow-sm p-9 h-fit sticky top-36">
+      <p class="text-red-800 uppercase tracking-widest font-bold">${getBrandName(p)}</p>
+
+      <h1 class="serif text-5xl mt-3">${p.productName}</h1>
+
+      <p class="mt-4">
+        ⭐ 4.9 · Đánh giá tốt · 
+        ${p.status === "ACTIVE" ? "Đang bán" : "Ngừng bán"}
+      </p>
+
+      <div class="mt-7">
+        <b class="text-4xl text-red-800">${formatPrice(displayPrice)}</b>
+      </div>
+
+      <p class="mt-6 text-neutral-600">
+        ${p.description || "Thiết kế thanh lịch, chất liệu cao cấp."}
+      </p>
+
+      <h3 class="font-bold mt-7 mb-3">Kích thước</h3>
+      <div class="flex flex-wrap gap-3">
+        ${
+          sizes.length
+          ? sizes.map(s => `
+              <button onclick="selectSize('${s}')"
+                class="border rounded-xl px-6 py-3 ${selectedSize === s ? 'border-red-800 text-red-800 font-bold bg-red-50' : 'hover:border-red-800'}">
+                ${s}
+              </button>
+            `).join("")
+          : `<span class="text-neutral-500">Chưa có biến thể size</span>`
+        }
+      </div>
+
+      <h3 class="font-bold mt-7 mb-3">Màu sắc</h3>
+      <div class="flex flex-wrap gap-3">
+        ${
+          selectedSize
+          ? colors.map(c => `
+              <button onclick="selectColor('${c}')"
+                class="border rounded-xl px-6 py-3 ${selectedColor === c ? 'border-red-800 text-red-800 font-bold bg-red-50' : 'hover:border-red-800'}">
+                ${c}
+              </button>
+            `).join("")
+          : `<span class="text-neutral-500">Vui lòng chọn size trước</span>`
+        }
+      </div>
+
+      <div class="mt-7">
+        <h3 class="font-bold mb-3">Tồn kho</h3>
+        ${
+          selectedVariant
+          ? `<p class="${stock > 0 ? 'text-green-700' : 'text-red-800'} font-bold">
+              ${stock > 0 ? `Còn ${stock} sản phẩm` : "Hết hàng"}
+            </p>`
+          : `<p class="text-neutral-500">Chọn size và màu để xem tồn kho</p>`
+        }
+      </div>
+
+      <div class="mt-7">
+        <h3 class="font-bold mb-3">Số lượng</h3>
+        <input type="number"
+          min="1"
+          max="${stock || 1}"
+          value="${selectedQty}"
+          onchange="changeQty(this.value)"
+          class="border rounded-xl px-4 py-3 w-28">
+      </div>
+
+      <div class="mt-8 flex gap-4">
+        <button onclick="addToCart()"
+          class="flex-1 bg-black text-white rounded-full py-4 font-bold ${!selectedVariant || stock <= 0 ? 'opacity-50' : ''}">
+          Thêm vào giỏ
+        </button>
+
+        <button onclick="buyNow()"
+          class="flex-1 bg-red-800 text-white rounded-full py-4 font-bold ${!selectedVariant || stock <= 0 ? 'opacity-50' : ''}">
+          Mua ngay
+        </button>
+      </div>
+    </div>
+  </main>`+footer();
+}
 
 function promo(){return header()+`<main class="wrap py-14"><section class="rounded-3xl bg-gradient-to-r from-red-900 to-red-600 text-white p-12"><p class="uppercase tracking-widest">Ưu đãi tháng này</p><h1 class="serif text-6xl mt-3">Khuyến mãi hot</h1><p class="text-xl mt-4">Săn sale cho các sản phẩm thời trang nữ mới nhất.</p><button onclick="go('shop')" class="mt-7 bg-white text-red-800 rounded-full px-8 py-4 font-bold">Mua ngay</button></section><h2 class="serif text-4xl mt-12 mb-6">Sản phẩm đang bán</h2>${productGrid(products.slice(0,8))}</main>`+footer()}
 
@@ -289,8 +423,21 @@ async function applyRoute(){
   }
 
   if(route.page === "detail" && route.productId){
-    try{ selectedProduct = await fetchJson(`${API_BASE}/products/${route.productId}`); }
-    catch(e){ selectedProduct = allProducts.find(p => p.productId === route.productId); }
+    try{
+      selectedProduct = await fetchJson(`${API_BASE}/products/${route.productId}`);
+    }catch(e){
+      selectedProduct = allProducts.find(p => p.productId === route.productId);
+    }
+
+    try{
+      selectedProductVariants = await fetchJson(`${API_BASE}/variants/product/${route.productId}`);
+    }catch(e){
+      selectedProductVariants = [];
+    }
+
+    selectedSize = "";
+    selectedColor = "";
+    selectedQty = 1;
   }
 
   render();
@@ -328,8 +475,86 @@ function sortProducts(type){
   render();
 }
 
-function addToCart(productId){
-  alert("Chức năng giỏ hàng sẽ nối API variant/cart sau. Product ID: " + productId);
+function selectSize(size){
+  selectedSize = size;
+  selectedColor = "";
+  selectedQty = 1;
+  render();
+}
+
+function selectColor(color){
+  selectedColor = color;
+  selectedQty = 1;
+  render();
+}
+
+function changeQty(value){
+  selectedQty = Number(value);
+}
+
+function getSelectedVariant(){
+  return selectedProductVariants.find(v =>
+    v.status === "ACTIVE" &&
+    v.size === selectedSize &&
+    v.color === selectedColor
+  );
+}
+
+async function addToCart(){
+  const user = JSON.parse(localStorage.getItem("ha_user") || "null");
+
+  if(!user){
+    alert("Vui lòng đăng nhập");
+    location.href = "/index.html?page=auth";
+    return;
+  }
+
+  const variant = getSelectedVariant();
+
+  if(!variant){
+    alert("Vui lòng chọn size và màu");
+    return;
+  }
+
+  if(variant.stock <= 0){
+    alert("Sản phẩm đã hết hàng");
+    return;
+  }
+
+  if(selectedQty < 1 || selectedQty > variant.stock){
+    alert("Số lượng không hợp lệ");
+    return;
+  }
+
+  try{
+    const res = await fetch(`${API_BASE}/cart/add`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        userId: user.userId,
+        variantId: variant.variantId,
+        quantity: selectedQty
+      })
+    });
+
+    const data = await res.json();
+
+    if(!res.ok){
+      alert(data.message || "Thêm giỏ hàng thất bại");
+      return;
+    }
+
+    alert("Đã thêm vào giỏ hàng");
+
+  }catch(err){
+    console.error(err);
+    alert("Không kết nối được backend");
+  }
+}
+
+async function buyNow(){
+  await addToCart();
+  window.location.href = "/cart.html";
 }
 
 async function go(p){

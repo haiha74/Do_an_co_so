@@ -17,23 +17,33 @@ public class ProductVariant {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "variant_id")
     private Long variantId;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "product_id", nullable = false)
-    @JsonIgnoreProperties({"images", "variants"})
+    @JsonIgnoreProperties({
+            "variants",
+            "hibernateLazyInitializer",
+            "handler"
+    })
     private Product product;
 
+    @Column(name = "size")
     private String size;
 
+    @Column(name = "color")
     private String color;
 
-    @Column(unique = true)
+    @Column(name = "sku", unique = true)
     private String sku;
 
+    @Column(name = "price")
     private BigDecimal price;
 
+    @Column(name = "stock")
     private Integer stock;
 
+    @Column(name = "status")
     private String status;
 }

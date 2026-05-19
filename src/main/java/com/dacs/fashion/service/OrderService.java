@@ -1,7 +1,6 @@
 package com.dacs.fashion.service;
 
-import com.dacs.fashion.dto.OrderDTO;
-import com.dacs.fashion.dto.OrderItemDTO;
+import com.dacs.fashion.dto.CreateOrderDTO;
 import com.dacs.fashion.entity.*;
 import com.dacs.fashion.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -16,9 +16,9 @@ import java.util.List;
 public class OrderService {
 
     private final OrderRepository orderRepository;
-    private final OrderItemRepository orderItemRepository;
     private final UserRepository userRepository;
-    private final VoucherRepository voucherRepository;
+    private final CartRepository cartRepository;
+    private final CartItemRepository cartItemRepository;
     private final ProductVariantRepository variantRepository;
 
     public List<Order> getAll() {
@@ -34,55 +34,74 @@ public class OrderService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
     }
 
-    public Order create(OrderDTO dto) {
+    public Order createFromCart(CreateOrderDTO dto) {
         User user = userRepository.findById(dto.getUserId())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy user"));
+
+        Cart cart = cartRepository.findByUser_UserId(dto.getUserId())
+                .orElseThrow(() -> new RuntimeException("Giỏ hàng trống"));
+
+        if (cart.getItems() == null || cart.getItems().isEmpty()) {
+            throw new RuntimeException("Giỏ hàng trống");
+        }
+
+        BigDecimal total = BigDecimal.ZERO;
 
         Order order = new Order();
         order.setUser(user);
         order.setAddress(dto.getAddress());
         order.setOrderStatus("PENDING");
-        order.setTotalAmount(dto.getTotalAmount());
-        order.setDiscountAmount(dto.getDiscountAmount());
-        order.setFinalAmount(dto.getFinalAmount());
         order.setCreatedAt(LocalDateTime.now());
+        order.setDiscountAmount(BigDecimal.ZERO);
 
-        if (dto.getVoucherId() != null) {
-            Voucher voucher = voucherRepository.findById(dto.getVoucherId())
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy voucher"));
-            order.setVoucher(voucher);
+        List<OrderItem> orderItems = new ArrayList<>();
+
+        for (CartItem cartItem : cart.getItems()) {
+            ProductVariant variant = cartItem.getVariant();
+
+            if (!"ACTIVE".equals(variant.getStatus())) {
+                throw new RuntimeException("Biến thể không hoạt động: " + variant.getSku());
+            }
+
+            if (variant.getStock() < cartItem.getQuantity()) {
+                throw new RuntimeException("Không đủ tồn kho: " + variant.getSku());
+            }
+
+            BigDecimal price = variant.getPrice();
+            BigDecimal lineTotal = price.multiply(BigDecimal.valueOf(cartItem.getQuantity()));
+            total = total.add(lineTotal);
+
+            variant.setStock(variant.getStock() - cartItem.getQuantity());
+            variantRepository.save(variant);
+
+            OrderItem orderItem = new OrderItem();
+            orderItem.setOrder(order);
+            orderItem.setVariant(variant);
+            orderItem.setQuantity(cartItem.getQuantity());
+            orderItem.setPrice(price);
+
+            orderItems.add(orderItem);
         }
 
-        return orderRepository.save(order);
-    }
+        BigDecimal shipping = total.compareTo(BigDecimal.valueOf(999000)) >= 0
+                ? BigDecimal.ZERO
+                : BigDecimal.valueOf(30000);
 
-    public OrderItem addOrderItem(Long orderId, OrderItemDTO dto) {
-        Order order = getById(orderId);
+        order.setTotalAmount(total);
+        order.setFinalAmount(total.add(shipping));
+        order.setItems(orderItems);
 
-        ProductVariant variant = variantRepository.findById(dto.getVariantId())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy biến thể sản phẩm"));
+        Order savedOrder = orderRepository.save(order);
 
-        OrderItem item = new OrderItem();
-        item.setOrder(order);
-        item.setVariant(variant);
-        item.setQuantity(dto.getQuantity());
-        item.setUnitPrice(dto.getUnitPrice());
-        item.setSubtotal(dto.getUnitPrice().multiply(BigDecimal.valueOf(dto.getQuantity())));
+        cart.getItems().clear();
+        cartRepository.save(cart);
 
-        return orderItemRepository.save(item);
-    }
-
-    public List<OrderItem> getOrderItems(Long orderId) {
-        return orderItemRepository.findByOrder_OrderId(orderId);
+        return savedOrder;
     }
 
     public Order updateStatus(Long orderId, String status) {
         Order order = getById(orderId);
         order.setOrderStatus(status);
         return orderRepository.save(order);
-    }
-
-    public void delete(Long id) {
-        orderRepository.deleteById(id);
     }
 }

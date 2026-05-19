@@ -1,78 +1,346 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <title>Giỏ hàng</title>
-    <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Giỏ hàng - HA Fashion</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body{font-family:Inter,Arial,sans-serif;background:#faf7f3;color:#111}
+    .serif{font-family:Georgia,'Times New Roman',serif}
+    .wrap{max-width:1280px;margin:auto;padding:0 24px}
+    .soft-card{background:white;border:1px solid #e8e1da;border-radius:24px;box-shadow:0 10px 30px rgba(17,17,17,.04)}
+  </style>
 </head>
 <body>
 
-<div class="header">
-    <div class="logo">FASHION</div>
-    <div class="menu">
-        <a href="index.html">Trang chủ</a>
-        <a href="product.html">Nam</a>
-        <a href="product.html">Nữ</a>
-        <a href="product.html">Trẻ em</a>
+<div id="app"></div>
+
+<script>
+const API_BASE = "http://localhost:8080/api";
+
+function icon(n,c="w-6 h-6"){
+  return `<i data-lucide="${n}" class="${c}"></i>`;
+}
+
+function formatPrice(price){
+  return Number(price || 0).toLocaleString("vi-VN") + "đ";
+}
+
+function getUser(){
+  return JSON.parse(localStorage.getItem("ha_user") || "null");
+}
+
+function productImg(item){
+  const p = item.variant?.product;
+  if(p?.imageUrl) return p.imageUrl;
+  if(p?.images && p.images.length > 0) return p.images[0].imageUrl;
+  return "https://images.unsplash.com/photo-1539008835657-9e8e9680c956?q=80&w=900&auto=format&fit=crop";
+}
+
+function header(){
+  return `
+  <header class="sticky top-0 z-50 bg-white border-b shadow-sm">
+    <div class="bg-black text-white text-xs">
+      <div class="wrap py-2 flex justify-between">
+        <span>Freeship đơn từ 999.000đ</span>
+        <span>Hotline: 0900 888 999 · Đổi trả 7 ngày</span>
+      </div>
     </div>
-    <div class="search">
-        <input type="text" placeholder="Tìm kiếm sản phẩm...">
+
+    <div class="wrap py-4 flex items-center gap-7">
+      <a href="/index.html" class="serif text-3xl lg:text-4xl tracking-[.22em] font-bold whitespace-nowrap">HA FASHION</a>
+
+      <nav class="hidden lg:flex gap-7 font-semibold text-base flex-1">
+        <a href="/index.html" class="hover:text-red-800">Trang chủ</a>
+        <a href="/index.html?page=shop" class="hover:text-red-800">Sản phẩm</a>
+        <a href="/index.html?page=promo" class="hover:text-red-800">Khuyến mãi</a>
+        <a href="/index.html?page=store" class="hover:text-red-800">Cửa hàng</a>
+      </nav>
+
+      <div class="flex gap-5 items-center">
+        ${icon("heart")}
+        <a href="/cart.html">${icon("shopping-bag")}</a>
+        <a href="/index.html?page=auth">${icon("user")}</a>
+      </div>
     </div>
-    <a href="cart.html" class="cart">Giỏ hàng</a>
-</div>
+  </header>`;
+}
 
-<div class="cart-page">
-    <h1>Giỏ hàng của bạn</h1>
-
-    <table class="cart-table">
-        <thead>
-            <tr>
-                <th>Sản phẩm</th>
-                <th>Giá</th>
-                <th>Số lượng</th>
-                <th>Tạm tính</th>
-            </tr>
-        </thead>
-
-        <tbody>
-            <tr>
-                <td class="cart-product">
-                    <img src="https://picsum.photos/100/120?random=41">
-                    <span>Áo thun nam basic</span>
-                </td>
-                <td>299.000đ</td>
-                <td>
-                    <input type="number" value="1" min="1">
-                </td>
-                <td>299.000đ</td>
-            </tr>
-
-            <tr>
-                <td class="cart-product">
-                    <img src="https://picsum.photos/100/120?random=42">
-                    <span>Quần jean nam</span>
-                </td>
-                <td>499.000đ</td>
-                <td>
-                    <input type="number" value="1" min="1">
-                </td>
-                <td>499.000đ</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <div class="cart-summary">
-        <h2>Tổng đơn hàng</h2>
-        <p>Tạm tính: <b>798.000đ</b></p>
-        <p>Giảm giá: <b>0đ</b></p>
-        <h3>Thanh toán: 798.000đ</h3>
-        <button class="btn-buy">Tiến hành đặt hàng</button>
+function footer(){
+  return `
+  <footer class="mt-16 bg-black text-white">
+    <div class="wrap py-12 grid md:grid-cols-4 gap-8">
+      <div>
+        <h2 class="serif text-3xl tracking-widest font-bold">HA FASHION</h2>
+        <p class="mt-4 text-neutral-300">Thời trang nữ thanh lịch, hiện đại.</p>
+      </div>
+      <div><b>Danh mục</b><p class="mt-3 text-neutral-300">Đầm nữ</p><p>Áo sơ mi</p><p>Blazer</p></div>
+      <div><b>Hỗ trợ</b><p class="mt-3">Đổi trả</p><p>Chọn size</p><p>Theo dõi đơn</p></div>
+      <div><b>Liên hệ</b><p class="mt-3">Hà Nội, Việt Nam</p><p>0900 888 999</p></div>
     </div>
-</div>
+  </footer>`;
+}
 
-<div class="footer">
-    © 2026 Fashion Shop
-</div>
+function switchPanel(){
+  return `
+  <div class="fixed bottom-6 right-6 z-50">
+    <div class="flex gap-2">
+      <a href="/index.html" class="px-5 py-2 rounded-full font-bold bg-black text-white shadow">Shop</a>
+      <a href="/staff.html" class="px-5 py-2 rounded-full font-bold bg-neutral-700 text-white shadow">Staff</a>
+      <a href="/admin.html" class="px-5 py-2 rounded-full font-bold bg-red-800 text-white shadow">Admin</a>
+    </div>
+  </div>`;
+}
+
+let cart = null;
+
+async function fetchCart(){
+  const user = getUser();
+
+  if(!user){
+    document.getElementById("app").innerHTML =
+      header() + `
+      <main class="wrap py-16">
+        <div class="soft-card p-10 text-center max-w-xl mx-auto">
+          <h1 class="serif text-4xl">Bạn chưa đăng nhập</h1>
+          <p class="mt-4 text-neutral-600">Vui lòng đăng nhập để xem giỏ hàng.</p>
+          <a href="/index.html?page=auth" class="inline-block mt-7 bg-red-800 text-white rounded-full px-8 py-3 font-bold">Đăng nhập</a>
+        </div>
+      </main>` + footer() + switchPanel();
+
+    lucide.createIcons();
+    return;
+  }
+
+  try{
+    const res = await fetch(`${API_BASE}/cart/${user.userId}`);
+    cart = await res.json();
+
+    if(!res.ok){
+      throw new Error(cart.message || "Không tải được giỏ hàng");
+    }
+
+    renderCart();
+  }catch(e){
+    document.getElementById("app").innerHTML =
+      header() + `
+      <main class="wrap py-16">
+        <div class="soft-card p-10 text-center">
+          <h1 class="text-3xl font-bold text-red-800">Không tải được giỏ hàng</h1>
+          <p class="mt-3 text-neutral-600">${e.message}</p>
+        </div>
+      </main>` + footer() + switchPanel();
+
+    lucide.createIcons();
+  }
+}
+
+function calcSubtotal(){
+  if(!cart?.items) return 0;
+
+  return cart.items.reduce((sum,item)=>{
+    const price = Number(item.variant?.price || 0);
+    const qty = Number(item.quantity || 0);
+    return sum + price * qty;
+  },0);
+}
+
+function renderCart(){
+  const items = cart?.items || [];
+  const subtotal = calcSubtotal();
+  const shipping = subtotal >= 999000 || subtotal === 0 ? 0 : 30000;
+  const total = subtotal + shipping;
+
+  document.getElementById("app").innerHTML =
+    header() + `
+    <main class="wrap py-12">
+      <div class="mb-8">
+        <p class="text-red-800 tracking-widest uppercase font-bold">HA Fashion Cart</p>
+        <h1 class="serif text-5xl mt-2">Giỏ hàng của bạn</h1>
+        <p class="text-neutral-600 mt-3">Kiểm tra sản phẩm, số lượng và tiến hành đặt hàng.</p>
+      </div>
+
+      ${
+        items.length === 0
+        ? `
+          <div class="soft-card p-12 text-center">
+            <h2 class="serif text-4xl">Giỏ hàng đang trống</h2>
+            <p class="mt-4 text-neutral-600">Hãy chọn sản phẩm yêu thích để thêm vào giỏ.</p>
+            <a href="/index.html?page=shop" class="inline-block mt-7 bg-red-800 text-white rounded-full px-8 py-3 font-bold">Mua sắm ngay</a>
+          </div>
+        `
+        : `
+          <div class="grid lg:grid-cols-[1fr_380px] gap-7">
+
+            <section class="soft-card overflow-hidden">
+              <div class="px-6 py-4 border-b flex justify-between">
+                <h2 class="font-bold text-xl">Sản phẩm</h2>
+                <span class="text-neutral-500">${items.length} sản phẩm</span>
+              </div>
+
+              <div>
+                ${items.map(item => {
+                  const p = item.variant?.product;
+                  const v = item.variant;
+                  const price = Number(v?.price || 0);
+                  const qty = Number(item.quantity || 0);
+                  const stock = Number(v?.stock || 0);
+
+                  return `
+                  <div class="p-6 border-b grid md:grid-cols-[96px_1fr_150px_130px_80px] gap-5 items-center">
+                    <img src="${productImg(item)}" class="w-24 h-28 object-cover rounded-2xl border">
+
+                    <div>
+                      <h3 class="font-bold text-lg">${p?.productName || "Sản phẩm"}</h3>
+                      <p class="text-neutral-500 mt-1">Size: <b>${v?.size || "-"}</b> · Màu: <b>${v?.color || "-"}</b></p>
+                      <p class="text-sm mt-1 ${stock > 0 ? "text-green-700" : "text-red-800"}">
+                        ${stock > 0 ? `Còn ${stock} sản phẩm` : "Hết hàng"}
+                      </p>
+                      <p class="text-red-800 font-bold mt-2">${formatPrice(price)}</p>
+                    </div>
+
+                    <div class="flex items-center border rounded-full w-fit">
+                      <button onclick="updateQty(${item.cartItemId}, ${qty - 1})" class="px-4 py-2">-</button>
+                      <span class="px-3 font-bold">${qty}</span>
+                      <button onclick="updateQty(${item.cartItemId}, ${qty + 1})" class="px-4 py-2">+</button>
+                    </div>
+
+                    <div class="font-bold text-red-800">
+                      ${formatPrice(price * qty)}
+                    </div>
+
+                    <button onclick="removeItem(${item.cartItemId})" class="text-red-800 font-bold">
+                    Xóa
+                    </button>
+                  </div>`;
+                }).join("")}
+              </div>
+            </section>
+
+            <aside class="soft-card p-6 h-fit sticky top-36">
+              <h2 class="font-bold text-xl mb-5">Tổng đơn hàng</h2>
+
+              <div class="space-y-3 text-neutral-700">
+                <div class="flex justify-between">
+                  <span>Tạm tính</span>
+                  <b>${formatPrice(subtotal)}</b>
+                </div>
+
+                <div class="flex justify-between">
+                  <span>Phí vận chuyển</span>
+                  <b>${shipping === 0 ? "Miễn phí" : formatPrice(shipping)}</b>
+                </div>
+
+                <div class="border-t pt-4 flex justify-between text-xl">
+                  <span class="font-bold">Tổng cộng</span>
+                  <b class="text-red-800">${formatPrice(total)}</b>
+                </div>
+              </div>
+
+              <button onclick="createOrder()" class="mt-7 w-full bg-red-800 text-white rounded-full py-4 font-bold">
+                Đặt hàng
+              </button>
+
+              <a href="/index.html?page=shop" class="block text-center mt-4 border rounded-full py-3 font-bold">
+                Tiếp tục mua sắm
+              </a>
+            </aside>
+          </div>
+        `
+      }
+    </main>
+    ` + footer() + switchPanel();
+
+  lucide.createIcons();
+}
+
+async function updateQty(itemId, quantity){
+  if(quantity <= 0){
+    await removeItem(itemId);
+    return;
+  }
+
+  const res = await fetch(`${API_BASE}/cart/items/${itemId}?quantity=${quantity}`, {
+    method: "PUT"
+  });
+
+  const data = await res.json().catch(()=>({}));
+
+  if(!res.ok){
+    alert(data.message || "Cập nhật số lượng thất bại");
+    return;
+  }
+
+  await fetchCart();
+}
+
+async function removeItem(itemId){
+  if(!itemId){
+    alert("Không tìm thấy ID sản phẩm trong giỏ");
+    return;
+  }
+
+  if(!confirm("Xóa sản phẩm này khỏi giỏ hàng?")) return;
+
+  const res = await fetch(`${API_BASE}/cart/items/${itemId}`, {
+    method: "DELETE"
+  });
+
+  const data = await res.json().catch(()=>({}));
+
+  if(!res.ok){
+    alert(data.message || "Xóa sản phẩm thất bại");
+    return;
+  }
+
+  await fetchCart();
+}
+
+async function createOrder(){
+  const user = getUser();
+
+  if(!cart?.items || cart.items.length === 0){
+    alert("Giỏ hàng trống");
+    return;
+  }
+
+  const address = prompt("Nhập địa chỉ nhận hàng:", user.address || "");
+
+  if(!address || !address.trim()){
+    alert("Vui lòng nhập địa chỉ nhận hàng");
+    return;
+  }
+
+  const res = await fetch(`${API_BASE}/orders/from-cart`, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({
+      userId: user.userId,
+      address: address.trim()
+    })
+  });
+
+  const data = await res.json();
+
+  if(!res.ok){
+    alert(data.message || "Đặt hàng thất bại");
+    return;
+  }
+
+  await fetch(`${API_BASE}/cart/clear/${user.userId}`, {
+    method: "DELETE"
+  });
+
+  cart = {items: []};
+
+  alert("Đặt hàng thành công. Mã đơn: #" + data.orderId);
+  renderCart();
+}
+
+fetchCart();
+</script>
 
 </body>
 </html>

@@ -1,14 +1,13 @@
 package com.dacs.fashion.controller;
 
-import com.dacs.fashion.dto.OrderDTO;
-import com.dacs.fashion.dto.OrderItemDTO;
+import com.dacs.fashion.dto.CreateOrderDTO;
 import com.dacs.fashion.entity.Order;
-import com.dacs.fashion.entity.OrderItem;
 import com.dacs.fashion.service.OrderService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -18,43 +17,36 @@ public class OrderController {
     private final OrderService orderService;
 
     @GetMapping
-    public List<Order> getAll() {
-        return orderService.getAll();
+    public ResponseEntity<?> getAll() {
+        return ResponseEntity.ok(orderService.getAll());
     }
 
     @GetMapping("/{id}")
-    public Order getById(@PathVariable Long id) {
-        return orderService.getById(id);
+    public ResponseEntity<?> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(orderService.getById(id));
     }
 
     @GetMapping("/user/{userId}")
-    public List<Order> getByUser(@PathVariable Long userId) {
-        return orderService.getByUser(userId);
+    public ResponseEntity<?> getByUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(orderService.getByUser(userId));
     }
 
-    @PostMapping
-    public Order create(@RequestBody OrderDTO dto) {
-        return orderService.create(dto);
+    @PostMapping("/from-cart")
+    public ResponseEntity<?> createFromCart(@RequestBody CreateOrderDTO dto) {
+        try {
+            return ResponseEntity.ok(orderService.createFromCart(dto));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 
-    @PostMapping("/{orderId}/items")
-    public OrderItem addOrderItem(@PathVariable Long orderId, @RequestBody OrderItemDTO dto) {
-        return orderService.addOrderItem(orderId, dto);
-    }
-
-    @GetMapping("/{orderId}/items")
-    public List<OrderItem> getOrderItems(@PathVariable Long orderId) {
-        return orderService.getOrderItems(orderId);
-    }
-
-    @PutMapping("/{orderId}/status")
-    public Order updateStatus(@PathVariable Long orderId, @RequestParam String status) {
-        return orderService.updateStatus(orderId, status);
-    }
-
-    @DeleteMapping("/{id}")
-    public String delete(@PathVariable Long id) {
-        orderService.delete(id);
-        return "Xóa đơn hàng thành công";
+    @PutMapping("/{id}/status")
+    public ResponseEntity<?> updateStatus(@PathVariable Long id,
+                                          @RequestParam String status) {
+        try {
+            return ResponseEntity.ok(orderService.updateStatus(id, status));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 }

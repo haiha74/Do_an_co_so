@@ -1,11 +1,19 @@
 package com.dacs.fashion.repository;
 
+import com.dacs.fashion.entity.Cart;
 import com.dacs.fashion.entity.CartItem;
+import com.dacs.fashion.entity.ProductVariant;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 
-import java.util.List;
+import java.util.Optional;
 
 public interface CartItemRepository extends JpaRepository<CartItem, Long> {
 
-    List<CartItem> findByCart_CartId(Long cartId);
+    Optional<CartItem> findByCartAndVariant(Cart cart, ProductVariant variant);
+
+    @Modifying
+    @Query(value = "DELETE FROM cart_items WHERE cart_item_id = ?1", nativeQuery = true)
+    void deleteCartItemByIdNative(Long cartItemId);
 }

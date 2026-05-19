@@ -6,11 +6,7 @@ import lombok.*;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class CartItemDTO {
-
+public class CreateOrderDTO {
     private Long userId;
-
-    private Long variantId;
-
-    private Integer quantity;
+    private String address;
 }

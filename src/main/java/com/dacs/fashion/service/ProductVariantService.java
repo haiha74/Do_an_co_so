@@ -41,13 +41,19 @@ public class ProductVariantService {
         variant.setSku(dto.getSku());
         variant.setPrice(dto.getPrice());
         variant.setStock(dto.getStock());
-        variant.setStatus(dto.getStatus());
+        variant.setStatus(dto.getStatus() == null ? "ACTIVE" : dto.getStatus());
 
         return variantRepository.save(variant);
     }
 
     public ProductVariant update(Long id, ProductVariantDTO dto) {
         ProductVariant variant = getById(id);
+
+        if (dto.getProductId() != null) {
+            Product product = productRepository.findById(dto.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
+            variant.setProduct(product);
+        }
 
         variant.setSize(dto.getSize());
         variant.setColor(dto.getColor());
@@ -60,6 +66,7 @@ public class ProductVariantService {
     }
 
     public void delete(Long id) {
-        variantRepository.deleteById(id);
+        ProductVariant variant = getById(id);
+        variantRepository.delete(variant);
     }
 }
