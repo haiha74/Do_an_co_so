@@ -1,8 +1,10 @@
 package com.dacs.fashion.service;
 
+import com.dacs.fashion.dto.CheckoutDTO;
 import com.dacs.fashion.dto.CreateOrderDTO;
 import com.dacs.fashion.entity.*;
 import com.dacs.fashion.repository.*;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +22,7 @@ public class OrderService {
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
     private final ProductVariantRepository variantRepository;
+    private final PaymentRepository paymentRepository;
 
     public List<Order> getAll() {
         return orderRepository.findAll();
@@ -34,6 +37,7 @@ public class OrderService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
     }
 
+    @Transactional
     public Order createFromCart(CreateOrderDTO dto) {
         User user = userRepository.findById(dto.getUserId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy user"));
@@ -57,27 +61,34 @@ public class OrderService {
         List<OrderItem> orderItems = new ArrayList<>();
 
         for (CartItem cartItem : cart.getItems()) {
-            ProductVariant variant = cartItem.getVariant();
+            ProductVariant variant = variantRepository.findById(cartItem.getVariant().getVariantId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy biến thể"));
 
-            if (!"ACTIVE".equals(variant.getStatus())) {
+            Integer quantity = cartItem.getQuantity();
+
+            if (quantity == null || quantity <= 0) {
+                throw new RuntimeException("Số lượng không hợp lệ");
+            }
+
+            if (!"ACTIVE".equalsIgnoreCase(variant.getStatus())) {
                 throw new RuntimeException("Biến thể không hoạt động: " + variant.getSku());
             }
 
-            if (variant.getStock() < cartItem.getQuantity()) {
+            if (variant.getStock() == null || variant.getStock() < quantity) {
                 throw new RuntimeException("Không đủ tồn kho: " + variant.getSku());
             }
 
             BigDecimal price = variant.getPrice();
-            BigDecimal lineTotal = price.multiply(BigDecimal.valueOf(cartItem.getQuantity()));
+            BigDecimal lineTotal = price.multiply(BigDecimal.valueOf(quantity));
             total = total.add(lineTotal);
 
-            variant.setStock(variant.getStock() - cartItem.getQuantity());
+            variant.setStock(variant.getStock() - quantity);
             variantRepository.save(variant);
 
             OrderItem orderItem = new OrderItem();
             orderItem.setOrder(order);
             orderItem.setVariant(variant);
-            orderItem.setQuantity(cartItem.getQuantity());
+            orderItem.setQuantity(quantity);
             orderItem.setPrice(price);
 
             orderItems.add(orderItem);
@@ -97,6 +108,29 @@ public class OrderService {
         cartRepository.save(cart);
 
         return savedOrder;
+    }
+
+    @Transactional
+    public Order checkout(CheckoutDTO dto) {
+        CreateOrderDTO createOrderDTO = new CreateOrderDTO();
+        createOrderDTO.setUserId(dto.getUserId());
+        createOrderDTO.setAddress(
+                dto.getFullname() + " | " + dto.getPhone() + " | " + dto.getAddress()
+        );
+
+        Order order = createFromCart(createOrderDTO);
+
+        Payment payment = new Payment();
+        payment.setOrder(order);
+        payment.setPaymentMethod(dto.getPaymentMethod());
+        payment.setPaymentStatus(
+                "QR".equalsIgnoreCase(dto.getPaymentMethod()) ? "PENDING" : "UNPAID"
+        );
+        payment.setPaidAt(null);
+
+        paymentRepository.save(payment);
+
+        return order;
     }
 
     public Order updateStatus(Long orderId, String status) {

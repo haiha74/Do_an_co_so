@@ -1,11 +1,13 @@
 package com.dacs.fashion.controller;
 
+import com.dacs.fashion.dto.BrandDTO;
 import com.dacs.fashion.entity.Brand;
 import com.dacs.fashion.service.BrandService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/brands")
@@ -15,28 +17,47 @@ public class BrandController {
     private final BrandService brandService;
 
     @GetMapping
-    public List<Brand> getAll() {
-        return brandService.getAll();
+    public ResponseEntity<?> getAll() {
+        return ResponseEntity.ok(brandService.getAll());
     }
 
     @GetMapping("/{id}")
-    public Brand getById(@PathVariable Long id) {
-        return brandService.getById(id);
+    public ResponseEntity<?> getById(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(brandService.getById(id));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 
     @PostMapping
-    public Brand create(@RequestBody Brand brand) {
-        return brandService.create(brand);
+    public ResponseEntity<?> create(@RequestBody BrandDTO dto) {
+        try {
+            Brand brand = brandService.create(dto);
+            return ResponseEntity.ok(brand);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 
     @PutMapping("/{id}")
-    public Brand update(@PathVariable Long id, @RequestBody Brand brand) {
-        return brandService.update(id, brand);
+    public ResponseEntity<?> update(@PathVariable Long id,
+                                    @RequestBody BrandDTO dto) {
+        try {
+            Brand brand = brandService.update(id, dto);
+            return ResponseEntity.ok(brand);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 
     @DeleteMapping("/{id}")
-    public String delete(@PathVariable Long id) {
-        brandService.delete(id);
-        return "Xóa thương hiệu thành công";
+    public ResponseEntity<?> delete(@PathVariable Long id) {
+        try {
+            brandService.delete(id);
+            return ResponseEntity.ok(Map.of("message", "Xóa thương hiệu thành công"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 }

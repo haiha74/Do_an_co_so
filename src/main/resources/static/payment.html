@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Thanh toán - HA Fashion</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#f5f2ee] text-black">
+
+<div class="max-w-6xl mx-auto px-6 py-10">
+  <h1 class="text-5xl font-serif mb-8">Thanh toán</h1>
+
+  <div class="grid lg:grid-cols-[1fr_420px] gap-8">
+    <div class="bg-white rounded-3xl p-8 shadow">
+      <h2 class="text-2xl font-bold mb-5">Thông tin nhận hàng</h2>
+
+      <div class="space-y-4">
+        <input id="fullname" class="w-full border rounded-2xl px-5 py-4" placeholder="Họ và tên">
+        <input id="phone" class="w-full border rounded-2xl px-5 py-4" placeholder="Số điện thoại">
+        <textarea id="address" class="w-full border rounded-2xl px-5 py-4 h-32" placeholder="Địa chỉ nhận hàng"></textarea>
+
+        <h3 class="font-bold text-xl pt-4">Phương thức thanh toán</h3>
+
+        <label class="block border rounded-2xl p-4 cursor-pointer">
+          <input type="radio" name="paymentMethod" value="CASH" checked>
+          Thanh toán khi nhận hàng
+        </label>
+
+        <label class="block border rounded-2xl p-4 cursor-pointer">
+          <input type="radio" name="paymentMethod" value="QR">
+          Chuyển khoản QR Code
+        </label>
+
+        <div id="qrBox" class="hidden border rounded-2xl p-5 bg-neutral-50">
+          <p class="font-bold mb-2">Thông tin chuyển khoản</p>
+          <p>Ngân hàng: MB Bank</p>
+          <p>STK: 0123456789</p>
+          <p>Chủ TK: HA FASHION</p>
+          <p>Nội dung: THANHTOAN HAFASHION</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-3xl p-8 shadow h-fit">
+      <h2 class="text-2xl font-bold mb-5">Đơn hàng</h2>
+
+      <div id="cartItems" class="space-y-4 mb-6"></div>
+
+      <div class="border-t pt-5 space-y-3">
+        <div class="flex justify-between">
+          <span>Tạm tính</span>
+          <b id="subtotal">0đ</b>
+        </div>
+
+        <div class="flex justify-between">
+          <span>Phí vận chuyển</span>
+          <b id="shipping">0đ</b>
+        </div>
+
+        <div class="flex justify-between text-xl">
+          <span class="font-bold">Tổng cộng</span>
+          <b id="total" class="text-red-800">0đ</b>
+        </div>
+      </div>
+
+      <button onclick="submitPayment()" class="mt-7 w-full bg-red-800 text-white rounded-full py-4 font-bold">
+        Xác nhận đặt hàng
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = "http://localhost:8080/api";
+let cart = null;
+
+function getUser(){
+  return JSON.parse(localStorage.getItem("ha_user") || "null");
+}
+
+function money(v){
+  return Number(v || 0).toLocaleString("vi-VN") + "đ";
+}
+
+async function loadCart(){
+  const user = getUser();
+
+  if(!user){
+    alert("Vui lòng đăng nhập");
+    location.href = "/index.html?page=auth";
+    return;
+  }
+
+  const res = await fetch(`${API_BASE}/cart/${user.userId}`);
+  cart = await res.json();
+
+  renderCart();
+}
+
+function renderCart(){
+  const items = cart.items || [];
+
+  let subtotal = 0;
+
+  document.getElementById("cartItems").innerHTML = items.map(item => {
+    const v = item.variant;
+    const p = v.product;
+    const price = Number(v.price || p.basePrice || 0);
+    const line = price * item.quantity;
+    subtotal += line;
+
+    const img = p.images?.[0]?.imageUrl || "";
+
+    return `
+      <div class="flex gap-4 border-b pb-4">
+        <img src="${img}" class="w-20 h-24 object-cover rounded-xl">
+        <div class="flex-1">
+          <b>${p.productName}</b>
+          <p class="text-sm text-neutral-500">Size: ${v.size} · Màu: ${v.color}</p>
+          <p>Số lượng: ${item.quantity}</p>
+        </div>
+        <b class="text-red-800">${money(line)}</b>
+      </div>
+    `;
+  }).join("");
+
+  const shipping = subtotal >= 999000 ? 0 : 30000;
+  const total = subtotal + shipping;
+
+  document.getElementById("subtotal").innerText = money(subtotal);
+  document.getElementById("shipping").innerText = shipping === 0 ? "Miễn phí" : money(shipping);
+  document.getElementById("total").innerText = money(total);
+}
+
+document.addEventListener("change", e => {
+  if(e.target.name === "paymentMethod"){
+    document.getElementById("qrBox").classList.toggle("hidden", e.target.value !== "QR");
+  }
+});
+
+async function submitPayment(){
+  const user = getUser();
+
+  const fullname = document.getElementById("fullname").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const address = document.getElementById("address").value.trim();
+  const paymentMethod = document.querySelector("input[name='paymentMethod']:checked").value;
+
+  if(!fullname || !phone || !address){
+    alert("Vui lòng nhập đầy đủ thông tin");
+    return;
+  }
+
+  const res = await fetch(`${API_BASE}/orders/checkout`, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({
+      userId: user.userId,
+      fullname,
+      phone,
+      address,
+      paymentMethod
+    })
+  });
+
+  const data = await res.json();
+
+  if(!res.ok){
+    alert(data.message || "Đặt hàng thất bại");
+    return;
+  }
+
+  alert("Đặt hàng thành công");
+  location.href = "/cart.html";
+}
+
+loadCart();
+</script>
+
+</body>
+</html>

@@ -1,11 +1,13 @@
 package com.dacs.fashion.controller;
 
+import com.dacs.fashion.dto.CheckoutDTO;
 import com.dacs.fashion.dto.CreateOrderDTO;
 import com.dacs.fashion.entity.Order;
 import com.dacs.fashion.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.dacs.fashion.dto.CheckoutDTO;
 
 import java.util.Map;
 
@@ -49,4 +51,15 @@ public class OrderController {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
+
+    @PostMapping("/checkout")
+    public ResponseEntity<?> checkout(@RequestBody CheckoutDTO dto) {
+        try {
+            return ResponseEntity.ok(orderService.checkout(dto));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    
 }

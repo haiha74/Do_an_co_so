@@ -35,6 +35,7 @@ let categories = [];
 let users = [];
 let orders = [];
 let variants = [];
+let brands = [];
 let currentTab = "overview";
 let selectedFile = null;
 
@@ -71,6 +72,7 @@ async function loadData(){
   try{ users = await fetchJson(`${API_BASE}/users`); }catch(e){ users = []; }
   try{ orders = await fetchJson(`${API_BASE}/orders`); }catch(e){ orders = []; }
   try{ variants = await fetchJson(`${API_BASE}/variants`); }catch(e){ variants = []; }
+  try{ brands = await fetchJson(`${API_BASE}/brands`); }catch(e){ brands = []; }
 }
 
 function loginPage(){
@@ -142,6 +144,7 @@ function sidebar(){
     ["overview","Tổng quan","layout-dashboard"],
     ["products","Quản lý sản phẩm","shopping-bag"],
     ["categories","Danh mục","list-tree"],
+    ["brands","Thương hiệu","tag"],
     ["orders","Quản lý đơn hàng","receipt"],
     ["variants","Biến thể sản phẩm","palette"],
     ["users","Quản lý người dùng","users"],
@@ -182,7 +185,10 @@ function productModal(){
           <textarea id="productDesc" class="input-ui" placeholder="Mô tả"></textarea>
           <input id="productPrice" type="number" class="input-ui" placeholder="Giá gốc">
           <select id="productCategory" class="input-ui"><option value="">Chọn danh mục</option>${categories.map(c=>`<option value="${c.categoryId}">${c.categoryName}</option>`).join('')}</select>
-          <select id="productBrand" class="input-ui"><option value="">Không chọn thương hiệu</option></select>
+          <select id="productBrand" class="input-ui">
+            <option value="">Không chọn thương hiệu</option>
+            ${brands.map(b=>`<option value="${b.brandId}">${b.brandName}</option>`).join('')}
+          </select>
           <select id="productStatus" class="input-ui"><option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option></select>
           <div>
             <label class="font-semibold">Ảnh sản phẩm</label>
@@ -252,6 +258,53 @@ function categoryModal(){
         <select id="categoryParent" class="input-ui"><option value="">Không có danh mục cha</option>${categories.map(c=>`<option value="${c.categoryId}">${c.categoryName}</option>`).join('')}</select>
         <select id="categoryStatus" class="input-ui"><option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option></select>
         <button onclick="saveCategory()" class="btn-primary w-full">Lưu danh mục</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function brandPanel(){
+  return `<div class="soft-card overflow-hidden">
+    <div class="px-6 py-4 border-b flex justify-between items-center">
+      <h2 class="font-bold text-xl">Quản lý thương hiệu</h2>
+      <button onclick="openBrandForm()" class="btn-primary">Thêm thương hiệu</button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left">
+        <thead class="bg-neutral-50 text-sm text-neutral-500">
+          <tr><th class="p-4">ID</th><th>Tên thương hiệu</th><th>Mô tả</th><th>Trạng thái</th><th>Thao tác</th></tr>
+        </thead>
+        <tbody>${brands.map(b=>`<tr class="border-t">
+          <td class="p-4 font-bold">#${b.brandId}</td>
+          <td class="font-semibold">${b.brandName}</td>
+          <td class="text-neutral-600">${b.description || 'Không có mô tả'}</td>
+          <td><span class="rounded-full ${b.status === 'ACTIVE' ? 'bg-green-50 text-green-700' : 'bg-neutral-100 text-neutral-500'} px-3 py-1 text-sm">${b.status || 'ACTIVE'}</span></td>
+          <td class="space-x-2">
+            <button onclick="openBrandForm(${b.brandId})" class="border rounded-full px-4 py-2 text-sm">Sửa</button>
+            <button onclick="deleteBrand(${b.brandId})" class="bg-red-800 text-white rounded-full px-4 py-2 text-sm">Xóa</button>
+          </td>
+        </tr>`).join('') || `<tr><td class="p-6 text-neutral-500" colspan="5">Chưa có thương hiệu</td></tr>`}</tbody>
+      </table>
+    </div>
+  </div>${brandModal()}`;
+}
+
+function brandModal(){
+  return `<div id="brandModal" class="fixed inset-0 bg-black/40 z-[999] hidden items-center justify-center p-5">
+    <div class="bg-white rounded-3xl p-7 w-full max-w-lg shadow-xl">
+      <div class="flex justify-between items-center mb-5">
+        <h2 id="brandFormTitle" class="serif text-3xl">Thêm thương hiệu</h2>
+        <button onclick="closeBrandForm()" class="text-2xl">×</button>
+      </div>
+      <input type="hidden" id="brandId">
+      <div class="space-y-4">
+        <input id="brandName" class="input-ui" placeholder="Tên thương hiệu">
+        <textarea id="brandDesc" class="input-ui" placeholder="Mô tả"></textarea>
+        <select id="brandStatus" class="input-ui">
+          <option value="ACTIVE">ACTIVE</option>
+          <option value="INACTIVE">INACTIVE</option>
+        </select>
+        <button onclick="saveBrand()" class="btn-primary w-full">Lưu thương hiệu</button>
       </div>
     </div>
   </div>`;
@@ -333,6 +386,7 @@ function promoPanel(){
 function content(){
   if(currentTab === "products") return productTable();
   if(currentTab === "categories") return categoryPanel();
+  if(currentTab === "brands") return brandPanel();
   if(currentTab === "orders") return orderTable();
   if(currentTab === "variants") return variantPanel();
   if(currentTab === "users") return userTable();
@@ -383,6 +437,7 @@ async function openProductForm(id=null){
   document.getElementById('productDesc').value = p?.description || '';
   document.getElementById('productPrice').value = p?.basePrice || '';
   document.getElementById('productCategory').value = p?.category?.categoryId || '';
+  document.getElementById('productBrand').value = p?.brand?.brandId || '';
   document.getElementById('productStatus').value = p?.status || 'ACTIVE';
   document.getElementById('productImageFile').value = '';
 
@@ -664,6 +719,67 @@ async function openOrderDetail(orderId){
 function closeOrderDetail(){
   document.getElementById("orderModal").classList.add("hidden");
   document.getElementById("orderModal").classList.remove("flex");
+}
+
+function openBrandForm(id=null){
+  document.getElementById('brandModal').classList.remove('hidden');
+  document.getElementById('brandModal').classList.add('flex');
+  document.getElementById('brandFormTitle').innerText = id ? 'Sửa thương hiệu' : 'Thêm thương hiệu';
+  document.getElementById('brandId').value = id || '';
+
+  const b = brands.find(x => x.brandId === id);
+  document.getElementById('brandName').value = b?.brandName || '';
+  document.getElementById('brandDesc').value = b?.description || '';
+  document.getElementById('brandStatus').value = b?.status || 'ACTIVE';
+}
+
+function closeBrandForm(){
+  document.getElementById('brandModal').classList.add('hidden');
+  document.getElementById('brandModal').classList.remove('flex');
+}
+
+async function saveBrand(){
+  const id = document.getElementById('brandId').value;
+  const body = {
+    brandName: document.getElementById('brandName').value.trim(),
+    description: document.getElementById('brandDesc').value.trim(),
+    status: document.getElementById('brandStatus').value
+  };
+
+  if(!body.brandName){ alert('Vui lòng nhập tên thương hiệu'); return; }
+
+  const url = id ? `${API_BASE}/brands/${id}` : `${API_BASE}/brands`;
+  const method = id ? 'PUT' : 'POST';
+
+  const res = await fetch(url,{
+    method,
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  });
+
+  const data = await res.json().catch(()=>({}));
+
+  if(!res.ok){
+    alert(data.message || 'Lưu thương hiệu thất bại');
+    return;
+  }
+
+  closeBrandForm();
+  await init();
+}
+
+async function deleteBrand(id){
+  if(!confirm('Xóa thương hiệu này?')) return;
+
+  const res = await fetch(`${API_BASE}/brands/${id}`,{method:'DELETE'});
+  const data = await res.json().catch(()=>({}));
+
+  if(!res.ok){
+    alert(data.message || 'Không thể xóa thương hiệu đang có sản phẩm');
+    return;
+  }
+
+  await init();
 }
 
 function logoutAdmin(){localStorage.removeItem("ha_admin"); render();}

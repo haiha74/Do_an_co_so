@@ -14,12 +14,15 @@ public class Brand {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "brand_id")
     private Long brandId;
 
-    @Column(nullable = false)
+    @Column(name = "brand_name", nullable = false)
     private String brandName;
 
+    @Column(name = "description")
     private String description;
 
+    @Column(name = "status")
     private String status;
 }
