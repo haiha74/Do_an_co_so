@@ -1,11 +1,7 @@
-const API_BASE = "http://localhost:8080/api";
 let cart = null;
 let appliedVoucher = null;
 let discountAmount = 0;
 
-function getUser(){
-  return JSON.parse(localStorage.getItem("ha_user") || "null");
-}
 
 function money(v){
   return Number(v || 0).toLocaleString("vi-VN") + "đ";
@@ -77,6 +73,8 @@ function renderPayment(){
     const total = Math.max(subtotal + shipping - discountAmount, 0);
 
   document.getElementById("app").innerHTML = `
+  ${header()}
+
     <div class="max-w-6xl mx-auto px-6 py-10">
 
       <h1 class="text-5xl font-serif mb-8">
@@ -113,34 +111,34 @@ function renderPayment(){
             >${user.address || ""}</textarea>
 
             <div>
-                <h3 class="font-bold text-xl pt-4">
-                    Mã giảm giá
-                </h3>
+              <h3 class="font-bold text-xl pt-4">
+                Mã giảm giá
+              </h3>
 
-                <div class="flex gap-3 mt-3">
-                    <input
-                    id="voucherCode"
-                    class="flex-1 border rounded-2xl px-5 py-4"
-                    placeholder="Nhập mã voucher"
-                    value="${appliedVoucher?.code || ""}"
-                    >
+              <div class="flex gap-3 mt-3">
+                <input
+                  id="voucherCode"
+                  class="flex-1 border rounded-2xl px-5 py-4"
+                  placeholder="Nhập mã voucher"
+                  value="${appliedVoucher?.code || ""}"
+                >
 
-                    <button
-                    onclick="applyVoucher()"
-                    class="bg-black text-white rounded-2xl px-5 font-bold">
-                    Áp dụng
-                    </button>
-                </div>
+                <button
+                  onclick="applyVoucher()"
+                  class="bg-black text-white rounded-2xl px-5 font-bold">
+                  Áp dụng
+                </button>
+              </div>
 
-                <p id="voucherInfo"
+              <p id="voucherInfo"
                 class="mt-2 text-sm text-green-700 font-semibold">
                 ${appliedVoucher ? `Đã áp dụng mã ${appliedVoucher.code} - Giảm ${money(discountAmount)}` : ""}
-                </p>
-                </div>
+              </p>
+            </div>
 
-                <h3 class="font-bold text-xl pt-4">
-                Phương thức thanh toán
-                </h3>
+            <h3 class="font-bold text-xl pt-4">
+              Phương thức thanh toán
+            </h3>
 
             <label class="block border rounded-2xl p-4 cursor-pointer">
               <input type="radio" name="paymentMethod" value="CASH" checked>
@@ -186,8 +184,8 @@ function renderPayment(){
             </div>
 
             <div class="flex justify-between">
-                <span>Giảm giá</span>
-                <b class="text-green-700">- ${money(discountAmount)}</b>
+              <span>Giảm giá</span>
+              <b class="text-green-700">- ${money(discountAmount)}</b>
             </div>
 
             <div class="flex justify-between text-xl">
@@ -214,7 +212,13 @@ function renderPayment(){
         </div>
       </div>
     </div>
+
+    ${footer()}
   `;
+
+  if(window.lucide){
+    lucide.createIcons();
+  }
 
   document.addEventListener("change", e => {
     if(e.target.name === "paymentMethod"){
@@ -339,22 +343,3 @@ loadCart();
 
 
 
-function showToast(title, text, type = "success"){
-  const old = document.getElementById("toast");
-  if(old) old.remove();
-
-  const toast = document.createElement("div");
-  toast.id = "toast";
-  toast.className = `toast ${type === "error" ? "toast-error" : "toast-success"}`;
-
-  toast.innerHTML = `
-    <div class="toast-icon">${type === "error" ? "!" : "✓"}</div>
-    <div>
-      <div class="toast-title">${title}</div>
-      <div class="toast-text">${text}</div>
-    </div>
-  `;
-
-  document.body.appendChild(toast);
-  setTimeout(()=>toast.remove(),2500);
-}
