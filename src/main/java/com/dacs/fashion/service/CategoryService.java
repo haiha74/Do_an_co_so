@@ -28,6 +28,7 @@ public class CategoryService {
         category.setCategoryName(dto.getCategoryName());
         category.setDescription(dto.getDescription());
         category.setStatus(dto.getStatus());
+        category.setImageUrl(dto.getImageUrl());
 
         if (dto.getParentId() != null) {
             category.setParent(getById(dto.getParentId()));
@@ -41,6 +42,7 @@ public class CategoryService {
         category.setCategoryName(dto.getCategoryName());
         category.setDescription(dto.getDescription());
         category.setStatus(dto.getStatus());
+        category.setImageUrl(dto.getImageUrl());
 
         if (dto.getParentId() != null) {
             category.setParent(getById(dto.getParentId()));

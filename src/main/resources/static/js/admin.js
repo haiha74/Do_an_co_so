@@ -1,10 +1,10 @@
 const API_BASE = "http://localhost:8080/api";
-const fallbackImages = [
-  "https://images.unsplash.com/photo-1539008835657-9e8e9680c956?q=80&w=900&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1434389677669-e08b4cac3105?q=80&w=900&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?q=80&w=900&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1485968579580-b6d095142e6e?q=80&w=900&auto=format&fit=crop"
-];
+// const fallbackImages = [
+//   "https://images.unsplash.com/photo-1539008835657-9e8e9680c956?q=80&w=900&auto=format&fit=crop",
+//   "https://images.unsplash.com/photo-1434389677669-e08b4cac3105?q=80&w=900&auto=format&fit=crop",
+//   "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?q=80&w=900&auto=format&fit=crop",
+//   "https://images.unsplash.com/photo-1485968579580-b6d095142e6e?q=80&w=900&auto=format&fit=crop"
+// ];
 
 let products = [];
 let categories = [];
@@ -15,10 +15,159 @@ let brands = [];
 let vouchers = [];
 let currentTab = "overview";
 let selectedFile = null;
+let selectedCategoryFile = null;
+let confirmCallback = null;
+let orderLimit = 10;
+let adminSearch = {
+  products: "",
+  categories: "",
+  brands: "",
+  variants: "",
+  promo: "",
+  orders: "",
+  users: ""
+};
 
 function icon(n, cls="w-5 h-5"){return `<i data-lucide="${n}" class="${cls}"></i>`}
 function money(v){return Number(v || 0).toLocaleString("vi-VN") + "đ"}
 function admin(){return JSON.parse(localStorage.getItem("ha_admin") || "null")}
+function showToast(title, message = "", type = "success"){
+  const old = document.getElementById("adminToast");
+  if(old) old.remove();
+
+  const color = type === "error"
+    ? "border-red-800"
+    : "border-green-700";
+
+  const toast = document.createElement("div");
+  toast.id = "adminToast";
+  toast.className = `
+    fixed top-6 right-6 z-[9999]
+    bg-white border-l-8 ${color}
+    rounded-2xl shadow-2xl px-6 py-4
+    min-w-[320px] max-w-[420px]
+  `;
+
+  toast.innerHTML = `
+    <b class="block text-lg">${title}</b>
+    <p class="text-sm text-neutral-600 mt-1">${message}</p>
+  `;
+
+  document.body.appendChild(toast);
+
+  setTimeout(() => toast.remove(), 3000);
+}
+
+function showConfirm(message, onConfirm){
+  confirmCallback = onConfirm;
+
+  const old = document.getElementById("adminConfirmModal");
+  if(old) old.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "adminConfirmModal";
+  modal.className = "fixed inset-0 bg-black/40 z-[9999] flex items-center justify-center p-5";
+
+  modal.innerHTML = `
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-7">
+      <h2 class="serif text-3xl mb-3">Xác nhận</h2>
+      <p class="text-neutral-600 mb-7">${message}</p>
+
+      <div class="flex justify-end gap-3">
+        <button onclick="closeConfirm()"
+          class="border rounded-full px-6 py-3 font-bold">
+          Hủy
+        </button>
+
+        <button onclick="confirmAction()"
+          class="bg-red-800 text-white rounded-full px-6 py-3 font-bold">
+          Xóa
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+}
+
+function closeConfirm(){
+  const modal = document.getElementById("adminConfirmModal");
+  if(modal) modal.remove();
+  confirmCallback = null;
+}
+
+function confirmAction(){
+  if(confirmCallback){
+    confirmCallback();
+  }
+  closeConfirm();
+}
+
+function adminToolbar(type, title, btnText, btnAction){
+  return `
+    <div class="px-6 py-4 border-b flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <h2 class="font-bold text-xl">${title}</h2>
+
+      <div class="flex gap-3 w-full lg:w-auto">
+        <input
+          data-search="${type}"
+          value="${adminSearch[type] || ""}"
+          oninput="searchAdmin('${type}', this.value)"
+          class="border rounded-full px-5 py-3 w-full lg:w-80 outline-none"
+          placeholder="Tìm kiếm..."
+        >
+
+        <button onclick="${btnAction}"
+          class="bg-red-800 text-white rounded-full px-6 py-3 font-bold whitespace-nowrap">
+          + ${btnText}
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function searchAdmin(type, value){
+  adminSearch[type] = value.toLowerCase();
+
+  setTimeout(() => {
+    render();
+
+    setTimeout(() => {
+      const input = document.querySelector(`input[data-search="${type}"]`);
+      if(input){
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+      }
+    }, 0);
+  }, 0);
+}
+
+function searchOrderAdmin(value){
+  adminSearch.orders = value.toLowerCase();
+  orderLimit = 10;
+
+  setTimeout(() => {
+    render();
+
+    setTimeout(() => {
+      const input = document.querySelector(`input[data-search="orders"]`);
+      if(input){
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+      }
+    }, 0);
+  }, 0);
+}
+
+function showMoreAdminOrders(){
+  orderLimit += 10;
+  render();
+}
+
+function hideLessAdminOrders(){
+  orderLimit = Math.max(10, orderLimit - 10);
+  render();
+}
 
 function productImg(p,i){
   if(p.imageUrl) return p.imageUrl;
@@ -31,7 +180,14 @@ function productImg(p,i){
     return p.images[p.images.length - 1].imageUrl;
   }
 
-  return fallbackImages[i % fallbackImages.length];
+  return "/images/no-image.png";
+}
+
+function productHasVariant(productId){
+  return variants.some(v =>
+    v.product?.productId === productId &&
+    v.status === "ACTIVE"
+  );
 }
 
 async function fetchJson(url){
@@ -107,39 +263,84 @@ function sidebar(){
 }
 
 function productTable(){
+  const list = products.filter(p =>
+    (p.productName || "").toLowerCase().includes(adminSearch.products)
+  );
   return `<div class="soft-card overflow-hidden">
-    <div class="px-6 py-4 border-b flex justify-between items-center">
-      <h2 class="font-bold text-xl">Quản lý sản phẩm</h2>
-      <button onclick="openProductForm()" class="btn-primary">Thêm sản phẩm</button>
-    </div>
+    ${adminToolbar("products", "Quản lý sản phẩm", "Thêm", "openProductForm()")}
     <div class="overflow-x-auto">
       <table class="w-full text-left">
         <thead class="bg-neutral-50 text-sm text-neutral-500"><tr><th class="p-4">Ảnh</th><th>Sản phẩm</th><th>Danh mục</th><th>Giá</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
-        <tbody>${products.map((p,i)=>`<tr class="border-t"><td class="p-4"><img src="${productImg(p,i)}" class="w-14 h-14 object-cover rounded-xl"></td><td class="font-semibold">${p.productName}</td><td>${p.category?.categoryName || "Chưa có"}</td><td class="text-red-800 font-bold">${money(p.basePrice)}</td><td><span class="bg-green-50 text-green-700 rounded-full px-3 py-1 text-sm">${p.status || "ACTIVE"}</span></td><td class="space-x-2"><button onclick="openProductForm(${p.productId})" class="border rounded-full px-4 py-2 text-sm">Sửa</button><button onclick="deleteProduct(${p.productId})" class="bg-red-800 text-white rounded-full px-4 py-2 text-sm">Xóa</button></td></tr>`).join("")}</tbody>
+        <tbody>${list.map((p,i)=>`<tr class="border-t"><td class="p-4"><img src="${productImg(p,i)}" class="w-14 h-14 object-cover rounded-xl"></td><td class="font-semibold">
+  ${p.productName}
+  ${
+    productHasVariant(p.productId)
+    ? ""
+    : `<p class="text-xs text-red-800 font-bold mt-1">Chưa có biến thể</p>`
+  }
+</td><td>${p.category?.categoryName || "Chưa có"}</td><td class="text-red-800 font-bold">${money(p.basePrice)}</td><td><span class="bg-green-50 text-green-700 rounded-full px-3 py-1 text-sm">${p.status || "ACTIVE"}</span></td><td class="space-x-2"><button onclick="openProductForm(${p.productId})" class="border rounded-full px-4 py-2 text-sm">Sửa</button><button onclick="deleteProduct(${p.productId})" class="bg-red-800 text-white rounded-full px-4 py-2 text-sm">Xóa</button></td></tr>`).join("")}</tbody>
       </table>
     </div>
   </div>${productModal()}`;
 }
 
 function categoryPanel(){
+  const list = categories.filter(c =>
+    (c.categoryName || "").toLowerCase().includes(adminSearch.categories)
+  );
   return `<div class="soft-card p-6">
-    <div class="flex justify-between mb-4"><h2 class="font-bold text-xl">Danh mục</h2><button onclick="openCategoryForm()" class="btn-primary">Thêm danh mục</button></div>
-    ${categories.map(c=>`<div class="border rounded-2xl p-4 mb-3 flex justify-between items-center"><div><b>${c.categoryName}</b><p class="text-sm text-neutral-500">${c.description || "Không có mô tả"}</p></div><div class="flex gap-2 items-center"><span class="text-red-800 font-bold">${c.status || "ACTIVE"}</span><button onclick="openCategoryForm(${c.categoryId})" class="border rounded-full px-4 py-2 text-sm">Sửa</button><button onclick="deleteCategory(${c.categoryId})" class="bg-red-800 text-white rounded-full px-4 py-2 text-sm">Xóa</button></div></div>`).join("") || `<p class="text-neutral-500">Chưa có danh mục</p>`}
+    ${adminToolbar("categories", "Danh mục", "Thêm", "openCategoryForm()")}
+
+    ${
+      list.map((c,i)=>`
+        <div class="border rounded-2xl p-4 mb-3 flex justify-between items-center gap-4">
+
+          <div class="flex items-center gap-4">
+            <img
+              src="${c.imageUrl || '/images/no-image.png'}"
+              class="w-16 h-16 object-cover rounded-2xl border"
+            >
+
+            <div>
+              <b>${c.categoryName}</b>
+              <p class="text-sm text-neutral-500">
+                ${c.description || "Không có mô tả"}
+              </p>
+            </div>
+          </div>
+
+          <div class="flex gap-2 items-center">
+            <span class="text-red-800 font-bold">${c.status || "ACTIVE"}</span>
+
+            <button onclick="openCategoryForm(${c.categoryId})"
+              class="border rounded-full px-4 py-2 text-sm">
+              Sửa
+            </button>
+
+            <button onclick="deleteCategory(${c.categoryId})"
+              class="bg-red-800 text-white rounded-full px-4 py-2 text-sm">
+              Xóa
+            </button>
+          </div>
+
+        </div>
+      `).join("") || `<p class="text-neutral-500">Chưa có danh mục</p>`
+    }
   </div>${categoryModal()}`;
 }
 
 function brandPanel(){
+  const list = brands.filter(b =>
+    (b.brandName || "").toLowerCase().includes(adminSearch.brands)
+  );
   return `<div class="soft-card overflow-hidden">
-    <div class="px-6 py-4 border-b flex justify-between items-center">
-      <h2 class="font-bold text-xl">Quản lý thương hiệu</h2>
-      <button onclick="openBrandForm()" class="btn-primary">Thêm thương hiệu</button>
-    </div>
+    ${adminToolbar("brands", "Quản lý thương hiệu", "Thêm", "openBrandForm()")}
     <div class="overflow-x-auto">
       <table class="w-full text-left">
         <thead class="bg-neutral-50 text-sm text-neutral-500">
           <tr><th class="p-4">ID</th><th>Tên thương hiệu</th><th>Mô tả</th><th>Trạng thái</th><th>Thao tác</th></tr>
         </thead>
-        <tbody>${brands.map(b=>`<tr class="border-t">
+        <tbody>${list.map(b=>`<tr class="border-t">
           <td class="p-4 font-bold">#${b.brandId}</td>
           <td class="font-semibold">${b.brandName}</td>
           <td class="text-neutral-600">${b.description || 'Không có mô tả'}</td>
@@ -155,7 +356,84 @@ function brandPanel(){
 }
 
 function userTable(){
-  return `<div class="soft-card overflow-hidden"><div class="px-6 py-4 border-b"><h2 class="font-bold text-xl">Quản lý người dùng</h2></div><table class="w-full text-left"><thead class="bg-neutral-50 text-sm text-neutral-500"><tr><th class="p-4">Tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th></tr></thead><tbody>${users.map(u=>`<tr class="border-t"><td class="p-4 font-semibold">${u.fullname}</td><td>${u.email}</td><td><span class="rounded-full bg-neutral-100 px-3 py-1 text-sm">${u.role}</span></td><td>${u.status}</td></tr>`).join("") || `<tr><td class="p-6 text-neutral-500" colspan="4">Chưa có user hoặc API /api/users bị chặn</td></tr>`}</tbody></table></div>`;
+  const list = users.filter(u =>
+    (u.fullname || "").toLowerCase().includes(adminSearch.users) ||
+    (u.email || "").toLowerCase().includes(adminSearch.users) ||
+    (u.phone || "").toLowerCase().includes(adminSearch.users) ||
+    (u.role || "").toLowerCase().includes(adminSearch.users)
+  );
+
+  return `<div class="soft-card overflow-hidden">
+    ${adminToolbar("users", "Quản lý người dùng", "Thêm", "openUserForm()")}
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left">
+        <thead class="bg-neutral-50 text-sm text-neutral-500">
+          <tr>
+            <th class="p-4">Tên</th>
+            <th>Email</th>
+            <th>SĐT</th>
+            <th>Vai trò</th>
+            <th>Trạng thái</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          ${
+            list.map(u => `
+              <tr class="border-t">
+                <td class="p-4 font-semibold">${u.fullname || "Chưa có"}</td>
+                <td>${u.email}</td>
+                <td>${u.phone || "-"}</td>
+                <td><span class="rounded-full bg-neutral-100 px-3 py-1 text-sm">${u.role}</span></td>
+                <td>${u.status}</td>
+                <td class="space-x-2">
+                  <button onclick="openUserForm(${u.userId})" class="border rounded-full px-4 py-2 text-sm">Sửa</button>
+                  <button onclick="deleteUser(${u.userId})" class="bg-red-800 text-white rounded-full px-4 py-2 text-sm">Xóa</button>
+                </td>
+              </tr>
+            `).join("") || `<tr><td colspan="6" class="p-6 text-center text-neutral-500">Chưa có người dùng</td></tr>`
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>${userModal()}`;
+}
+
+function userModal(){
+  return `<div id="userModal" class="fixed inset-0 bg-black/40 z-[999] hidden items-center justify-center p-5">
+    <div class="bg-white rounded-3xl p-7 w-full max-w-lg shadow-xl">
+      <div class="flex justify-between items-center mb-5">
+        <h2 id="userFormTitle" class="serif text-3xl">Thêm người dùng</h2>
+        <button onclick="closeUserForm()" class="text-2xl">×</button>
+      </div>
+
+      <input type="hidden" id="userId">
+
+      <div class="space-y-4">
+        <input id="userFullname" class="input-ui" placeholder="Họ tên">
+        <input id="userEmail" class="input-ui" placeholder="Email">
+        <input id="userPhone" class="input-ui" placeholder="Số điện thoại">
+        <input id="userPassword" type="password" class="input-ui" placeholder="Mật khẩu">
+
+        <select id="userRole" class="input-ui">
+          <option value="USER">USER</option>
+          <option value="STAFF">STAFF</option>
+          <option value="ADMIN">ADMIN</option>
+        </select>
+
+        <select id="userStatus" class="input-ui">
+          <option value="ACTIVE">ACTIVE</option>
+          <option value="INACTIVE">INACTIVE</option>
+        </select>
+
+        <textarea id="userAddress" class="input-ui" placeholder="Địa chỉ"></textarea>
+
+        <button onclick="saveUser()" class="btn-primary w-full">Lưu người dùng</button>
+      </div>
+    </div>
+  </div>`;
 }
 
 
@@ -269,17 +547,20 @@ function productModal(){
 }
 
 function variantPanel(){
+  const list = variants.filter(v =>
+    (v.product?.productName || "").toLowerCase().includes(adminSearch.variants) ||
+    (v.sku || "").toLowerCase().includes(adminSearch.variants) ||
+    (v.size || "").toLowerCase().includes(adminSearch.variants) ||
+    (v.color || "").toLowerCase().includes(adminSearch.variants)
+  );
   return `<div class="soft-card overflow-hidden">
-    <div class="px-6 py-4 border-b flex justify-between items-center">
-      <h2 class="font-bold text-xl">Quản lý biến thể sản phẩm</h2>
-      <button onclick="openVariantForm()" class="btn-primary">Thêm biến thể</button>
-    </div>
+    ${adminToolbar("variants", "Quản lý biến thể sản phẩm", "Thêm", "openVariantForm()")}
     <div class="overflow-x-auto">
       <table class="w-full text-left">
         <thead class="bg-neutral-50 text-sm text-neutral-500">
           <tr><th class="p-4">Sản phẩm</th><th>Size</th><th>Màu</th><th>SKU</th><th>Giá</th><th>Tồn kho</th><th>Trạng thái</th><th>Thao tác</th></tr>
         </thead>
-        <tbody>${variants.map(v=>`<tr class="border-t"><td class="p-4 font-semibold">${v.product?.productName || 'Không rõ'}</td><td>${v.size || ''}</td><td>${v.color || ''}</td><td class="font-mono text-sm">${v.sku || ''}</td><td class="text-red-800 font-bold">${money(v.price)}</td><td class="font-bold">${v.stock ?? 0}</td><td><span class="rounded-full ${v.status === 'ACTIVE' ? 'bg-green-50 text-green-700' : 'bg-neutral-100 text-neutral-500'} px-3 py-1 text-sm">${v.status || 'ACTIVE'}</span></td><td class="space-x-2"><button onclick="openVariantForm(${v.variantId})" class="border rounded-full px-4 py-2 text-sm">Sửa</button><button onclick="deleteVariant(${v.variantId})" class="bg-red-800 text-white rounded-full px-4 py-2 text-sm">Xóa</button></td></tr>`).join('') || `<tr><td class="p-6 text-neutral-500" colspan="8">Chưa có biến thể sản phẩm</td></tr>`}</tbody>
+        <tbody>${list.map(v=>`<tr class="border-t"><td class="p-4 font-semibold">${v.product?.productName || 'Không rõ'}</td><td>${v.size || ''}</td><td>${v.color || ''}</td><td class="font-mono text-sm">${v.sku || ''}</td><td class="text-red-800 font-bold">${money(v.price)}</td><td class="font-bold">${v.stock ?? 0}</td><td><span class="rounded-full ${v.status === 'ACTIVE' ? 'bg-green-50 text-green-700' : 'bg-neutral-100 text-neutral-500'} px-3 py-1 text-sm">${v.status || 'ACTIVE'}</span></td><td class="space-x-2"><button onclick="openVariantForm(${v.variantId})" class="border rounded-full px-4 py-2 text-sm">Sửa</button><button onclick="deleteVariant(${v.variantId})" class="bg-red-800 text-white rounded-full px-4 py-2 text-sm">Xóa</button></td></tr>`).join('') || `<tr><td class="p-6 text-neutral-500" colspan="8">Chưa có biến thể sản phẩm</td></tr>`}</tbody>
       </table>
     </div>
   </div>${variantModal()}`;
@@ -312,6 +593,14 @@ function categoryModal(){
       <div class="space-y-4">
         <input id="categoryName" class="input-ui" placeholder="Tên danh mục">
         <textarea id="categoryDesc" class="input-ui" placeholder="Mô tả"></textarea>
+        <div>
+          <label class="font-semibold">Ảnh danh mục</label>
+          <input id="categoryImageFile" type="file" accept="image/*"
+            class="mt-2 block w-full border rounded-xl p-3"
+            onchange="previewCategoryImage(event)">
+          <img id="previewCategoryImage"
+            class="mt-4 w-32 h-32 object-cover rounded-xl border hidden">
+        </div>
         <select id="categoryParent" class="input-ui"><option value="">Không có danh mục cha</option>${categories.map(c=>`<option value="${c.categoryId}">${c.categoryName}</option>`).join('')}</select>
         <select id="categoryStatus" class="input-ui"><option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option></select>
         <button onclick="saveCategory()" class="btn-primary w-full">Lưu danh mục</button>
@@ -339,10 +628,43 @@ function brandModal(){
 }
 
 function orderTable(){
+  const keyword = adminSearch.orders || "";
+
+  const filteredOrders = orders.filter(o => {
+    const orderId = String(o.orderId || "").toLowerCase();
+    const name = (o.user?.fullname || "").toLowerCase();
+    const email = (o.user?.email || "").toLowerCase();
+    const phone = (o.user?.phone || "").toLowerCase();
+    const address = (o.address || "").toLowerCase();
+
+    return orderId.includes(keyword)
+      || name.includes(keyword)
+      || email.includes(keyword)
+      || phone.includes(keyword)
+      || address.includes(keyword);
+  });
+
+  const list = filteredOrders.slice(0, orderLimit);
+
   return `<div class="soft-card overflow-hidden">
-    <div class="px-6 py-4 border-b flex justify-between items-center">
+
+    <div class="px-6 py-4 border-b flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
       <h2 class="font-bold text-xl">Quản lý đơn hàng</h2>
-      <button onclick="loadData().then(render)" class="border rounded-full px-4 py-2 text-sm">Làm mới</button>
+
+      <div class="flex gap-3 w-full lg:w-auto">
+        <input
+          data-search="orders"
+          value="${adminSearch.orders || ""}"
+          oninput="searchOrderAdmin(this.value)"
+          class="border rounded-full px-5 py-3 w-full lg:w-96 outline-none"
+          placeholder="Tìm mã đơn, tên, email, số điện thoại..."
+        >
+
+        <button onclick="orderLimit=10; loadData().then(render)"
+          class="border rounded-full px-5 py-3 font-bold whitespace-nowrap">
+          Làm mới
+        </button>
+      </div>
     </div>
 
     <div class="overflow-x-auto">
@@ -360,8 +682,8 @@ function orderTable(){
 
         <tbody>
           ${
-            orders.length
-            ? orders.map(o => `
+            list.length
+            ? list.map(o => `
               <tr class="border-t">
                 <td class="p-4 font-bold">#${o.orderId}</td>
                 <td>${o.user?.fullname || o.user?.email || "Khách hàng"}</td>
@@ -383,11 +705,32 @@ function orderTable(){
                 </td>
               </tr>
             `).join("")
-            : `<tr><td colspan="6" class="p-6 text-center text-neutral-500">Chưa có đơn hàng</td></tr>`
+            : `<tr><td colspan="6" class="p-6 text-center text-neutral-500">Không tìm thấy đơn hàng</td></tr>`
           }
         </tbody>
       </table>
     </div>
+
+    <div class="px-6 py-5 border-t flex justify-center gap-4">
+      ${
+        filteredOrders.length > orderLimit
+        ? `<button onclick="showMoreAdminOrders()"
+            class="border rounded-full px-7 py-3 font-bold hover:bg-black hover:text-white transition">
+            Xem thêm
+          </button>`
+        : ""
+      }
+
+      ${
+        orderLimit > 10
+        ? `<button onclick="hideLessAdminOrders()"
+            class="border rounded-full px-7 py-3 font-bold hover:bg-red-800 hover:text-white transition">
+            Ẩn bớt
+          </button>`
+        : ""
+      }
+    </div>
+
   </div>${orderDetailModal()}`;
 }
 
@@ -438,7 +781,7 @@ function closeProductForm(){
 function previewImage(event){
   const file = event.target.files[0];
   if(!file) return;
-  if(!file.type.startsWith('image/')){alert('Vui lòng chọn file ảnh');return;}
+  if(!file.type.startsWith('image/')){showToast("Lỗi", "Vui lòng chọn file ảnh", "error");return;}
   selectedFile = file;
   const reader = new FileReader();
   reader.onload = function(e){
@@ -446,6 +789,27 @@ function previewImage(event){
     img.src = e.target.result;
     img.classList.remove('hidden');
   };
+  reader.readAsDataURL(file);
+}
+
+function previewCategoryImage(event){
+  const file = event.target.files[0];
+  if(!file) return;
+
+  if(!file.type.startsWith('image/')){
+    showToast("Lỗi", "Vui lòng chọn file ảnh", "error");
+    return;
+  }
+
+  selectedCategoryFile = file;
+
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const img = document.getElementById('previewCategoryImage');
+    img.src = e.target.result;
+    img.classList.remove('hidden');
+  };
+
   reader.readAsDataURL(file);
 }
 
@@ -460,12 +824,12 @@ async function saveProduct(){
     status: document.getElementById('productStatus').value
   };
 
-  if(!body.productName || !body.categoryId){ alert('Vui lòng nhập tên sản phẩm và chọn danh mục'); return; }
+  if(!body.productName || !body.categoryId){ showToast("Lỗi", "Vui lòng nhập tên sản phẩm và chọn danh mục", "error"); return; }
 
   const url = id ? `${API_BASE}/products/${id}` : `${API_BASE}/products`;
   const method = id ? 'PUT' : 'POST';
   const res = await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  if(!res.ok){ alert(await res.text()); return; }
+  if(!res.ok){ showToast("Lỗi", await res.text(), "error"); return; }
 
   const product = await res.json();
 
@@ -476,7 +840,7 @@ async function saveProduct(){
     const uploadRes = await fetch(`${API_BASE}/upload/image`,{method:'POST',body:formData});
     const uploadData = await uploadRes.json();
 
-    if(!uploadRes.ok){ alert(uploadData.message || 'Upload ảnh thất bại'); return; }
+    if(!uploadRes.ok){ showToast("Lỗi", uploadData.message || "Upload ảnh thất bại", "error"); return; }
 
     const imageRes = await fetch(`${API_BASE}/product-images`,{
       method:'POST',
@@ -484,19 +848,49 @@ async function saveProduct(){
       body:JSON.stringify({productId:product.productId,imageUrl:uploadData.imageUrl,isMain:true})
     });
 
-    if(!imageRes.ok){ alert('Sản phẩm đã lưu nhưng lưu ảnh thất bại'); }
+    if(!imageRes.ok){ showToast("Cảnh báo", "Sản phẩm đã lưu nhưng lưu ảnh thất bại", "error"); }
   }
 
   selectedFile = null;
   closeProductForm();
+
   await init();
+
+  const hasVariant = productHasVariant(product.productId);
+
+  if(!hasVariant){
+    currentTab = "variants";
+    render();
+
+    setTimeout(() => {
+      openVariantForm();
+      document.getElementById("variantProductId").value = product.productId;
+    }, 100);
+
+    showToast(
+      "Cần thêm biến thể",
+      "Sản phẩm cần có size, màu, SKU, tồn kho để hiển thị mua hàng ở shop",
+      "error"
+    );
+
+    return;
+  }
+
+  showToast("Thành công", "Đã lưu sản phẩm");
 }
 
-async function deleteProduct(id){
-  if(!confirm('Xóa sản phẩm này?')) return;
-  const res = await fetch(`${API_BASE}/products/${id}`,{method:'DELETE'});
-  if(!res.ok){ alert(await res.text()); return; }
-  await init();
+function deleteProduct(id){
+  showConfirm("Xóa sản phẩm này?", async () => {
+    const res = await fetch(`${API_BASE}/products/${id}`, { method:'DELETE' });
+
+    if(!res.ok){
+      showToast("Lỗi", await res.text(), "error");
+      return;
+    }
+
+    showToast("Thành công", "Đã xóa sản phẩm");
+    await init();
+  });
 }
 
 function openVariantForm(id=null){
@@ -533,7 +927,7 @@ async function saveVariant(){
   };
 
   if(!body.productId || !body.sku){
-    alert('Vui lòng chọn sản phẩm và nhập SKU');
+    showToast("Lỗi", "Vui lòng chọn sản phẩm và nhập SKU", "error");
     return;
   }
 
@@ -547,27 +941,29 @@ async function saveVariant(){
   });
 
   if(!res.ok){
-    alert(await res.text());
+    showToast("Lỗi", await res.text(), "error");
     return;
   }
 
   closeVariantForm();
+
+  showToast("Thành công", "Đã lưu biến thể");
+
   await init();
 }
 
-async function deleteVariant(id){
-  if(!confirm('Xóa biến thể này?')) return;
+function deleteVariant(id){
+  showConfirm("Xóa biến thể này?", async () => {
+    const res = await fetch(`${API_BASE}/variants/${id}`, { method:'DELETE' });
 
-  const res = await fetch(`${API_BASE}/variants/${id}`,{
-    method:'DELETE'
+    if(!res.ok){
+      showToast("Lỗi", await res.text(), "error");
+      return;
+    }
+
+    showToast("Thành công", "Đã xóa biến thể");
+    await init();
   });
-
-  if(!res.ok){
-    alert(await res.text());
-    return;
-  }
-
-  await init();
 }
 
 function openCategoryForm(id=null){
@@ -577,8 +973,20 @@ function openCategoryForm(id=null){
   document.getElementById('categoryId').value = id || '';
 
   const c = categories.find(x => x.categoryId === id);
-  document.getElementById('categoryName').value = c?.categoryName || '';
-  document.getElementById('categoryDesc').value = c?.description || '';
+    document.getElementById('categoryName').value = c?.categoryName || '';
+    document.getElementById('categoryDesc').value = c?.description || '';
+    selectedCategoryFile = null;
+  document.getElementById('categoryImageFile').value = '';
+
+  const preview = document.getElementById('previewCategoryImage');
+
+  if(c?.imageUrl){
+    preview.src = c.imageUrl;
+    preview.classList.remove('hidden');
+  }else{
+    preview.src = '';
+    preview.classList.add('hidden');
+  }
   document.getElementById('categoryParent').value = c?.parent?.categoryId || '';
   document.getElementById('categoryStatus').value = c?.status || 'ACTIVE';
 }
@@ -601,7 +1009,7 @@ async function saveCategory(){
   };
 
   if(!body.categoryName){
-    alert('Vui lòng nhập tên danh mục');
+    showToast("Lỗi", "Vui lòng nhập tên danh mục", "error");
     return;
   }
 
@@ -615,27 +1023,65 @@ async function saveCategory(){
   });
 
   if(!res.ok){
-    alert(await res.text());
-    return;
-  }
-
-  closeCategoryForm();
-  await init();
+  showToast("Lỗi", await res.text(), "error");
+  return;
 }
 
-async function deleteCategory(id){
-  if(!confirm('Xóa danh mục này?')) return;
+const category = await res.json();
 
-  const res = await fetch(`${API_BASE}/categories/${id}`,{
-    method:'DELETE'
+if(selectedCategoryFile){
+  const formData = new FormData();
+  formData.append('file', selectedCategoryFile);
+
+  const uploadRes = await fetch(`${API_BASE}/upload/image`, {
+    method: 'POST',
+    body: formData
   });
 
-  if(!res.ok){
-    alert('Không thể xóa danh mục đang có sản phẩm hoặc danh mục con');
+  const uploadData = await uploadRes.json();
+
+  if(!uploadRes.ok){
+    showToast("Lỗi", uploadData.message || "Upload ảnh danh mục thất bại", "error");
     return;
   }
 
-  await init();
+  const updateBody = {
+    ...body,
+    imageUrl: uploadData.imageUrl
+  };
+
+  const updateRes = await fetch(`${API_BASE}/categories/${category.categoryId}`, {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(updateBody)
+  });
+
+  if(!updateRes.ok){
+    showToast("Cảnh báo", "Danh mục đã lưu nhưng lưu ảnh thất bại", "error");
+    return;
+  }
+}
+
+selectedCategoryFile = null;
+closeCategoryForm();
+
+showToast("Thành công", "Đã lưu danh mục");
+
+await init();
+}
+
+function deleteCategory(id){
+  showConfirm("Xóa danh mục này?", async () => {
+    const res = await fetch(`${API_BASE}/categories/${id}`, { method:'DELETE' });
+
+    if(!res.ok){
+      showToast("Lỗi", "Không thể xóa danh mục đang có sản phẩm hoặc danh mục con", "error");
+      return;
+    }
+
+    showToast("Thành công", "Đã xóa danh mục");
+    await init();
+  });
 }
 
 function openBrandForm(id=null){
@@ -665,7 +1111,7 @@ async function saveBrand(){
   };
 
   if(!body.brandName){
-    alert('Vui lòng nhập tên thương hiệu');
+    showToast("Lỗi", "Vui lòng nhập tên thương hiệu", "error");
     return;
   }
 
@@ -681,44 +1127,46 @@ async function saveBrand(){
   const data = await res.json().catch(()=>({}));
 
   if(!res.ok){
-    alert(data.message || 'Lưu thương hiệu thất bại');
+    showToast("Lỗi", data.message || "Lưu thương hiệu thất bại", "error");
     return;
   }
 
   closeBrandForm();
+
+  showToast("Thành công", "Đã lưu thương hiệu");
+
   await init();
 }
 
-async function deleteBrand(id){
-  if(!confirm('Xóa thương hiệu này?')) return;
+function deleteBrand(id){
+  showConfirm("Xóa thương hiệu này?", async () => {
+    const res = await fetch(`${API_BASE}/brands/${id}`, { method:'DELETE' });
+    const data = await res.json().catch(() => ({}));
 
-  const res = await fetch(`${API_BASE}/brands/${id}`,{
-    method:'DELETE'
+    if(!res.ok){
+      showToast("Lỗi", data.message || "Không thể xóa thương hiệu đang có sản phẩm", "error");
+      return;
+    }
+
+    showToast("Thành công", "Đã xóa thương hiệu");
+    await init();
   });
-
-  const data = await res.json().catch(()=>({}));
-
-  if(!res.ok){
-    alert(data.message || 'Không thể xóa thương hiệu đang có sản phẩm');
-    return;
-  }
-
-  await init();
 }
 
 async function updateOrderStatus(orderId, status){
   const res = await fetch(`${API_BASE}/orders/${orderId}/status?status=${status}`, {
     method: "PUT"
+    
   });
 
   const data = await res.json().catch(()=>({}));
 
   if(!res.ok){
-    alert(data.message || "Cập nhật trạng thái thất bại");
+    showToast("Lỗi", data.message || "Cập nhật trạng thái thất bại", "error");
     await init();
     return;
   }
-
+  showToast("Thành công", "Đã cập nhật trạng thái đơn hàng");
   await init();
 }
 
@@ -727,7 +1175,7 @@ async function openOrderDetail(orderId){
   const order = await res.json();
 
   if(!res.ok){
-    alert(order.message || "Không tải được đơn hàng");
+    showToast("Lỗi", order.message || "Không tải được đơn hàng", "error");
     return;
   }
 
@@ -767,7 +1215,7 @@ async function openOrderDetail(orderId){
             const p = v?.product;
             const img = p
               ? productImg(p, index)
-              : fallbackImages[index % fallbackImages.length];
+              : "/images/no-image.png";
 
             return `
               <div class="p-4 border-b grid grid-cols-[70px_1fr_130px] gap-4 items-center">
@@ -814,11 +1262,11 @@ function closeOrderDetail(){
 }
 
 function voucherPanel(){
+  const list = vouchers.filter(v =>
+    (v.code || "").toLowerCase().includes(adminSearch.promo)
+  );
   return `<div class="soft-card overflow-hidden">
-    <div class="px-6 py-4 border-b flex justify-between items-center">
-      <h2 class="font-bold text-xl">Quản lý voucher</h2>
-      <button onclick="openVoucherForm()" class="btn-primary">Thêm voucher</button>
-    </div>
+    ${adminToolbar("promo", "Quản lý voucher", "Thêm", "openVoucherForm()")}
 
     <div class="overflow-x-auto">
       <table class="w-full text-left">
@@ -836,8 +1284,8 @@ function voucherPanel(){
 
         <tbody>
           ${
-            vouchers.length
-            ? vouchers.map(v => `
+            list.length
+              ? list.map(v => `
               <tr class="border-t">
                 <td class="p-4 font-bold">${v.code}</td>
                 <td>${v.discountType}</td>
@@ -935,7 +1383,7 @@ async function saveVoucher(){
   };
 
   if(!body.code || !body.discountValue){
-    alert("Vui lòng nhập mã và giá trị voucher");
+    showToast("Lỗi", "Vui lòng nhập mã và giá trị voucher", "error");
     return;
   }
 
@@ -949,29 +1397,126 @@ async function saveVoucher(){
   });
 
   if(!res.ok){
-    alert(await res.text());
+    showToast("Lỗi", await res.text(), "error");
     return;
   }
 
   closeVoucherForm();
+  showToast("Thành công", "Đã lưu voucher");
   await init();
+
   currentTab = "promo";
   render();
 }
 
-async function deleteVoucher(id){
-  if(!confirm("Xóa voucher này?")) return;
+function deleteVoucher(id){
+  showConfirm("Xóa voucher này?", async () => {
+    const res = await fetch(`${API_BASE}/vouchers/${id}`, { method:"DELETE" });
 
-  const res = await fetch(`${API_BASE}/vouchers/${id}`,{
-    method:"DELETE"
+    if(!res.ok){
+      showToast("Lỗi", "Xóa voucher thất bại", "error");
+      return;
+    }
+
+    showToast("Thành công", "Đã xóa voucher");
+    await init();
+    currentTab = "promo";
+    render();
   });
+}
 
-  if(!res.ok){
-    alert("Xóa voucher thất bại");
+function openUserForm(id=null){
+  document.getElementById("userModal").classList.remove("hidden");
+  document.getElementById("userModal").classList.add("flex");
+
+  document.getElementById("userFormTitle").innerText = id ? "Sửa người dùng" : "Thêm người dùng";
+  document.getElementById("userId").value = id || "";
+
+  const u = users.find(x => x.userId === id);
+
+  document.getElementById("userFullname").value = u?.fullname || "";
+  document.getElementById("userEmail").value = u?.email || "";
+  document.getElementById("userPhone").value = u?.phone || "";
+  document.getElementById("userPassword").value = "";
+  document.getElementById("userRole").value = u?.role || "USER";
+  document.getElementById("userStatus").value = u?.status || "ACTIVE";
+  document.getElementById("userAddress").value = u?.address || "";
+}
+
+function closeUserForm(){
+  document.getElementById("userModal").classList.add("hidden");
+  document.getElementById("userModal").classList.remove("flex");
+}
+
+async function saveUser(){
+  const id = document.getElementById("userId").value;
+
+  const body = {
+    fullname: document.getElementById("userFullname").value.trim(),
+    email: document.getElementById("userEmail").value.trim(),
+    phone: document.getElementById("userPhone").value.trim(),
+    password: document.getElementById("userPassword").value,
+    role: document.getElementById("userRole").value,
+    status: document.getElementById("userStatus").value,
+    address: document.getElementById("userAddress").value.trim()
+  };
+
+  if(!body.fullname || !body.email){
+    showToast("Lỗi", "Vui lòng nhập họ tên và email", "error");
     return;
   }
 
+  if(!id && !body.password){
+    showToast("Lỗi", "Vui lòng nhập mật khẩu cho tài khoản mới", "error");
+    return;
+  }
+
+  const url = id ? `${API_BASE}/users/${id}` : `${API_BASE}/users`;
+  const method = id ? "PUT" : "POST";
+
+  const res = await fetch(url, {
+    method,
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify(body)
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if(!res.ok){
+    showToast("Lỗi", data.message || "Lưu người dùng thất bại", "error");
+    return;
+  }
+
+  closeUserForm();
   await init();
-  currentTab = "vouchers";
+  currentTab = "users";
   render();
+  showToast("Thành công", "Đã lưu người dùng");
+}
+
+function deleteUser(id){
+  const currentAdmin = admin();
+
+  if(currentAdmin?.userId === id){
+    showToast("Lỗi", "Không thể xóa chính tài khoản đang đăng nhập", "error");
+    return;
+  }
+
+  showConfirm("Xóa người dùng này?", async () => {
+    const res = await fetch(`${API_BASE}/users/${id}`, {
+      method: "DELETE"
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if(!res.ok){
+      showToast("Lỗi", data.message || "Xóa người dùng thất bại", "error");
+      return;
+    }
+
+    await init();
+    currentTab = "users";
+    render();
+    showToast("Thành công", "Đã xóa người dùng");
+  });
 }

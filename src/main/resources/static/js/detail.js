@@ -29,6 +29,28 @@ function detailPage(){
     </div>
 
     <div class="bg-white rounded-3xl border shadow-sm p-9 h-fit sticky top-36">
+
+    <div class="flex items-center justify-between mb-7">
+
+      <button
+        onclick="location.href='/products'"
+        class="group inline-flex items-center gap-3 border border-neutral-300 bg-white hover:bg-black hover:text-white px-5 py-3 rounded-full transition-all duration-300 shadow-sm hover:shadow-lg"
+      >
+        <span class="text-lg transition-transform duration-300 group-hover:-translate-x-1">
+          ←
+        </span>
+
+        <span class="font-semibold">
+          Quay lại cửa hàng
+        </span>
+      </button>
+
+      <div class="text-sm text-neutral-400">
+        HA FASHION
+      </div>
+
+    </div>
+    
       <p class="text-red-800 uppercase tracking-widest font-bold">${getBrandName(p)}</p>
 
       <h1 class="serif text-5xl mt-3">${p.productName}</h1>

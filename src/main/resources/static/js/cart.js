@@ -1,17 +1,3 @@
-const API_BASE = "http://localhost:8080/api";
-
-function icon(n,c="w-6 h-6"){
-  return `<i data-lucide="${n}" class="${c}"></i>`;
-}
-
-function formatPrice(price){
-  return Number(price || 0).toLocaleString("vi-VN") + "đ";
-}
-
-function getUser(){
-  return JSON.parse(localStorage.getItem("ha_user") || "null");
-}
-
 function productImg(item){
   const p = item.variant?.product;
 
@@ -23,70 +9,6 @@ function productImg(item){
 
   return "https://images.unsplash.com/photo-1539008835657-9e8e9680c956?q=80&w=900&auto=format&fit=crop";
 }
-
-function header(){
-  return `
-  <header class="sticky top-0 z-50 bg-white border-b shadow-sm">
-    <div class="bg-black text-white text-xs">
-      <div class="wrap py-2 flex justify-between">
-        <span>Freeship đơn từ 999.000đ</span>
-        <span>Hotline: 0900 888 999 · Đổi trả 7 ngày</span>
-      </div>
-    </div>
-
-    <div class="wrap py-4 flex items-center gap-7">
-      <a href="/" class="serif text-3xl lg:text-4xl tracking-[.22em] font-bold whitespace-nowrap">
-        HA FASHION
-      </a>
-
-      <nav class="hidden lg:flex gap-7 font-semibold text-base flex-1">
-        <a href="/" class="hover:text-red-800">Trang chủ</a>
-        <a href="/products" class="hover:text-red-800">Sản phẩm</a>
-        <a href="/promo" class="hover:text-red-800">Khuyến mãi</a>
-        <a href="/store" class="hover:text-red-800">Cửa hàng</a>
-      </nav>
-
-      <div class="flex gap-5 items-center">
-        ${icon("heart")}
-        <a href="/cart">${icon("shopping-bag")}</a>
-        <a href="/auth">${icon("user")}</a>
-      </div>
-    </div>
-  </header>`;
-}
-
-function footer(){
-  return `
-  <footer class="mt-16 bg-black text-white">
-    <div class="wrap py-12 grid md:grid-cols-4 gap-8">
-      <div>
-        <h2 class="serif text-3xl tracking-widest font-bold">HA FASHION</h2>
-        <p class="mt-4 text-neutral-300">Thời trang nữ thanh lịch, hiện đại.</p>
-      </div>
-
-      <div>
-        <b>Danh mục</b>
-        <p class="mt-3 text-neutral-300">Đầm nữ</p>
-        <p>Áo sơ mi</p>
-        <p>Blazer</p>
-      </div>
-
-      <div>
-        <b>Hỗ trợ</b>
-        <p class="mt-3">Đổi trả</p>
-        <p>Chọn size</p>
-        <p>Theo dõi đơn</p>
-      </div>
-
-      <div>
-        <b>Liên hệ</b>
-        <p class="mt-3">Hà Nội, Việt Nam</p>
-        <p>0900 888 999</p>
-      </div>
-    </div>
-  </footer>`;
-}
-
 
 let cart = null;
 
@@ -348,37 +270,6 @@ function goToPayment() {
 }
 
 fetchCart();
-
-
-function showToast(title, text, type = "success"){
-
-  const old = document.getElementById("toast");
-  if(old) old.remove();
-
-  const toast = document.createElement("div");
-
-  toast.id = "toast";
-
-  toast.className =
-    `toast ${type === "error" ? "toast-error" : "toast-success"}`;
-
-  toast.innerHTML = `
-    <div class="toast-icon">
-      ${type === "error" ? "!" : "✓"}
-    </div>
-
-    <div>
-      <div class="toast-title">${title}</div>
-      <div class="toast-text">${text}</div>
-    </div>
-  `;
-
-  document.body.appendChild(toast);
-
-  setTimeout(()=>{
-    toast.remove();
-  },2500);
-}
 
 
 function showConfirm(title, text){

@@ -2,7 +2,18 @@ function authPage(){
   const user = JSON.parse(localStorage.getItem("ha_user") || "null");
 
   if(user){
-    return header()+`<main class="wrap py-14"><div class="soft-card p-8 max-w-xl mx-auto text-center"><h1 class="serif text-4xl">Xin chào, ${user.fullname || user.email}</h1><p class="mt-4 text-neutral-600">Email: ${user.email}</p><p class="mt-2 text-neutral-600">Vai trò: ${user.role}</p><button onclick="logout()" class="mt-7 bg-black text-white rounded-full px-8 py-3 font-bold">Đăng xuất</button></div></main>`+footer();
+    return header()+`
+      <main class="wrap py-20 min-h-[60vh] flex items-center justify-center">
+        <div class="soft-card p-8 max-w-xl w-full text-center">
+          <h1 class="serif text-4xl">Xin chào, ${user.fullname || user.email}</h1>
+          <p class="mt-4 text-neutral-600">Email: ${user.email}</p>
+          <p class="mt-2 text-neutral-600">Vai trò: ${user.role}</p>
+          <button onclick="logout()" class="mt-7 bg-black text-white rounded-full px-8 py-3 font-bold">
+            Đăng xuất
+          </button>
+        </div>
+      </main>
+    `+footer();
   }
 
   const isLogin = authMode === "login";
@@ -69,6 +80,12 @@ async function login(){
     return;
   }
 
+  if(data.role !== "USER"){
+    document.getElementById('authMsg').innerText =
+      "Tài khoản Admin/Staff không được đăng nhập ở trang Shop";
+    return;
+  }
+
   localStorage.setItem('ha_user', JSON.stringify(data));
   location.href = "/auth";
 }
@@ -105,8 +122,14 @@ async function register(){
     return;
   }
 
-  localStorage.setItem('ha_user', JSON.stringify(data));
-  location.href = "/auth";
+  showToast(
+    "Đăng ký thành công",
+    "Vui lòng đăng nhập để tiếp tục",
+    "success"
+  );
+
+  authMode = "login";
+  renderApp(authPage());
 }
 
 function logout(){

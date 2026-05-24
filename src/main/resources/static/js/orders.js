@@ -1,5 +1,5 @@
-
 let myOrders = [];
+let orderLimit = 10;
 
 async function loadMyOrders(){
   const user = JSON.parse(localStorage.getItem("ha_user") || "null");
@@ -82,8 +82,34 @@ function renderOrders(){
         `
         : `
           <div class="space-y-5">
-            ${myOrders.map(order => orderCard(order)).join("")}
+            ${myOrders.slice(0, orderLimit).map(order => orderCard(order)).join("")}
           </div>
+
+          <div class="text-center mt-8 flex justify-center gap-4">
+
+  ${
+    myOrders.length > orderLimit
+    ? `
+      <button onclick="showMoreOrders()"
+        class="border rounded-full px-8 py-3 font-bold hover:bg-black hover:text-white transition">
+        Xem thêm
+      </button>
+    `
+    : ""
+  }
+
+  ${
+    orderLimit > 10
+    ? `
+      <button onclick="hideOrders()"
+        class="border rounded-full px-8 py-3 font-bold hover:bg-red-800 hover:text-white transition">
+        Ẩn bớt
+      </button>
+    `
+    : ""
+  }
+
+</div>
         `
       }
 
@@ -127,18 +153,20 @@ function orderCard(order){
           <b>${formatPrice(order.totalAmount)}</b>
         </div>
 
+        <div class="flex items-end justify-between gap-4">
+
         <div>
           <p class="text-neutral-500">Tổng thanh toán</p>
           <b class="text-red-800">${formatPrice(order.finalAmount)}</b>
         </div>
 
-      </div>
-
-      <div class="mt-5 flex justify-end">
         <button onclick="toggleOrderItems(${order.orderId})"
-          class="border rounded-full px-5 py-2 font-bold">
+          class="border rounded-full px-5 py-2 font-bold hover:bg-black hover:text-white transition">
           Xem chi tiết
         </button>
+
+      </div>
+
       </div>
 
       <div id="order-items-${order.orderId}" class="hidden mt-5 border-t pt-5">
@@ -186,4 +214,19 @@ function toggleOrderItems(orderId){
   box.classList.toggle("hidden");
 }
 
+function showMoreOrders(){
+  orderLimit += 10;
+  renderOrders();
+}
+
+
+function hideOrders(){
+  orderLimit = 10;
+  renderOrders();
+
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth"
+  });
+}
 loadMyOrders();
