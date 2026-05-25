@@ -7,12 +7,12 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="/css/style.css">
 </head>
+
 <body class="bg-[#f5f2ef]">
 
 <!-- LOGIN -->
 <section id="staffLogin" class="min-h-screen grid lg:grid-cols-2">
 
-  <!-- LEFT -->
   <div class="flex items-center px-20">
     <div class="max-w-xl">
       <p class="uppercase tracking-[6px] text-red-800 font-bold mb-8">
@@ -24,12 +24,11 @@
       </h1>
 
       <p class="text-3xl text-neutral-700 leading-relaxed">
-        Quản lý đơn hàng, xác nhận giao hàng và hỗ trợ khách hàng.
+        Quản lý đơn hàng, quản lý tồn kho và hỗ trợ vận hành cửa hàng.
       </p>
     </div>
   </div>
 
-  <!-- RIGHT -->
   <div class="flex items-center justify-center p-10">
     <div class="bg-white rounded-[36px] shadow-sm border w-full max-w-md p-10">
 
@@ -84,8 +83,12 @@
       </p>
 
       <h1 class="serif text-6xl">
-        Quản lý đơn hàng
+        Quản lý nhân viên
       </h1>
+
+      <p class="text-neutral-600 mt-3 text-lg">
+        Quản lý đơn hàng, theo dõi tồn kho và cập nhật số lượng sản phẩm.
+      </p>
     </div>
 
     <button
@@ -96,67 +99,11 @@
     </button>
   </div>
 
-  <div class="grid md:grid-cols-4 gap-5 mb-8">
+  <div id="staffContent"></div>
 
-    <div class="bg-white rounded-3xl border p-6">
-      <p class="text-neutral-500">Tổng đơn</p>
-      <h3 id="totalOrders" class="text-4xl font-bold mt-4">0</h3>
-    </div>
-
-    <div class="bg-white rounded-3xl border p-6">
-      <p class="text-neutral-500">Chờ xác nhận</p>
-      <h3 id="pendingOrders" class="text-4xl font-bold mt-4">0</h3>
-    </div>
-
-    <div class="bg-white rounded-3xl border p-6">
-      <p class="text-neutral-500">Đang giao</p>
-      <h3 id="shippingOrders" class="text-4xl font-bold mt-4">0</h3>
-    </div>
-
-    <div class="bg-white rounded-3xl border p-6">
-      <p class="text-neutral-500">Hoàn thành</p>
-      <h3 id="completedOrders" class="text-4xl font-bold mt-4">0</h3>
-    </div>
-
-  </div>
-
-  <div class="bg-white rounded-[36px] border overflow-hidden">
-
-    <div class="px-8 py-6 border-b flex justify-between items-center">
-      <h2 class="text-3xl font-bold">Đơn hàng</h2>
-
-      <button
-        onclick="loadOrders()"
-        class="border rounded-full px-5 py-3 font-semibold"
-      >
-        Làm mới
-      </button>
-    </div>
-
-    <div class="overflow-x-auto">
-
-      <table class="w-full">
-
-        <thead class="bg-neutral-50">
-          <tr class="text-left text-neutral-500">
-            <th class="p-6">Mã đơn</th>
-            <th>Khách hàng</th>
-            <th>Địa chỉ</th>
-            <th>Tổng tiền</th>
-            <th>Trạng thái</th>
-            <th>Thao tác</th>
-          </tr>
-        </thead>
-
-        <tbody id="orderBody"></tbody>
-
-      </table>
-
-    </div>
-  </div>
 </section>
 
-<!-- MODAL -->
+<!-- MODAL CHI TIẾT ĐƠN -->
 <div id="orderModal"
      class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50 p-5">
 

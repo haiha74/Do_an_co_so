@@ -56,6 +56,38 @@ function getUser(){
   return JSON.parse(localStorage.getItem("ha_user") || "null");
 }
 
+async function getCartCount(){
+  const user = getUser();
+
+  if(user?.userId){
+    try{
+      const res = await fetch(`${API_BASE}/cart/${user.userId}`);
+
+      if(res.ok){
+        const data = await res.json();
+
+        console.log("CART API DATA:", data);
+
+        const items = Array.isArray(data)
+          ? data
+          : (data.items || data.cartItems || []);
+
+        return items.reduce((sum,item)=>{
+          return sum + Number(item.quantity || 0);
+        },0);
+      }
+    }catch(e){
+      console.error("Không lấy được giỏ hàng DB", e);
+    }
+  }
+
+  const localCart = JSON.parse(localStorage.getItem("ha_cart") || "[]");
+
+  return localCart.reduce((total,item)=>{
+    return total + Number(item.quantity || 0);
+  },0);
+}
+
 
 function go(page){
   if(page === "home") location.href = "/";
@@ -110,7 +142,22 @@ function header(){
 
       <div class="flex gap-5 items-center">
         ${icon("heart")}
-        <a href="/cart" title="Giỏ hàng">${icon("shopping-bag")}</a>
+        <a href="/cart"
+          title="Giỏ hàng"
+          class="relative">
+
+          ${icon("shopping-bag")}
+
+          <span id="cartCount"
+            class="hidden absolute -top-2 -right-3
+                  min-w-[20px] h-5 px-1
+                  rounded-full bg-red-800 text-white
+                  text-[11px] font-bold
+                  flex items-center justify-center">
+            0
+          </span>
+
+        </a>
         <a href="/orders" title="Đơn hàng của tôi">
     ${icon("receipt-text","w-6 h-6")}
     </a>
@@ -145,10 +192,26 @@ function renderApp(html){
   if(window.lucide){
     lucide.createIcons();
   }
+
+  updateCartCount();
 }
 
+async function updateCartCount(){
+  const badge = document.getElementById("cartCount");
+  if(!badge) return;
 
+  const user = getUser();
 
+  if(!user?.userId){
+    badge.classList.add("hidden");
+    return;
+  }
+
+  const total = await getCartCount();
+
+  badge.innerText = total;
+  badge.classList.remove("hidden");
+}
 
 function showToast(title, text, type = "success"){
 

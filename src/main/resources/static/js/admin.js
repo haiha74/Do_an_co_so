@@ -236,13 +236,426 @@ function loginPage(){
 
 
 function statCards(){
-  const revenue = products.reduce((s,p)=>s + Number(p.basePrice || 0),0);
+  const revenue = orders
+    .filter(o => o.orderStatus !== "CANCELLED")
+    .reduce((s,o)=>s + Number(o.finalAmount || 0),0);
+
+  const activeCategories = categories.filter(c => c.status === "ACTIVE").length;
+
   return `<div class="grid md:grid-cols-4 gap-4 mb-6">
-    <div class="soft-card p-6"><p class="text-neutral-500">Doanh thu mô phỏng</p><h3 class="text-3xl font-bold mt-3">${money(revenue)}</h3><span class="text-red-800 text-sm font-semibold">Từ dữ liệu sản phẩm</span></div>
-    <div class="soft-card p-6"><p class="text-neutral-500">Sản phẩm</p><h3 class="text-3xl font-bold mt-3">${products.length}</h3><span class="text-red-800 text-sm font-semibold">Đang quản lý</span></div>
-    <div class="soft-card p-6"><p class="text-neutral-500">Danh mục</p><h3 class="text-3xl font-bold mt-3">${categories.length}</h3><span class="text-red-800 text-sm font-semibold">Danh mục active</span></div>
-    <div class="soft-card p-6"><p class="text-neutral-500">Người dùng</p><h3 class="text-3xl font-bold mt-3">${users.length}</h3><span class="text-red-800 text-sm font-semibold">Tài khoản hệ thống</span></div>
+    <div class="soft-card p-6">
+      <p class="text-neutral-500">Tổng doanh thu</p>
+      <h3 class="text-3xl font-bold mt-3">${money(revenue)}</h3>
+      <span class="text-red-800 text-sm font-semibold">Từ đơn hàng thực tế</span>
+    </div>
+
+    <div class="soft-card p-6">
+      <p class="text-neutral-500">Sản phẩm</p>
+      <h3 class="text-3xl font-bold mt-3">${products.length}</h3>
+      <span class="text-red-800 text-sm font-semibold">Đang quản lý</span>
+    </div>
+
+    <div class="soft-card p-6">
+      <p class="text-neutral-500">Danh mục</p>
+      <h3 class="text-3xl font-bold mt-3">${activeCategories}</h3>
+      <span class="text-red-800 text-sm font-semibold">Danh mục active</span>
+    </div>
+
+    <div class="soft-card p-6">
+      <p class="text-neutral-500">Người dùng</p>
+      <h3 class="text-3xl font-bold mt-3">${users.length}</h3>
+      <span class="text-red-800 text-sm font-semibold">Tài khoản hệ thống</span>
+    </div>
   </div>`;
+}
+
+function todayOrders(){
+  const today = new Date().toDateString();
+
+  return orders.filter(o =>
+    o.createdAt && new Date(o.createdAt).toDateString() === today
+  );
+}
+
+function todayRevenue(){
+  return todayOrders()
+    .filter(o => o.orderStatus !== "CANCELLED")
+    .reduce((sum, o) => sum + Number(o.finalAmount || 0), 0);
+}
+
+function overviewCharts(){
+  const todayList = todayOrders();
+
+  const statusMap = {
+    PENDING: "Chờ xử lý",
+    CONFIRMED: "Xác nhận",
+    SHIPPING: "Đang giao",
+    COMPLETED: "Hoàn thành",
+    CANCELLED: "Đã hủy"
+  };
+
+  const statusCounts = Object.keys(statusMap).map(status => ({
+    status,
+    label: statusMap[status],
+    count: todayList.filter(o => o.orderStatus === status).length
+  }));
+
+  const maxStatus = Math.max(...statusCounts.map(x => x.count), 1);
+
+  const hours = Array.from({length: 24}, (_, hour) => {
+    const revenue = todayList
+      .filter(o => {
+        const d = new Date(o.createdAt);
+        return d.getHours() === hour && o.orderStatus !== "CANCELLED";
+      })
+      .reduce((sum, o) => sum + Number(o.finalAmount || 0), 0);
+
+    return { hour, revenue };
+  });
+
+  const maxRevenue = Math.max(...hours.map(x => x.revenue), 1);
+
+  return `
+    <div class="grid lg:grid-cols-2 gap-6">
+
+      <div class="soft-card p-6">
+        <p class="uppercase tracking-widest text-red-800 font-bold mb-3">
+          Doanh thu hôm nay
+        </p>
+
+        <h2 class="text-5xl font-bold mb-3 tracking-tight">
+          ${money(todayRevenue())}
+        </h2>
+
+        <p class="text-neutral-500">
+          Tính từ đơn hôm nay, không gồm đơn đã hủy.
+        </p>
+
+        <div class="mt-7 h-56 flex items-end gap-1 border-b border-l px-4 pb-4">
+          ${hours.map(x => `
+            <div class="flex-1 bg-red-800 rounded-t"
+              title="${x.hour}h: ${money(x.revenue)}"
+              style="height:${x.revenue > 0 ? Math.max((x.revenue / maxRevenue) * 100, 8) : 2}%">
+            </div>
+          `).join("")}
+        </div>
+
+        <div class="flex justify-between text-xs text-neutral-500 mt-3">
+          <span>0h</span>
+          <span>6h</span>
+          <span>12h</span>
+          <span>18h</span>
+          <span>23h</span>
+        </div>
+      </div>
+
+      <div class="soft-card p-6">
+        <p class="uppercase tracking-widest text-red-800 font-bold mb-3">
+          Đơn hàng hôm nay
+        </p>
+
+        <h2 class="text-5xl font-bold mb-3 tracking-tight">
+          ${todayList.length}
+        </h2>
+
+        <p class="text-neutral-500 mb-6">
+          Thống kê đơn theo trạng thái trong ngày.
+        </p>
+
+        <div class="space-y-4">
+          ${statusCounts.map(s => `
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="font-semibold">${s.label}</span>
+                <b>${s.count}</b>
+              </div>
+
+              <div class="h-3 bg-neutral-100 rounded-full overflow-hidden">
+                <div class="h-full bg-red-800 rounded-full"
+                  style="width:${s.count > 0 ? (s.count / maxStatus) * 100 : 0}%">
+                </div>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+
+    </div>
+  `;
+}
+
+function dateOnly(d){
+  return new Date(d).toISOString().slice(0, 10);
+}
+
+function daysAgo(n){
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return dateOnly(d);
+}
+
+function validOrders(){
+  return orders.filter(o => o.orderStatus !== "CANCELLED");
+}
+
+function ordersInLastDays(days){
+  const from = daysAgo(days - 1);
+  return validOrders().filter(o =>
+    o.createdAt && dateOnly(o.createdAt) >= from
+  );
+}
+
+function revenueOf(list){
+  return list.reduce((sum, o) => sum + Number(o.finalAmount || 0), 0);
+}
+
+function topProducts(){
+  const map = {};
+
+  validOrders().forEach(order => {
+    (order.items || []).forEach(item => {
+      const p = item.variant?.product;
+      if(!p) return;
+
+      const id = p.productId;
+      if(!map[id]){
+        map[id] = {
+          name: p.productName,
+          qty: 0,
+          revenue: 0
+        };
+      }
+
+      map[id].qty += Number(item.quantity || 0);
+      map[id].revenue += Number(item.price || 0) * Number(item.quantity || 0);
+    });
+  });
+
+  return Object.values(map)
+    .sort((a,b) => b.qty - a.qty)
+    .slice(0, 5);
+}
+
+function topCustomers(){
+  const map = {};
+
+  validOrders().forEach(o => {
+    const u = o.user;
+    if(!u) return;
+
+    const id = u.userId;
+    if(!map[id]){
+      map[id] = {
+        name: u.fullname || u.email,
+        email: u.email || "",
+        total: 0,
+        orders: 0
+      };
+    }
+
+    map[id].total += Number(o.finalAmount || 0);
+    map[id].orders += 1;
+  });
+
+  return Object.values(map)
+    .sort((a,b) => b.total - a.total)
+    .slice(0, 5);
+}
+
+function revenue7Days(){
+  return Array.from({length: 7}, (_, i) => {
+    const day = daysAgo(6 - i);
+    const list = validOrders().filter(o =>
+      o.createdAt && dateOnly(o.createdAt) === day
+    );
+
+    return {
+      day,
+      revenue: revenueOf(list)
+    };
+  });
+}
+
+function reportPanel(){
+  const today = todayOrders().filter(o => o.orderStatus !== "CANCELLED");
+  const last7 = ordersInLastDays(7);
+  const last30 = ordersInLastDays(30);
+  const allValid = validOrders();
+
+  const completed = orders.filter(o => o.orderStatus === "COMPLETED").length;
+  const cancelled = orders.filter(o => o.orderStatus === "CANCELLED").length;
+  const shipping = orders.filter(o => o.orderStatus === "SHIPPING").length;
+
+  const productList = topProducts();
+  const customerList = topCustomers();
+  const chartData = revenue7Days();
+  const maxRevenue = Math.max(...chartData.map(x => x.revenue), 1);
+
+  return `
+    <div class="space-y-6">
+
+      <div class="soft-card p-6">
+        <p class="uppercase tracking-widest text-red-800 font-bold mb-2">
+          Báo cáo thống kê
+        </p>
+        <h2 class="serif text-4xl">Tổng hợp kinh doanh</h2>
+        <p class="text-neutral-500 mt-2">
+          Doanh thu, đơn hàng, sản phẩm bán chạy và khách hàng nổi bật.
+        </p>
+      </div>
+
+      <div class="grid md:grid-cols-4 gap-4">
+        <div class="soft-card p-6">
+          <p class="text-neutral-500">Doanh thu hôm nay</p>
+          <h3 class="text-3xl font-bold mt-3">${money(revenueOf(today))}</h3>
+        </div>
+
+        <div class="soft-card p-6">
+          <p class="text-neutral-500">Doanh thu 7 ngày</p>
+          <h3 class="text-3xl font-bold mt-3">${money(revenueOf(last7))}</h3>
+        </div>
+
+        <div class="soft-card p-6">
+          <p class="text-neutral-500">Doanh thu 30 ngày</p>
+          <h3 class="text-3xl font-bold mt-3">${money(revenueOf(last30))}</h3>
+        </div>
+
+        <div class="soft-card p-6">
+          <p class="text-neutral-500">Tổng doanh thu</p>
+          <h3 class="text-3xl font-bold mt-3">${money(revenueOf(allValid))}</h3>
+        </div>
+      </div>
+
+      <div class="grid md:grid-cols-4 gap-4">
+        <div class="soft-card p-6">
+          <p class="text-neutral-500">Tổng đơn</p>
+          <h3 class="text-3xl font-bold mt-3">${orders.length}</h3>
+        </div>
+
+        <div class="soft-card p-6">
+          <p class="text-neutral-500">Đơn hoàn thành</p>
+          <h3 class="text-3xl font-bold mt-3">${completed}</h3>
+        </div>
+
+        <div class="soft-card p-6">
+          <p class="text-neutral-500">Đơn đang giao</p>
+          <h3 class="text-3xl font-bold mt-3">${shipping}</h3>
+        </div>
+
+        <div class="soft-card p-6">
+          <p class="text-neutral-500">Đơn đã hủy</p>
+          <h3 class="text-3xl font-bold mt-3">${cancelled}</h3>
+        </div>
+      </div>
+
+      <div class="soft-card p-6">
+        <h3 class="font-bold text-xl mb-5">Biểu đồ doanh thu 7 ngày</h3>
+
+        <div class="h-72 flex items-end gap-4 border-l border-b px-4 pb-4 mt-8">
+            ${
+              chartData.map(x => {
+                const h = x.revenue > 0
+                  ? Math.max((x.revenue / maxRevenue) * 220, 36)
+                  : 10;
+
+                return `
+                  <div class="flex-1 h-full flex flex-col items-center justify-end gap-2">
+
+                  <span class="text-[11px] font-bold text-red-800 text-center leading-tight min-h-[16px]">
+                    ${x.revenue > 0 ? money(x.revenue) : ""}
+                  </span>
+
+                  <div
+                    class="w-full bg-gradient-to-t from-red-900 via-red-700 to-red-500
+                          rounded-t-2xl shadow-lg hover:scale-[1.03]
+                          transition-all duration-300 relative"
+                    title="${x.day}: ${money(x.revenue)}"
+                    style="height:${h}px">
+
+                    <div class="absolute inset-x-0 top-0 h-3 bg-white/30 rounded-t-2xl"></div>
+
+                  </div>
+
+                </div>
+              `;
+            }).join("")
+          }
+        </div>
+
+        <div class="grid grid-cols-7 gap-3 text-xs text-neutral-500 mt-3 text-center">
+          ${chartData.map(x => `<span>${x.day.slice(5)}</span>`).join("")}
+        </div>
+      </div>
+
+      <div class="grid lg:grid-cols-2 gap-6">
+
+        <div class="soft-card overflow-hidden">
+          <div class="p-6 border-b">
+            <h3 class="font-bold text-xl">Top sản phẩm bán chạy</h3>
+          </div>
+
+          <table class="w-full text-left">
+            <thead class="bg-neutral-50 text-sm text-neutral-500">
+              <tr>
+                <th class="p-4">Sản phẩm</th>
+                <th>Đã bán</th>
+                <th>Doanh thu</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              ${
+                productList.length
+                ? productList.map(p => `
+                  <tr class="border-t">
+                    <td class="p-4 font-semibold">${p.name}</td>
+                    <td>${p.qty}</td>
+                    <td class="text-red-800 font-bold">${money(p.revenue)}</td>
+                  </tr>
+                `).join("")
+                : `<tr><td colspan="3" class="p-6 text-center text-neutral-500">Chưa có dữ liệu</td></tr>`
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div class="soft-card overflow-hidden">
+          <div class="p-6 border-b">
+            <h3 class="font-bold text-xl">Top khách hàng</h3>
+          </div>
+
+          <table class="w-full text-left">
+            <thead class="bg-neutral-50 text-sm text-neutral-500">
+              <tr>
+                <th class="p-4">Khách hàng</th>
+                <th>Số đơn</th>
+                <th>Tổng chi</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              ${
+                customerList.length
+                ? customerList.map(c => `
+                  <tr class="border-t">
+                    <td class="p-4">
+                      <b>${c.name}</b>
+                      <p class="text-sm text-neutral-500">${c.email}</p>
+                    </td>
+                    <td>${c.orders}</td>
+                    <td class="text-red-800 font-bold">${money(c.total)}</td>
+                  </tr>
+                `).join("")
+                : `<tr><td colspan="3" class="p-6 text-center text-neutral-500">Chưa có dữ liệu</td></tr>`
+              }
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+    </div>
+  `;
 }
 
 function sidebar(){
@@ -254,7 +667,8 @@ function sidebar(){
     ["orders","Quản lý đơn hàng","receipt"],
     ["variants","Biến thể sản phẩm","palette"],
     ["users","Quản lý người dùng","users"],
-    ["promo","Voucher","badge-percent"]
+    ["promo","Voucher","badge-percent"],
+    ["reports","Báo cáo thống kê","bar-chart-3"]
   ];
   return `<aside class="soft-card p-5 h-fit sticky top-28">
     <h2 class="font-bold text-xl mb-4">Menu quản trị</h2>
@@ -445,7 +859,8 @@ function content(){
   if(currentTab === "variants") return variantPanel();
   if(currentTab === "users") return userTable();
   if(currentTab === "promo") return voucherPanel();
-  return `${statCards()}<div class="grid lg:grid-cols-2 gap-6">${productTable()}${orderTable()}</div>`;
+  if(currentTab === "reports") return reportPanel();
+  return `${statCards()}${overviewCharts()}`;
 }
 
 function adminPage(){

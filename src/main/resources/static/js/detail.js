@@ -283,10 +283,12 @@ async function addToCart(){
         }
 
         showToast(
-        "Thành công",
-        "Sản phẩm đã được thêm vào giỏ hàng",
-        "success"
+          "Thành công",
+          "Sản phẩm đã được thêm vào giỏ hàng",
+          "success"
         );
+
+        await updateCartCount();
 
         return true;
 
