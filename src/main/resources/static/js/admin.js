@@ -195,14 +195,23 @@ function hideLessAdminOrders(){
 }
 
 function productImg(p,i){
-  if(p.imageUrl) return p.imageUrl;
+  if(p.imageUrl) return p.imageUrl + "?v=" + Date.now();
 
   if(p.images && p.images.length > 0){
-    const mainImages = p.images.filter(img => img.isMain === true);
-    if(mainImages.length > 0){
-      return mainImages[mainImages.length - 1].imageUrl;
-    }
-    return p.images[p.images.length - 1].imageUrl;
+    const sorted = [...p.images].sort((a,b)=>
+      Number(b.imageId || b.image_id || 0) - Number(a.imageId || a.image_id || 0)
+    );
+
+    const mainImg = sorted.find(img =>
+      img.isMain == true ||
+      img.isMain == 1 ||
+      img.is_main == true ||
+      img.is_main == 1
+    );
+
+    const img = mainImg || sorted[0];
+
+    return img.imageUrl + "?v=" + Date.now();
   }
 
   return "/images/no-image.png";
@@ -1325,20 +1334,36 @@ async function saveProduct(){
 
   if(selectedFile){
     const formData = new FormData();
-    formData.append('file', selectedFile);
+    formData.append("file", selectedFile);
 
-    const uploadRes = await fetch(`${API_BASE}/upload/image`,{method:'POST',body:formData});
-    const uploadData = await uploadRes.json();
-
-    if(!uploadRes.ok){ showToast("Lỗi", uploadData.message || "Upload ảnh thất bại", "error"); return; }
-
-    const imageRes = await fetch(`${API_BASE}/product-images`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({productId:product.productId,imageUrl:uploadData.imageUrl,isMain:true})
+    const uploadRes = await fetch(`${API_BASE}/upload/image`, {
+      method: "POST",
+      body: formData
     });
 
-    if(!imageRes.ok){ showToast("Cảnh báo", "Sản phẩm đã lưu nhưng lưu ảnh thất bại", "error"); }
+    const uploadData = await uploadRes.json().catch(()=>({}));
+
+    if(!uploadRes.ok || !uploadData.imageUrl){
+      showToast("Lỗi", uploadData.message || "Upload ảnh thất bại", "error");
+      return;
+    }
+
+    const imageRes = await fetch(`${API_BASE}/product-images`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        productId: product.productId,
+        imageUrl: uploadData.imageUrl,
+        isMain: true
+      })
+    });
+
+    const imageData = await imageRes.json().catch(()=>({}));
+
+    if(!imageRes.ok){
+      showToast("Lỗi", imageData.message || "Lưu ảnh sản phẩm thất bại", "error");
+      return;
+    }
   }
 
   selectedFile = null;
@@ -1638,7 +1663,11 @@ function deleteBrand(id){
     const data = await res.json().catch(() => ({}));
 
     if(!res.ok){
-      showToast("Lỗi", data.message || "Không thể xóa thương hiệu đang có sản phẩm", "error");
+      showToast(
+        "Lỗi",
+        "Không thể xóa vì đang có sản phẩm dùng thương hiệu",
+        "error"
+      );
       return;
     }
 

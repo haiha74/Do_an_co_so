@@ -6,14 +6,12 @@ function shop(){
       h-[78vh] sticky top-36 p-2 flex flex-col">
 
         <div class="overflow-y-scroll pr-1 custom-scroll space-y-2">
-        <h2 class="px-4 py-3 font-bold text-lg uppercase tracking-wider text-neutral-800">Bộ lọc</h2>
-
         <button onclick="clearCategory()"
           class="w-full px-4 py-3 text-left rounded-2xl text-[15px] font-medium transition-all duration-200
           ${selectedCategoryId === null 
             ? 'bg-red-50 text-red-800 font-bold' 
             : 'text-neutral-700 hover:bg-neutral-50'}">
-          Tất cả sản phẩm
+          Tất cả danh mục
         </button>
 
         ${categories

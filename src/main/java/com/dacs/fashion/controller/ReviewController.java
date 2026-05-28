@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/reviews")
@@ -30,11 +31,13 @@ public class ReviewController {
     }
 
     @PostMapping
-    public Review create(@RequestParam Long userId,
-                         @RequestParam Long orderItemId,
-                         @RequestParam Integer rating,
-                         @RequestParam String comment,
-                         @RequestParam(required = false) String imageUrl) {
+    public Review create(@RequestBody Map<String, Object> body) {
+        Long userId = Long.valueOf(body.get("userId").toString());
+        Long orderItemId = Long.valueOf(body.get("orderItemId").toString());
+        Integer rating = Integer.valueOf(body.get("rating").toString());
+        String comment = body.get("comment").toString();
+        String imageUrl = body.get("imageUrl") == null ? null : body.get("imageUrl").toString();
+
         return reviewService.create(userId, orderItemId, rating, comment, imageUrl);
     }
 

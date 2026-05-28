@@ -68,10 +68,12 @@ public class ProductService {
         product.setCategory(category);
 
         if (dto.getBrandId() != null) {
-            Brand brand = brandRepository.findById(dto.getBrandId())
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy thương hiệu"));
-            product.setBrand(brand);
-        }
+        Brand brand = brandRepository.findById(dto.getBrandId())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy thương hiệu"));
+        product.setBrand(brand);
+    } else {
+        product.setBrand(null);
+    }
 
         product.setProductName(dto.getProductName());
         product.setDescription(dto.getDescription());

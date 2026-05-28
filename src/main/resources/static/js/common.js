@@ -36,14 +36,33 @@ function formatPrice(price){
   return Number(price).toLocaleString("vi-VN") + "đ";
 }
 
-function getProductImg(p, index=0){
-  if(p.imageUrl) return p.imageUrl;
-  if(p.images && p.images.length > 0) return p.images[0].imageUrl;
+function getProductImg(p,index=0){
+  if(p.imageUrl){
+    return p.imageUrl + "?v=" + Date.now();
+  }
+
+  if(p.images && p.images.length > 0){
+    const sorted = [...p.images].sort((a,b)=>
+      Number(b.imageId || b.image_id || 0) - Number(a.imageId || a.image_id || 0)
+    );
+
+    const mainImg = sorted.find(img =>
+      img.isMain == true ||
+      img.isMain == 1 ||
+      img.is_main == true ||
+      img.is_main == 1
+    );
+
+    const img = mainImg || sorted[0];
+
+    return img.imageUrl + "?v=" + Date.now();
+  }
+
   return fallbackImages[index % fallbackImages.length];
 }
 
 function getBrandName(p){
-  return p.brand?.brandName || p.brandName || "JODOK";
+  return p.brand?.brandName || p.brandName || p.brand?.name || "JODOK";
 }
 
 async function fetchJson(url){

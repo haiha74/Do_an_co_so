@@ -2,6 +2,7 @@ let myOrders = [];
 let orderLimit = 10;
 let orderSort = "newest";
 let orderPeriod = "";
+let reviews = [];
 
 async function loadMyOrders(){
   await checkPayOSReturn();
@@ -25,8 +26,21 @@ async function loadMyOrders(){
       showToast("Lỗi", myOrders.message || "Không tải được đơn hàng", "error");
       return;
     }
-    console.log(myOrders);
-    renderOrders();
+    try{
+    const reviewRes = await fetch(`${API_BASE}/reviews`);
+
+    if(reviewRes.ok){
+      const data = await reviewRes.json();
+      reviews = Array.isArray(data) ? data : [];
+    }else{
+      reviews = [];
+    }
+  }catch(e){
+    reviews = [];
+  }
+
+  console.log(myOrders);
+  renderOrders();
 
   }catch(e){
     console.error(e);
@@ -246,7 +260,7 @@ function orderCard(order){
       <div id="order-items-${order.orderId}" class="hidden mt-5 border-t pt-5">
         ${
           order.items && order.items.length
-          ? order.items.map((item,index)=>orderItemHtml(item,index)).join("")
+          ? order.items.map((item,index)=>orderItemHtml(item,index, order)).join("")
           : `<p class="text-neutral-500">Không có sản phẩm trong đơn.</p>`
         }
       </div>
@@ -255,10 +269,23 @@ function orderCard(order){
   `;
 }
 
-function orderItemHtml(item,index){
+function orderItemHtml(item,index, order){
   const v = item.variant;
   const p = v?.product;
   const img = p ? getProductImg(p,index) : fallbackImages[index % fallbackImages.length];
+
+  const orderItemId = String(item.orderItemId || item.id || index);
+
+  const reviewed = Array.isArray(reviews) && reviews.some(r =>
+    String(r.orderItem?.orderItemId) === orderItemId
+  );
+
+  const reviewUrl =
+    `/detail?productId=${p?.productId}` +
+    `${reviewed ? "" : "&review=1"}` +
+    `&orderItemId=${orderItemId}` +
+    `&size=${encodeURIComponent(v?.size || "")}` +
+    `&color=${encodeURIComponent(v?.color || "")}`;
 
   return `
     <div class="grid grid-cols-[70px_1fr_120px] gap-4 items-center border-b py-4">
@@ -266,13 +293,30 @@ function orderItemHtml(item,index){
       <img src="${img}" class="w-16 h-20 object-cover rounded-xl border">
 
       <div>
-        <b>${p?.productName || "Sản phẩm"}</b>
+        <b onclick="location.href='/detail?productId=${p?.productId}'"
+          class="cursor-pointer hover:text-red-800">
+          ${p?.productName || "Sản phẩm"}
+        </b>
+
         <p class="text-sm text-neutral-500">
           Size: ${v?.size || "-"} · Màu: ${v?.color || "-"}
         </p>
+
         <p class="text-sm text-neutral-500">
           Số lượng: ${item.quantity}
         </p>
+
+        ${
+          order.orderStatus === "COMPLETED"
+          ? `
+            <button
+              onclick="location.href='${reviewUrl}'"
+              class="block mt-3 ${reviewed ? "bg-black" : "bg-red-800"} text-white rounded-full px-5 py-2 text-sm font-bold w-fit">
+              ${reviewed ? "Xem đánh giá" : "Đánh giá"}
+            </button>
+          `
+          : ""
+        }
       </div>
 
       <b class="text-red-800">

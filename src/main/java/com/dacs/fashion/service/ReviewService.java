@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 
+
 @Service
 @RequiredArgsConstructor
 public class ReviewService {
@@ -33,19 +34,39 @@ public class ReviewService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đánh giá"));
     }
 
-    public Review create(Long userId, Long orderItemId, Integer rating, String comment, String imageUrl) {
+    public Review create(
+            Long userId,
+            Long orderItemId,
+            Integer rating,
+            String comment,
+            String imageUrl
+    ) {
+
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy user"));
 
         OrderItem orderItem = orderItemRepository.findById(orderItemId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm đã mua"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy order item"));
+
+        // check đã review chưa
+        boolean exists = reviewRepository.existsByOrderItem_OrderItemId(orderItemId);
+
+        if(exists){
+            throw new RuntimeException("Sản phẩm này đã được đánh giá");
+        }
 
         Review review = new Review();
+
         review.setUser(user);
+
         review.setOrderItem(orderItem);
+
         review.setRating(rating);
+
         review.setComment(comment);
+
         review.setImageUrl(imageUrl);
+
         review.setCreatedAt(LocalDateTime.now());
 
         return reviewRepository.save(review);
@@ -54,4 +75,6 @@ public class ReviewService {
     public void delete(Long id) {
         reviewRepository.deleteById(id);
     }
+
+    
 }

@@ -3,6 +3,7 @@ package com.dacs.fashion.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Entity
 @Table(name = "reviews")
@@ -18,10 +19,12 @@ public class Review {
     private Long reviewId;
 
     @ManyToOne
+    @JsonIgnoreProperties({"password", "orders", "reviews", "cart"})
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @OneToOne
+    @JsonIgnoreProperties({"order", "review"})
     @JoinColumn(name = "order_item_id", nullable = false)
     private OrderItem orderItem;
 

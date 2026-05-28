@@ -1,8 +1,13 @@
+let productFeedbacks = [];
+let showReviewForm = false;
+
 function detailPage(){
   const p = selectedProduct || products[0];
 
   if(!p){
-    return header()+`<main class="wrap py-20">Không tìm thấy sản phẩm.</main>`+footer();
+    return header()+`<main class="wrap py-20">Không tìm thấy sản phẩm.</main>
+${feedbackSection()}
+`+footer();
   }
 
   const activeVariants = selectedProductVariants.filter(v => v.status === "ACTIVE");
@@ -129,12 +134,16 @@ function detailPage(){
         </button>
       </div>
     </div>
-  </main>`+footer();
+  </main>
+  ${reviewFormSection()}
+  ${feedbackSection()}
+  `+footer();
 }
 
 async function loadDetailPage(){
   const params = new URLSearchParams(location.search);
   const productId = params.get("productId") ? Number(params.get("productId")) : null;
+  showReviewForm = params.get("review") === "1";
 
   if(!productId){
     renderApp(header()+`<main class="wrap py-20">Không tìm thấy sản phẩm.</main>`+footer());
@@ -155,17 +164,27 @@ async function loadDetailPage(){
       selectedProductVariants = [];
     }
 
-    selectedSize = "";
-    selectedColor = "";
-    selectedQty = 1;
+    try{
+  const allReviews = await fetchJson(`${API_BASE}/reviews`);
 
-    renderApp(detailPage());
-
-  }catch(err){
-    console.error(err);
-    renderApp(header()+`<main class="wrap py-20">Không tải được sản phẩm.</main>`+footer());
+  productFeedbacks = allReviews.filter(r =>
+    r.orderItem?.variant?.product?.productId === productId
+  );
+  }catch(e){
+    productFeedbacks = [];
   }
-}
+
+      selectedSize = "";
+      selectedColor = "";
+      selectedQty = 1;
+
+      renderApp(detailPage());
+
+    }catch(err){
+      console.error(err);
+      renderApp(header()+`<main class="wrap py-20">Không tải được sản phẩm.</main>`+footer());
+    }
+  }
 
 function selectSize(size){
   selectedSize = size;
@@ -312,6 +331,145 @@ async function buyNow(){
   if(ok){
     window.location.href = "/cart";
   }
+}
+
+function feedbackSection(){
+  return `
+    <section class="wrap pb-14">
+      <div class="bg-white border rounded-3xl p-8 shadow-sm">
+        <div class="flex items-end justify-between mb-6">
+          <div>
+            <p class="text-red-800 uppercase tracking-widest font-bold">
+              Feedback
+            </p>
+            <h2 class="serif text-4xl mt-2">
+              Đánh giá từ đơn hàng hoàn thành
+            </h2>
+          </div>
+
+          <b class="text-neutral-500">
+            ${productFeedbacks.length} đánh giá
+          </b>
+        </div>
+
+        ${
+          productFeedbacks.length
+          ? productFeedbacks.map(f => `
+            <div class="border-t py-5">
+              <div class="flex justify-between gap-4">
+                <div>
+                  <b>${f.user?.fullname || f.user?.email || "Khách hàng"}</b>
+                  <p class="text-sm text-neutral-500">
+                    ${f.createdAt ? new Date(f.createdAt).toLocaleDateString("vi-VN") : ""}
+                  </p>
+                </div>
+
+                <div class="text-yellow-500 font-bold">
+                  ${"★".repeat(f.rating)}
+                </div>
+              </div>
+
+              <p class="mt-3 text-neutral-700">
+                ${f.comment}
+              </p>
+
+              <p class="text-sm text-neutral-500 mt-2">
+                Phân loại: Size ${f.orderItem?.variant?.size || "-"} · Màu ${f.orderItem?.variant?.color || "-"}
+              </p>
+            </div>
+          `).join("")
+          : `<p class="text-neutral-500">Chưa có feedback từ đơn hàng hoàn thành.</p>`
+        }
+      </div>
+    </section>
+  `;
+}
+
+function reviewFormSection(){
+  if(!showReviewForm || !selectedProduct) return "";
+
+  return `
+    <section class="wrap pb-10">
+      <div class="bg-white border rounded-3xl p-8 shadow-sm">
+        <h2 class="serif text-4xl mb-6">Đánh giá sản phẩm</h2>
+
+        <div class="grid md:grid-cols-[120px_1fr] gap-6">
+          <img src="${getProductImg(selectedProduct,0)}"
+            class="w-28 h-36 object-cover rounded-2xl border">
+
+          <div>
+            <b class="text-xl">${selectedProduct.productName}</b>
+
+            <div class="mt-5">
+              <label class="font-bold">Số sao</label>
+              <input id="reviewRating" type="number" min="0" max="5" value="5"
+                class="block mt-2 border rounded-xl px-4 py-3 w-32">
+            </div>
+
+            <div class="mt-5">
+              <label class="font-bold">Comment đánh giá</label>
+              <textarea id="reviewComment"
+                class="w-full mt-2 border rounded-2xl px-5 py-4 h-32"
+                placeholder="Nhập cảm nhận của bạn về sản phẩm..."></textarea>
+            </div>
+
+            <button onclick="submitReview()"
+              class="mt-5 bg-red-800 text-white rounded-full px-8 py-3 font-bold">
+              Gửi đánh giá
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function submitReview(){
+  const user = getUser();
+  const rating = Number(document.getElementById("reviewRating").value);
+  const comment = document.getElementById("reviewComment").value.trim();
+
+  if(rating < 0 || rating > 5){
+    showToast("Lỗi", "Số sao phải từ 0 đến 5", "error");
+    return;
+  }
+
+  if(!comment){
+    showToast("Lỗi", "Vui lòng nhập comment đánh giá", "error");
+    return;
+  }
+
+  const params = new URLSearchParams(location.search);
+  const orderItemId = params.get("orderItemId");
+
+  fetch(`${API_BASE}/reviews`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      userId: user.userId,
+      orderItemId: Number(orderItemId),
+      rating: rating,
+      comment: comment,
+      imageUrl: null
+    })
+  })
+  .then(async res => {
+    if(!res.ok){
+      showToast("Lỗi", await res.text(), "error");
+      return;
+    }
+
+    showToast("Thành công", "Đã gửi đánh giá sản phẩm");
+
+    setTimeout(()=>{
+      location.href = `/detail?productId=${selectedProduct.productId}`;
+    },1000);
+  })
+  .catch(() => {
+    showToast("Lỗi", "Không kết nối được backend", "error");
+  });
 }
 
 loadDetailPage();
