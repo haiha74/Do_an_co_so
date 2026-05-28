@@ -36,6 +36,39 @@ function formatPrice(price){
   return Number(price).toLocaleString("vi-VN") + "đ";
 }
 
+function getSoldCount(productId){
+
+  let total = 0;
+
+  if(!window.allOrders){
+    return 0;
+  }
+
+  allOrders.forEach(order => {
+
+    if(
+      order.orderStatus === "CANCELLED" ||
+      order.orderStatus === "PENDING"
+    ){
+      return;
+    }
+
+    (order.items || []).forEach(item => {
+
+      const itemProductId =
+        item.variant?.product?.productId;
+
+      if(itemProductId === productId){
+        total += Number(item.quantity || 0);
+      }
+
+    });
+
+  });
+
+  return total;
+}
+
 function getProductImg(p,index=0){
   if(p.imageUrl){
     return p.imageUrl + "?v=" + Date.now();
@@ -202,11 +235,49 @@ function footer(){
 
 
 function card(p,index){
-  return `<div onclick="detail(${p.productId})" class="cursor-pointer bg-white border rounded-2xl shadow-sm hover:shadow-xl transition overflow-hidden"><div class="relative aspect-[3/4]"><img class="w-full h-full object-cover" src="${getProductImg(p,index)}">${p.status === "ACTIVE" ? `
-  <span class="absolute left-3 top-3 bg-red-800 text-white rounded-full px-3 py-1 text-xs font-bold">
-    NEW
-  </span>
-` : ""}</div><div class="p-4"><p class="text-xs tracking-widest text-neutral-500">${getBrandName(p)}</p><h3 class="line-clamp-2 min-h-12 font-semibold mt-1">${p.productName}</h3><div class="mt-3 flex justify-between items-end"><b class="text-red-800 text-xl">${formatPrice(p.basePrice)}</b><span class="text-xs text-neutral-500">Còn hàng</span></div></div></div>`;
+
+  return `
+    <div onclick="detail(${p.productId})"
+      class="cursor-pointer bg-white border rounded-2xl shadow-sm hover:shadow-xl transition overflow-hidden">
+
+      <div class="relative aspect-[3/4]">
+
+        <img class="w-full h-full object-cover"
+          src="${getProductImg(p,index)}">
+
+        ${p.status === "ACTIVE" ? `
+          <span class="absolute left-3 top-3 bg-red-800 text-white rounded-full px-3 py-1 text-xs font-bold">
+            NEW
+          </span>
+        ` : ""}
+
+      </div>
+
+      <div class="p-4">
+
+        <p class="text-xs tracking-widest text-neutral-500">
+          ${getBrandName(p)}
+        </p>
+
+        <h3 class="line-clamp-2 min-h-12 font-semibold mt-1">
+          ${p.productName}
+        </h3>
+
+        <div class="mt-3 flex justify-between items-end">
+
+          <b class="text-red-800 text-xl">
+            ${formatPrice(p.basePrice)}
+          </b>
+
+          <span class="text-xs text-neutral-500">
+            Đã bán ${getSoldCount(p.productId)}
+          </span>
+
+        </div>
+
+      </div>
+    </div>
+  `;
 }
 
 function productGrid(list = products){

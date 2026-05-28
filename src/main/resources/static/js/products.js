@@ -125,16 +125,18 @@ async function loadProductsPage(){
 
     searchKeyword = params.get("keyword") || "";
 
-    const [productData, categoryData, brandData] = await Promise.all([
+    const [productData, categoryData, brandData, orderData] = await Promise.all([
       fetchJson(`${API_BASE}/products`),
       fetchJson(`${API_BASE}/categories`),
-      fetchJson(`${API_BASE}/brands`).catch(()=>[])
+      fetchJson(`${API_BASE}/brands`).catch(()=>[]),
+      fetchJson(`${API_BASE}/orders`).catch(()=>[])
     ]);
 
     allProducts = productData.filter(p => p.status === "ACTIVE");
     products = allProducts;
     categories = categoryData;
     brands = brandData;
+    window.allOrders = orderData;
 
     if(selectedCategoryId){
       const childIds = categories
