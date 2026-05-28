@@ -207,21 +207,27 @@ function categoryGrid(){
 }
 
 function home(){
-  return header()+hero()+categoryGrid()+`<section class="wrap py-10"><div class="mb-7 flex justify-between items-end"><div><p class="text-red-800 tracking-widest uppercase font-bold">Sản phẩm nổi bật</p><h2 class="serif text-5xl">Best Sellers</h2></div><button onclick="go('shop')" class="border rounded-full px-6 py-3 bg-white font-semibold">Xem tất cả</button></div>${productGrid(products.slice(0,8))}</section>`+footer();
+  return header()+hero()+categoryGrid()+`<section class="wrap py-10"><div class="mb-7 flex justify-between items-end"><div><p class="text-red-800 tracking-widest uppercase font-bold">Sản phẩm nổi bật</p><h2 class="serif text-5xl">Best Sellers</h2></div><button onclick="go('shop')" class="border rounded-full px-6 py-3 bg-white font-semibold">Xem tất cả</button></div>${productGrid(
+  [...products]
+    .sort((a,b) => getSoldCount(b.productId) - getSoldCount(a.productId))
+    .slice(0,8)
+)}</section>`+footer();
 }
 
 async function loadHomePage(){
   try{
-    const [productData, categoryData, brandData] = await Promise.all([
+    const [productData, categoryData, brandData, orderData] = await Promise.all([
       fetchJson(`${API_BASE}/products`),
       fetchJson(`${API_BASE}/categories`),
-      fetchJson(`${API_BASE}/brands`).catch(()=>[])
+      fetchJson(`${API_BASE}/brands`).catch(()=>[]),
+      fetchJson(`${API_BASE}/orders`).catch(()=>[])
     ]);
 
     allProducts = productData.filter(p => p.status === "ACTIVE");
     products = allProducts;
     categories = categoryData;
     brands = brandData;
+    window.allOrders = orderData;
 
     renderApp(home());
 
