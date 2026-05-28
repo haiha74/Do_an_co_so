@@ -21,7 +21,7 @@ function authPage(){
   return header()+`<main class="wrap py-12 lg:py-16">
     <div class="grid lg:grid-cols-[1fr_540px] gap-10 items-center">
       <section class="pr-4">
-        <p class="text-red-800 tracking-[.18em] uppercase font-bold text-base mb-5">HA FASHION ACCOUNT</p>
+        <p class="text-red-800 tracking-[.18em] uppercase font-bold text-base mb-5">JODOK ACCOUNT</p>
         <h1 class="serif text-5xl lg:text-6xl leading-tight mb-5">${isLogin ? "Chào mừng bạn quay lại" : "Tạo tài khoản mua hàng"}</h1>
         <p class="text-neutral-700 text-lg lg:text-xl max-w-2xl">Quản lý đơn hàng, lưu sản phẩm yêu thích và nhận voucher cá nhân.</p>
       </section>

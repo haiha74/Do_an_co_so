@@ -77,7 +77,7 @@ function renderCart(){
     <main class="wrap py-12">
       <div class="mb-8">
         <p class="text-red-800 tracking-widest uppercase font-bold">
-          HA Fashion Cart
+          JODOK Cart
         </p>
 
         <h1 class="serif text-5xl mt-2">

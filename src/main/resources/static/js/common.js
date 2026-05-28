@@ -43,7 +43,7 @@ function getProductImg(p, index=0){
 }
 
 function getBrandName(p){
-  return p.brand?.brandName || p.brandName || "HA FASHION";
+  return p.brand?.brandName || p.brandName || "JODOK";
 }
 
 async function fetchJson(url){
@@ -123,25 +123,34 @@ function header(){
       </div>
     </div>
 
-    <div class="wrap py-4 flex items-center gap-7">
-      <button onclick="go('home')" class="serif text-3xl lg:text-4xl tracking-[.22em] font-bold whitespace-nowrap">
-        HA FASHION
+    <div class="wrap py-3 flex flex-wrap items-center justify-between gap-4">
+      <button onclick="go('home')" class="whitespace-nowrap">
+        <img
+          src="/images/logo1.jpg"
+          alt="JODOK"
+          class="h-12 md:h-14 lg:h-16 xl:h-20 object-contain"
+        >
       </button>
 
-      <nav class="hidden lg:flex gap-8 font-semibold text-base whitespace-nowrap">
+      <nav class="
+        flex flex-wrap items-center justify-center
+        gap-4 md:gap-6 lg:gap-8
+        text-sm lg:text-base
+        font-semibold
+        flex-1
+      ">
         <button onclick="go('home')" class="hover:text-red-800">Trang chủ</button>
         <button onclick="go('shop')" class="hover:text-red-800">Sản phẩm</button>
         <button onclick="go('promo')" class="hover:text-red-800">Khuyến mãi</button>
         <button onclick="go('store')" class="hover:text-red-800">Cửa hàng</button>
       </nav>
 
-      <div class="hidden md:flex w-[360px] rounded-full border bg-neutral-50 px-4 py-3 items-center gap-3">
+      <div class="w-full md:w-[260px] lg:w-[320px] flex rounded-full border bg-neutral-50 px-4 py-3 items-center gap-3">
         ${icon("search","w-5 h-5")}
         <input id="searchInput" onkeydown="searchEnter(event)" class="bg-transparent outline-none flex-1" placeholder="Tìm sản phẩm..." />
       </div>
 
-      <div class="flex gap-5 items-center">
-        ${icon("heart")}
+      <div class="flex items-center gap-3 md:gap-5 shrink-0">
         <a href="/cart"
           title="Giỏ hàng"
           class="relative">
@@ -168,7 +177,7 @@ function header(){
 }
 
 function footer(){
-  return `<footer class="mt-16 bg-black text-white"><div class="wrap py-12 grid md:grid-cols-4 gap-8"><div><h2 class="serif text-3xl tracking-widest font-bold">HA FASHION</h2><p class="mt-4 text-neutral-300">Thời trang nữ thanh lịch, hiện đại.</p></div><div><b>Danh mục</b><p class="mt-3 text-neutral-300">Đầm nữ</p><p>Áo sơ mi</p><p>Blazer</p></div><div><b>Hỗ trợ</b><p class="mt-3">Đổi trả</p><p>Chọn size</p><p>Theo dõi đơn</p></div><div><b>Liên hệ</b><p class="mt-3">Hà Nội, Việt Nam</p><p>0900 888 999</p></div></div></footer>`;
+  return `<footer class="mt-16 bg-black text-white"><div class="wrap py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 text-center sm:text-left"><div><h2 class="serif text-3xl tracking-widest font-bold">JODOK</h2><p class="mt-4 text-neutral-300">Thời trang nữ thanh lịch, hiện đại.</p></div><div><b>Danh mục</b><p class="mt-3 text-neutral-300">Đầm nữ</p><p>Áo sơ mi</p><p>Blazer</p></div><div><b>Hỗ trợ</b><p class="mt-3">Đổi trả</p><p>Chọn size</p><p>Theo dõi đơn</p></div><div><b>Liên hệ</b><p class="mt-3">Hà Nội, Việt Nam</p><p>0900 888 999</p></div></div></footer>`;
 }
 
 
@@ -178,7 +187,7 @@ function card(p,index){
   <span class="absolute left-3 top-3 bg-red-800 text-white rounded-full px-3 py-1 text-xs font-bold">
     NEW
   </span>
-` : ""}<button class="absolute right-3 top-3 bg-white rounded-full p-2 shadow">${icon("heart","w-5 h-5")}</button></div><div class="p-4"><p class="text-xs tracking-widest text-neutral-500">${getBrandName(p)}</p><h3 class="line-clamp-2 min-h-12 font-semibold mt-1">${p.productName}</h3><div class="mt-3 flex justify-between items-end"><b class="text-red-800 text-xl">${formatPrice(p.basePrice)}</b><span class="text-xs text-neutral-500">Còn hàng</span></div></div></div>`;
+` : ""}</div><div class="p-4"><p class="text-xs tracking-widest text-neutral-500">${getBrandName(p)}</p><h3 class="line-clamp-2 min-h-12 font-semibold mt-1">${p.productName}</h3><div class="mt-3 flex justify-between items-end"><b class="text-red-800 text-xl">${formatPrice(p.basePrice)}</b><span class="text-xs text-neutral-500">Còn hàng</span></div></div></div>`;
 }
 
 function productGrid(list = products){
@@ -242,3 +251,15 @@ function showToast(title, text, type = "success"){
     toast.remove();
   },2500);
 }
+
+function searchEnter(event){
+  if(event.key !== "Enter") return;
+
+  const keyword = event.target.value.trim();
+
+  if(!keyword) return;
+
+  location.href = `/products?keyword=${encodeURIComponent(keyword)}`;
+}
+
+console.log("COMMON LOADED");

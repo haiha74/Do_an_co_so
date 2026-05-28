@@ -1,7 +1,10 @@
 let myOrders = [];
 let orderLimit = 10;
+let orderSort = "newest";
+let orderPeriod = "";
 
 async function loadMyOrders(){
+  await checkPayOSReturn();
   const user = JSON.parse(localStorage.getItem("ha_user") || "null");
 
   if(!user){
@@ -31,19 +34,37 @@ async function loadMyOrders(){
   }
 }
 
+async function checkPayOSReturn(){
+  const params = new URLSearchParams(location.search);
+
+  const status = params.get("status");
+  const orderCode = params.get("orderCode");
+
+  if(status === "PAID" && orderCode){
+    await fetch(`${API_BASE}/orders/${orderCode}/paid`, {
+      method: "PUT"
+    });
+
+    history.replaceState(null, "", "/orders");
+  }
+}
+
 function statusText(status){
   const map = {
     PENDING: "Chờ xác nhận",
+    PENDING_PAYMENT: "Chờ thanh toán PayOS",
     CONFIRMED: "Đã xác nhận",
     SHIPPING: "Đang giao",
     COMPLETED: "Hoàn thành",
-    CANCELLED: "Đã hủy"
+    CANCELLED: "Đã hủy",
+    PAID: "Đã thanh toán",
   };
 
   return map[status] || status || "Chờ xác nhận";
 }
 
 function statusClass(status){
+  if(status === "PAID") return "bg-green-50 text-green-700";
   if(status === "COMPLETED") return "bg-green-50 text-green-700";
   if(status === "SHIPPING") return "bg-blue-50 text-blue-700";
   if(status === "CONFIRMED") return "bg-yellow-50 text-yellow-700";
@@ -52,12 +73,27 @@ function statusClass(status){
 }
 
 function renderOrders(){
+  let filteredOrders = [...myOrders];
+  
+  if(orderPeriod){
+  filteredOrders = filteredOrders.filter(o =>
+    o.createdAt &&
+    new Date(o.createdAt).toISOString().slice(0,10) === orderPeriod
+  );
+}
+
+  filteredOrders.sort((a,b)=>{
+    const da = new Date(a.createdAt || 0);
+    const db = new Date(b.createdAt || 0);
+    return orderSort === "oldest" ? da - db : db - da;
+  });
+
   const html = header() + `
     <main class="wrap py-12">
 
       <div class="mb-8">
         <p class="text-red-800 tracking-widest uppercase font-bold">
-          HA Fashion Orders
+          JODOK Orders
         </p>
 
         <h1 class="serif text-5xl mt-2">
@@ -68,6 +104,40 @@ function renderOrders(){
           Theo dõi trạng thái các đơn hàng bạn đã đặt.
         </p>
       </div>
+
+      <div class="soft-card p-5 mb-6 flex flex-col lg:flex-row gap-3">
+
+      <select onchange="changeOrderSort(this.value)"
+        class="border rounded-full px-5 py-3">
+
+        <option value="newest"
+          ${orderSort === "newest" ? "selected" : ""}>
+          Mới nhất
+        </option>
+
+        <option value="oldest"
+          ${orderSort === "oldest" ? "selected" : ""}>
+          Cũ nhất
+        </option>
+
+      </select>
+
+      <input
+        type="date"
+        value="${orderPeriod}"
+        onchange="changeOrderPeriod(this.value)"
+        class="border rounded-full px-5 py-3"
+      >
+
+      <button
+        onclick="resetOrderFilter()"
+        class="border rounded-full px-5 py-3 font-bold">
+
+        Xóa lọc
+
+      </button>
+
+    </div>
 
       ${
         myOrders.length === 0
@@ -81,14 +151,14 @@ function renderOrders(){
           </div>
         `
         : `
-          <div class="space-y-5">
-            ${myOrders.slice(0, orderLimit).map(order => orderCard(order)).join("")}
+          <div class="max-h-[700px] overflow-y-auto pr-2 custom-scroll space-y-5">
+            ${filteredOrders.slice(0, orderLimit).map(order => orderCard(order)).join("")}
           </div>
 
           <div class="text-center mt-8 flex justify-center gap-4">
 
   ${
-    myOrders.length > orderLimit
+    filteredOrders.length > orderLimit
     ? `
       <button onclick="showMoreOrders()"
         class="border rounded-full px-8 py-3 font-bold hover:bg-black hover:text-white transition">
@@ -156,7 +226,11 @@ function orderCard(order){
         <div class="flex items-end justify-between gap-4">
 
         <div>
-          <p class="text-neutral-500">Tổng thanh toán</p>
+          <p class="text-neutral-500">
+            ${order.orderStatus === "PAID"
+              ? "Đã thanh toán"
+              : "Tổng thanh toán"}
+          </p>
           <b class="text-red-800">${formatPrice(order.finalAmount)}</b>
         </div>
 
@@ -228,5 +302,24 @@ function hideOrders(){
     top: 0,
     behavior: "smooth"
   });
+}
+
+function changeOrderSort(value){
+  orderSort = value;
+  orderLimit = 10;
+  renderOrders();
+}
+
+function changeOrderPeriod(value){
+  orderPeriod = value;
+  orderLimit = 10;
+  renderOrders();
+}
+
+function resetOrderFilter(){
+  orderSort = "newest";
+  orderPeriod = "";
+  orderLimit = 10;
+  renderOrders();
 }
 loadMyOrders();

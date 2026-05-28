@@ -61,5 +61,10 @@ public class OrderController {
         }
     }
 
+    @PutMapping("/{id}/paid")
+    public Order markPaid(@PathVariable Long id) {
+        return orderService.markPaid(id);
+    }
+
     
 }

@@ -18,6 +18,8 @@ let selectedFile = null;
 let selectedCategoryFile = null;
 let confirmCallback = null;
 let orderLimit = 10;
+let orderSort = "newest";
+let orderDate = "";
 let adminSearch = {
   products: "",
   categories: "",
@@ -30,6 +32,16 @@ let adminSearch = {
 
 function icon(n, cls="w-5 h-5"){return `<i data-lucide="${n}" class="${cls}"></i>`}
 function money(v){return Number(v || 0).toLocaleString("vi-VN") + "đ"}
+function isVoucherExpired(v){
+  if(!v.endDate) return false;
+  return new Date(v.endDate + "T23:59:59") < new Date();
+}
+
+function voucherStatusText(v){
+  if(isVoucherExpired(v)) return "Hết hạn";
+  if(v.status === "ACTIVE") return "Đang hoạt động";
+  return "Tạm ẩn";
+}
 function admin(){return JSON.parse(localStorage.getItem("ha_admin") || "null")}
 function showToast(title, message = "", type = "success"){
   const old = document.getElementById("adminToast");
@@ -142,6 +154,19 @@ function searchAdmin(type, value){
   }, 0);
 }
 
+function changeOrderSort(value){
+  orderSort = value;
+  orderLimit = 10;
+  render();
+}
+
+function changeOrderDate(value){
+  orderDate = value;
+  orderLimit = 10;
+  render();
+}
+
+
 function searchOrderAdmin(value){
   adminSearch.orders = value.toLowerCase();
   orderLimit = 10;
@@ -214,7 +239,7 @@ function loginPage(){
   return `<main class="min-h-screen grid lg:grid-cols-[1fr_520px]">
     <section class="px-10 lg:px-20 flex items-center">
       <div>
-        <p class="text-red-800 tracking-[.18em] uppercase font-bold mb-5">HA Fashion Admin</p>
+        <p class="text-red-800 tracking-[.18em] uppercase font-bold mb-5">JODOK Admin</p>
         <h1 class="serif text-6xl leading-tight mb-5">Đăng nhập quản trị</h1>
         <p class="text-neutral-600 text-xl max-w-2xl">Quản lý sản phẩm, danh mục, đơn hàng, người dùng, khuyến mãi và báo cáo hệ thống.</p>
       </div>
@@ -288,7 +313,9 @@ function overviewCharts(){
 
   const statusMap = {
     PENDING: "Chờ xử lý",
-    CONFIRMED: "Xác nhận",
+    PENDING_PAYMENT: "Chờ thanh toán PayOS",
+    PAID: "Đã thanh toán",
+    CONFIRMED: "Đã xác nhận",
     SHIPPING: "Đang giao",
     COMPLETED: "Hoàn thành",
     CANCELLED: "Đã hủy"
@@ -992,7 +1019,15 @@ function variantModal(){
         <input id="variantColor" class="input-ui" placeholder="Màu sắc, ví dụ: Đen, Trắng">
         <input id="variantSku" class="input-ui" placeholder="SKU, ví dụ: SP001-DEN-M">
         <input id="variantPrice" type="number" class="input-ui" placeholder="Giá biến thể">
-        <input id="variantStock" type="number" class="input-ui" placeholder="Tồn kho">
+        <input
+          id="variantStock"
+          type="number"
+          min="0"
+          value="0"
+          oninput="if(this.value < 0) this.value = 0"
+          class="input-ui"
+          placeholder="Tồn kho"
+        >
         <select id="variantStatus" class="input-ui"><option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option></select>
         <button onclick="saveVariant()" class="btn-primary w-full">Lưu biến thể</button>
       </div>
@@ -1045,7 +1080,7 @@ function brandModal(){
 function orderTable(){
   const keyword = adminSearch.orders || "";
 
-  const filteredOrders = orders.filter(o => {
+  let filteredOrders = orders.filter(o => {
     const orderId = String(o.orderId || "").toLowerCase();
     const name = (o.user?.fullname || "").toLowerCase();
     const email = (o.user?.email || "").toLowerCase();
@@ -1058,29 +1093,59 @@ function orderTable(){
       || phone.includes(keyword)
       || address.includes(keyword);
   });
+    if(orderDate){
+    filteredOrders = filteredOrders.filter(o =>
+      o.createdAt &&
+      new Date(o.createdAt).toISOString().slice(0,10) === orderDate
+    );
+  }
 
+  filteredOrders.sort((a,b)=>{
+    const da = new Date(a.createdAt || 0);
+    const db = new Date(b.createdAt || 0);
+
+    return orderSort === "oldest"
+      ? da - db
+      : db - da;
+  });
   const list = filteredOrders.slice(0, orderLimit);
 
   return `<div class="soft-card overflow-hidden">
+    <div class="px-6 py-4 border-b flex flex-col gap-4">
+  <h2 class="font-bold text-xl">Quản lý đơn hàng</h2>
 
-    <div class="px-6 py-4 border-b flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-      <h2 class="font-bold text-xl">Quản lý đơn hàng</h2>
+  <div class="flex flex-col lg:flex-row gap-3 w-full">
+    <input
+      data-search="orders"
+      value="${adminSearch.orders || ""}"
+      oninput="searchOrderAdmin(this.value)"
+      class="border rounded-full px-5 py-3 w-full lg:w-96 outline-none"
+      placeholder="Tìm mã đơn, tên, email, số điện thoại..."
+    >
 
-      <div class="flex gap-3 w-full lg:w-auto">
-        <input
-          data-search="orders"
-          value="${adminSearch.orders || ""}"
-          oninput="searchOrderAdmin(this.value)"
-          class="border rounded-full px-5 py-3 w-full lg:w-96 outline-none"
-          placeholder="Tìm mã đơn, tên, email, số điện thoại..."
-        >
+    <select onchange="changeOrderSort(this.value)"
+      class="border rounded-full px-5 py-3 outline-none">
+      <option value="newest" ${orderSort === "newest" ? "selected" : ""}>Mới nhất</option>
+      <option value="oldest" ${orderSort === "oldest" ? "selected" : ""}>Cũ nhất</option>
+    </select>
 
-        <button onclick="orderLimit=10; loadData().then(render)"
-          class="border rounded-full px-5 py-3 font-bold whitespace-nowrap">
-          Làm mới
-        </button>
-      </div>
-    </div>
+    <input type="date"
+      value="${orderDate}"
+      onchange="changeOrderDate(this.value)"
+      class="border rounded-full px-5 py-3 outline-none"
+    >
+
+    <button onclick="orderDate=''; orderSort='newest'; orderLimit=10; render()"
+      class="border rounded-full px-5 py-3 font-bold whitespace-nowrap">
+      Xóa lọc
+    </button>
+
+    <button onclick="orderLimit=10; loadData().then(render)"
+      class="border rounded-full px-5 py-3 font-bold whitespace-nowrap">
+      Làm mới
+    </button>
+  </div>
+</div>
 
     <div class="overflow-x-auto">
       <table class="w-full text-left">
@@ -1107,8 +1172,18 @@ function orderTable(){
                 <td>
                   <select onchange="updateOrderStatus(${o.orderId}, this.value)"
                     class="border rounded-full px-3 py-2 text-sm font-semibold">
-                    ${["PENDING","CONFIRMED","SHIPPING","COMPLETED","CANCELLED"].map(s => `
-                      <option value="${s}" ${o.orderStatus === s ? "selected" : ""}>${s}</option>
+                    ${[
+                      ["PENDING","Chờ xử lý"],
+                      ["PENDING_PAYMENT","Chờ thanh toán PayOS"],
+                      ["PAID","Đã thanh toán"],
+                      ["CONFIRMED","Đã xác nhận"],
+                      ["SHIPPING","Đang giao"],
+                      ["COMPLETED","Hoàn thành"],
+                      ["CANCELLED","Đã hủy"]
+                    ].map(s => `
+                      <option value="${s[0]}" ${o.orderStatus === s[0] ? "selected" : ""}>
+                        ${s[1]}
+                      </option>
                     `).join("")}
                   </select>
                 </td>
@@ -1340,6 +1415,10 @@ async function saveVariant(){
     stock: Number(document.getElementById('variantStock').value),
     status: document.getElementById('variantStatus').value
   };
+
+  if(body.stock < 0){
+    body.stock = 0;
+  }
 
   if(!body.productId || !body.sku){
     showToast("Lỗi", "Vui lòng chọn sản phẩm và nhập SKU", "error");
@@ -1710,8 +1789,14 @@ function voucherPanel(){
                 <td>${money(v.minOrderValue)}</td>
                 <td>${v.endDate || "-"}</td>
                 <td>
-                  <span class="rounded-full px-3 py-1 text-sm ${v.status === "ACTIVE" ? "bg-green-50 text-green-700" : "bg-neutral-100 text-neutral-500"}">
-                    ${v.status}
+                  <span class="rounded-full px-3 py-1 text-sm ${
+                    isVoucherExpired(v)
+                      ? "bg-red-50 text-red-700"
+                      : v.status === "ACTIVE"
+                        ? "bg-green-50 text-green-700"
+                        : "bg-neutral-100 text-neutral-500"
+                  }">
+                    ${voucherStatusText(v)}
                   </span>
                 </td>
                 <td class="space-x-2">

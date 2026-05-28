@@ -5,11 +5,36 @@ let variants = [];
 let currentStaffTab = "orders";
 let staffOrderLimit = 10;
 let staffOrderSearch = "";
+let staffOrderSort = "newest";
+let staffOrderDate = "";
 let staffInventoryLimit = 10;
 let staffInventorySearch = "";
 
 function money(v){
   return Number(v || 0).toLocaleString("vi-VN") + "đ";
+}
+
+function showStaffToast(title, message, type = "success"){
+  const old = document.getElementById("staffToast");
+  if(old) old.remove();
+
+  const toast = document.createElement("div");
+  toast.id = "staffToast";
+  toast.className = `
+    fixed top-6 right-6 z-[99999]
+    bg-white border-l-8
+    ${type === "error" ? "border-red-800" : "border-green-700"}
+    rounded-2xl shadow-2xl px-6 py-4
+    min-w-[320px] max-w-[420px]
+  `;
+
+  toast.innerHTML = `
+    <b class="block text-lg">${title}</b>
+    <p class="text-sm text-neutral-600 mt-1">${message}</p>
+  `;
+
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2500);
 }
 
 function staff(){
@@ -73,7 +98,10 @@ async function loadVariants(){
 function renderStats(){
   document.getElementById("totalOrders").innerText = orders.length;
   document.getElementById("pendingOrders").innerText =
-    orders.filter(o => o.orderStatus === "PENDING").length;
+    orders.filter(o =>
+    o.orderStatus === "PENDING" ||
+    o.orderStatus === "PAID"
+  ).length;
   document.getElementById("shippingOrders").innerText =
     orders.filter(o => o.orderStatus === "SHIPPING").length;
   document.getElementById("completedOrders").innerText =
@@ -83,7 +111,7 @@ function renderStats(){
 function renderOrders(){
   const keyword = staffOrderSearch.toLowerCase();
 
-  const filteredOrders = orders.filter(o => {
+  let filteredOrders = orders.filter(o => {
     const orderId = String(o.orderId || "").toLowerCase();
     const name = (o.user?.fullname || "").toLowerCase();
     const email = (o.user?.email || "").toLowerCase();
@@ -96,7 +124,21 @@ function renderOrders(){
       || phone.includes(keyword)
       || address.includes(keyword);
   });
+  if(staffOrderDate){
+  filteredOrders = filteredOrders.filter(o =>
+    o.createdAt &&
+    new Date(o.createdAt).toISOString().slice(0,10) === staffOrderDate
+  );
+}
 
+filteredOrders.sort((a,b)=>{
+  const da = new Date(a.createdAt || 0);
+  const db = new Date(b.createdAt || 0);
+
+  return staffOrderSort === "oldest"
+    ? da - db
+    : db - da;
+});
   const list = filteredOrders.slice(0, staffOrderLimit);
 
   document.getElementById("orderBody").innerHTML = list.map(o => `
@@ -109,8 +151,18 @@ function renderOrders(){
       <td>
         <select onchange="updateOrderStatus(${o.orderId}, this.value)"
           class="border rounded-full px-3 py-2 text-sm font-semibold">
-          ${["PENDING","CONFIRMED","SHIPPING","COMPLETED","CANCELLED"].map(s => `
-            <option value="${s}" ${o.orderStatus === s ? "selected" : ""}>${s}</option>
+          ${[
+            ["PENDING","Chờ xử lý"],
+            ["PENDING_PAYMENT","Chờ thanh toán PayOS"],
+            ["PAID","Đã thanh toán"],
+            ["CONFIRMED","Đã xác nhận"],
+            ["SHIPPING","Đang giao"],
+            ["COMPLETED","Hoàn thành"],
+            ["CANCELLED","Đã hủy"]
+          ].map(s => `
+            <option value="${s[0]}" ${o.orderStatus === s[0] ? "selected" : ""}>
+              ${s[1]}
+            </option>
           `).join("")}
         </select>
       </td>
@@ -165,6 +217,25 @@ function searchStaffOrders(value){
   }, 0);
 }
 
+function changeStaffOrderSort(value){
+  staffOrderSort = value;
+  staffOrderLimit = 10;
+  renderStaffPage();
+}
+
+function changeStaffOrderDate(value){
+  staffOrderDate = value;
+  staffOrderLimit = 10;
+  renderStaffPage();
+}
+
+function resetStaffOrderFilter(){
+  staffOrderSort = "newest";
+  staffOrderDate = "";
+  staffOrderLimit = 10;
+  renderStaffPage();
+}
+
 function showMoreStaffOrders(){
   staffOrderLimit += 10;
   renderStaffPage();
@@ -211,7 +282,15 @@ async function openOrderDetail(orderId){
 
       <div class="border rounded-2xl p-4">
         <p class="text-neutral-500">Trạng thái</p>
-        <b class="text-red-800">${order.orderStatus}</b>
+        <b class="text-red-800">${{
+          PENDING:"Chờ xử lý",
+          PENDING_PAYMENT: "Chờ thanh toán PayOS",
+          PAID:"Đã thanh toán",
+          CONFIRMED:"Đã xác nhận",
+          SHIPPING:"Đang giao",
+          COMPLETED:"Hoàn thành",
+          CANCELLED:"Đã hủy"
+        }[order.orderStatus] || order.orderStatus}</b>
       </div>
 
       <div class="border rounded-2xl p-4">
@@ -306,7 +385,7 @@ function orderPanel(){
         <div class="p-6 border-b flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <h2 class="font-bold text-xl">Quản lý đơn hàng</h2>
 
-          <div class="flex gap-3 w-full lg:w-auto">
+          <div class="flex flex-col lg:flex-row gap-3 w-full lg:w-auto">
             <input
               id="staffOrderSearch"
               value="${staffOrderSearch}"
@@ -314,6 +393,22 @@ function orderPanel(){
               class="border rounded-full px-5 py-3 w-full lg:w-96 outline-none"
               placeholder="Tìm mã đơn, tên, email, số điện thoại..."
             >
+
+            <select onchange="changeStaffOrderSort(this.value)"
+              class="border rounded-full px-5 py-3">
+              <option value="newest" ${staffOrderSort === "newest" ? "selected" : ""}>Mới nhất</option>
+              <option value="oldest" ${staffOrderSort === "oldest" ? "selected" : ""}>Cũ nhất</option>
+            </select>
+
+            <input type="date"
+              value="${staffOrderDate}"
+              onchange="changeStaffOrderDate(this.value)"
+              class="border rounded-full px-5 py-3">
+
+            <button onclick="resetStaffOrderFilter()"
+              class="border rounded-full px-5 py-3 font-bold whitespace-nowrap">
+              Xóa lọc
+            </button>
 
             <button onclick="refreshStaffOrders()"
               class="border rounded-full px-5 py-3 font-bold whitespace-nowrap">
@@ -367,20 +462,21 @@ function inventoryPanel(){
           <p class="text-neutral-500 mt-1">Theo dõi và cập nhật tồn kho biến thể sản phẩm.</p>
         </div>
 
-        <div class="flex gap-3 w-full lg:w-auto">
-          <input
-            id="staffInventorySearch"
-            value="${staffInventorySearch}"
-            oninput="searchStaffInventory(this.value)"
-            class="border rounded-full px-5 py-3 w-full lg:w-96 outline-none"
-            placeholder="Tìm sản phẩm, size, màu, SKU..."
-          >
 
-          <button onclick="refreshStaffInventory()"
-            class="border rounded-full px-5 py-3 font-bold whitespace-nowrap">
-            Làm mới
-          </button>
-        </div>
+          <div class="flex gap-3 w-full lg:w-auto">
+  <input
+    id="staffInventorySearch"
+    value="${staffInventorySearch}"
+    oninput="searchStaffInventory(this.value)"
+    class="border rounded-full px-5 py-3 w-full lg:w-96 outline-none"
+    placeholder="Tìm sản phẩm, size, màu, SKU..."
+  >
+
+  <button onclick="refreshStaffInventory()"
+    class="border rounded-full px-5 py-3 font-bold whitespace-nowrap">
+    Làm mới
+  </button>
+</div>
       </div>
 
       <table class="w-full text-left">
@@ -405,9 +501,14 @@ function inventoryPanel(){
                 <td>${v.color || "-"}</td>
                 <td class="font-mono text-sm">${v.sku || "-"}</td>
                 <td>
-                  <input id="stock-${v.variantId}" type="number"
+                  <input
+                    id="stock-${v.variantId}"
+                    type="number"
+                    min="0"
                     value="${v.stock ?? 0}"
-                    class="border rounded-xl px-4 py-2 w-28">
+                    oninput="if(this.value < 0) this.value = 0"
+                    class="border rounded-xl px-4 py-2 w-28"
+                  >
                 </td>
                 <td>
                   <button onclick="updateStock(${v.variantId})"
@@ -477,7 +578,11 @@ async function refreshStaffInventory(){
 
 async function updateStock(variantId){
   const old = variants.find(v => v.variantId === variantId);
-  const newStock = Number(document.getElementById(`stock-${variantId}`).value);
+  let newStock = Number(document.getElementById(`stock-${variantId}`).value);
+
+  if(newStock < 0){
+    newStock = 0;
+  }
 
   const body = {
     productId: old.product?.productId,
@@ -496,12 +601,23 @@ async function updateStock(variantId){
   });
 
   if(!res.ok){
-    alert("Cập nhật tồn kho thất bại");
+    showStaffToast(
+      "Thất bại",
+      "Cập nhật tồn kho thất bại",
+      "error"
+    );
     return;
   }
 
   await loadVariants();
   renderStaffPage();
-}
+
+  setTimeout(() => {
+    showStaffToast(
+      "Thành công",
+      "Đã cập nhật tồn kho"
+    );
+  }, 100);
+  }
 
 checkStaff();

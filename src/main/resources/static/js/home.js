@@ -37,7 +37,7 @@ function hero(){
               <div class="max-w-2xl">
 
                 <p class="uppercase tracking-[.35em] text-red-200 font-semibold">
-                  HA Fashion
+                  JODOK
                 </p>
 
                 <h1 class="serif text-7xl leading-tight mt-4">
@@ -174,8 +174,36 @@ function startHeroAutoSlide(){
 
 
 function categoryGrid(){
-  const list = categories.length ? categories : [];
-  return `<section class="wrap py-12"><div class="bg-white border rounded-3xl overflow-hidden shadow-sm"><h2 class="px-6 py-5 border-b text-xl font-bold uppercase text-neutral-700">Danh mục nổi bật</h2><div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6">${list.map((c,i)=>`<button onclick="location.href='/products?categoryId=${c.categoryId}'" class="h-40 border-r border-b hover:bg-red-50 flex flex-col items-center justify-center gap-3"><img class="w-20 h-20 rounded-full object-cover" src="${c.imageUrl ? c.imageUrl + '?t=' + Date.now() : '/images/no-image.png'}"><span class="font-semibold">${c.categoryName}</span></button>`).join("")}</div></div></section>`;
+  const parentCategories = categories.filter(c => !c.parent && !c.parentId);
+
+  return `
+    <section class="wrap py-12">
+      <div class="bg-white border rounded-3xl overflow-hidden shadow-sm">
+        <h2 class="px-6 py-5 border-b text-xl font-bold uppercase text-neutral-700">
+          Danh mục nổi bật
+        </h2>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+          ${parentCategories.map((c,i)=>`
+            <button
+              onclick="location.href='/products?categoryId=${c.categoryId}'"
+              class="h-40 border-r border-b hover:bg-red-50 flex flex-col items-center justify-center gap-3">
+
+              <img
+                class="w-20 h-20 rounded-full object-cover"
+                src="${c.imageUrl ? c.imageUrl + '?t=' + Date.now() : '/images/no-image.png'}"
+              >
+
+              <span class="font-semibold">
+                ${c.categoryName}
+              </span>
+
+            </button>
+          `).join("")}
+        </div>
+      </div>
+    </section>
+  `;
 }
 
 function home(){

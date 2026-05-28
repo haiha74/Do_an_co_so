@@ -46,7 +46,7 @@ function detailPage(){
       </button>
 
       <div class="text-sm text-neutral-400">
-        HA FASHION
+        JODOK
       </div>
 
     </div>

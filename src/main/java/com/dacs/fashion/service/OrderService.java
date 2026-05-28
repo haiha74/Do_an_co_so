@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.scheduling.annotation.Scheduled;
 
 @Service
 @RequiredArgsConstructor
@@ -138,6 +139,10 @@ public class OrderService {
         );
 
         Order order = createFromCart(createOrderDTO);
+        if ("QR".equalsIgnoreCase(dto.getPaymentMethod())) {
+            order.setOrderStatus("PENDING_PAYMENT");
+            orderRepository.save(order);
+        }
 
         Payment payment = new Payment();
         payment.setOrder(order);
@@ -156,5 +161,60 @@ public class OrderService {
         Order order = getById(orderId);
         order.setOrderStatus(status);
         return orderRepository.save(order);
+    }
+
+    @Transactional
+    public Order markPaid(Long id) {
+        Order order = orderRepository.findById(id).orElseThrow();
+
+        order.setOrderStatus("PAID");
+
+        if(order.getPayment() != null){
+            order.getPayment().setPaymentStatus("PAID");
+            order.getPayment().setPaidAt(LocalDateTime.now());
+            paymentRepository.save(order.getPayment());
+        }
+
+        return orderRepository.save(order);
+    }
+
+    @Scheduled(fixedRate = 60000)
+    @Transactional
+    public void cancelExpiredPayOSOrders() {
+
+        LocalDateTime expiredTime = LocalDateTime.now().minusMinutes(5);
+
+        List<Order> orders = orderRepository.findAll();
+
+        for (Order order : orders) {
+
+            if ("PENDING_PAYMENT".equals(order.getOrderStatus())
+                    && order.getCreatedAt().isBefore(expiredTime)) {
+
+                order.setOrderStatus("CANCELLED");
+
+                if (order.getItems() != null) {
+                    for (OrderItem item : order.getItems()) {
+                        ProductVariant variant = item.getVariant();
+
+                        if (variant != null) {
+                            variant.setStock(
+                                    (variant.getStock() == null ? 0 : variant.getStock())
+                                            + item.getQuantity()
+                            );
+
+                            variantRepository.save(variant);
+                        }
+                    }
+                }
+
+                if (order.getPayment() != null) {
+                    order.getPayment().setPaymentStatus("CANCELLED");
+                    paymentRepository.save(order.getPayment());
+                }
+
+                orderRepository.save(order);
+            }
+        }
     }
 }

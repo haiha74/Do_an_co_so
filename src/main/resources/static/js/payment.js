@@ -72,6 +72,7 @@ function renderPayment(){
     const shipping = subtotal >= 999000 ? 0 : 30000;
     const total = Math.max(subtotal + shipping - discountAmount, 0);
 
+  const qrContent = `U${user.userId}_${total}`;
   document.getElementById("app").innerHTML = `
   ${header()}
 
@@ -147,15 +148,20 @@ function renderPayment(){
 
             <label class="block border rounded-2xl p-4 cursor-pointer">
               <input type="radio" name="paymentMethod" value="QR">
-              Chuyển khoản QR Code
+              Thanh toán PayOS QR
             </label>
 
-            <div id="qrBox" class="hidden border rounded-2xl p-5 bg-neutral-50">
-              <p class="font-bold mb-2">Thông tin chuyển khoản</p>
-              <p>Ngân hàng: MB Bank</p>
-              <p>STK: 0123456789</p>
-              <p>Chủ TK: HA FASHION</p>
-              <p>Nội dung: THANHTOAN HAFASHION</p>
+            <div id="qrBox"
+                class="hidden border rounded-2xl p-5 bg-neutral-50 text-center">
+
+              <p class="font-bold text-lg mb-3">
+                Bấm "Xác nhận đặt hàng" để chuyển sang cổng thanh toán PayOS
+              </p>
+
+              <p class="text-neutral-500">
+                Bạn sẽ được chuyển tới trang thanh toán bảo mật của PayOS.
+              </p>
+
             </div>
 
           </div>
@@ -262,6 +268,11 @@ async function applyVoucher(){
     return;
   }
 
+  if(voucher.endDate && new Date(voucher.endDate + "T23:59:59") < new Date()){
+    showToast("Không hợp lệ", "Voucher đã hết hạn", "error");
+    return;
+  }
+
   if(voucher.minOrderValue && subtotal < voucher.minOrderValue){
     showToast("Không đủ điều kiện", "Đơn hàng chưa đạt giá trị tối thiểu", "error");
     return;
@@ -321,12 +332,48 @@ async function submitPayment(){
   }
 
   if(paymentMethod === "QR"){
-    showToast(
-        "Đặt hàng thành công",
-        "Đơn đang chờ thanh toán QR",
-        "success"
-        );
-  }else{
+
+  const total = Number(data.finalAmount || data.totalAmount || 0);
+  const orderId = data.orderId || data.id;
+
+  if(!orderId){
+    showToast("Lỗi", "Không lấy được mã đơn hàng", "error");
+    console.log("ORDER DATA:", data);
+    return;
+  }
+
+  const payosRes = await fetch(`${API_BASE}/payments/payos/create`, {
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json"
+    },
+    body: JSON.stringify({
+      orderId: orderId,
+      amount: total,
+      description: `DH${orderId}`
+    })
+  });
+
+  const payosData = await payosRes.json();
+  console.log("PAYOS DATA:", payosData);
+
+  const checkoutUrl =
+    payosData.checkoutUrl ||
+    payosData.data?.checkoutUrl;
+
+  if(checkoutUrl){
+    window.location.href = checkoutUrl;
+    return;
+  }
+
+  showToast(
+    "Lỗi",
+    payosData.error || payosData.message || "Không tạo được PayOS",
+    "error"
+  );
+
+  return;
+}else{
     showToast(
         "Đặt hàng thành công",
         "Thanh toán khi nhận hàng",
