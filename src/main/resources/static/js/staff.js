@@ -9,6 +9,7 @@ let staffOrderSort = "newest";
 let staffOrderDate = "";
 let staffInventoryLimit = 10;
 let staffInventorySearch = "";
+let staffInventorySearchTimer = null;
 
 function money(v){
   return Number(v || 0).toLocaleString("vi-VN") + "đ";
@@ -549,15 +550,20 @@ function inventoryPanel(){
 function searchStaffInventory(value){
   staffInventorySearch = value;
   staffInventoryLimit = 10;
-  renderStaffPage();
 
-  setTimeout(() => {
-    const input = document.getElementById("staffInventorySearch");
-    if(input){
-      input.focus();
-      input.setSelectionRange(input.value.length, input.value.length);
-    }
-  }, 0);
+  clearTimeout(staffInventorySearchTimer);
+
+  staffInventorySearchTimer = setTimeout(() => {
+    renderStaffPage();
+
+    setTimeout(() => {
+      const input = document.getElementById("staffInventorySearch");
+      if(input){
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+      }
+    }, 0);
+  }, 500);
 }
 
 function showMoreStaffInventory(){

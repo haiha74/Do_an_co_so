@@ -694,6 +694,34 @@ function reportPanel(){
   `;
 }
 
+function payosPanel(){
+  return `
+    <div class="soft-card p-8">
+      <p class="uppercase tracking-widest text-green-700 font-bold mb-3">
+        PAYOS
+      </p>
+
+      <h2 class="serif text-4xl mb-3">
+        Lịch sử giao dịch PayOS
+      </h2>
+
+      <p class="text-neutral-500 mb-8">
+        Mở trang quản lý thanh toán PayOS để xem lịch sử giao dịch realtime.
+      </p>
+
+      <a
+        href="https://my.payos.vn/"
+        target="_blank"
+        class="inline-flex items-center gap-3 bg-green-600 hover:bg-green-700
+        text-white font-bold px-7 py-4 rounded-2xl transition"
+      >
+        ${icon("external-link")}
+        <span>Mở PayOS Dashboard</span>
+      </a>
+    </div>
+  `;
+}
+
 function sidebar(){
   const items = [
     ["overview","Tổng quan","layout-dashboard"],
@@ -704,6 +732,7 @@ function sidebar(){
     ["variants","Biến thể sản phẩm","palette"],
     ["users","Quản lý người dùng","users"],
     ["promo","Voucher","badge-percent"],
+    ["payos","Lịch sử PayOS","wallet"],
     ["reports","Báo cáo thống kê","bar-chart-3"]
   ];
   return `<aside class="soft-card p-5 h-fit sticky top-28">
@@ -895,6 +924,7 @@ function content(){
   if(currentTab === "variants") return variantPanel();
   if(currentTab === "users") return userTable();
   if(currentTab === "promo") return voucherPanel();
+  if(currentTab === "payos") return payosPanel();
   if(currentTab === "reports") return reportPanel();
   return `${statCards()}${overviewCharts()}`;
 }

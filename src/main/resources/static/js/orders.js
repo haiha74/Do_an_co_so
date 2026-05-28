@@ -86,6 +86,16 @@ function statusClass(status){
   return "bg-neutral-100 text-neutral-700";
 }
 
+function getUserOrderNo(order){
+  const sortedByCreatedAt = [...myOrders].sort((a,b)=>{
+    const da = new Date(a.createdAt || 0);
+    const db = new Date(b.createdAt || 0);
+    return da - db;
+  });
+
+  return sortedByCreatedAt.findIndex(o => o.orderId === order.orderId) + 1;
+}
+
 function renderOrders(){
   let filteredOrders = [...myOrders];
   
@@ -211,7 +221,7 @@ function orderCard(order){
 
         <div>
           <h2 class="text-xl font-bold">
-            Đơn hàng #${order.orderId}
+            Đơn hàng #${getUserOrderNo(order)}
           </h2>
 
           <p class="text-neutral-500 mt-1">
