@@ -7,11 +7,20 @@ function shop(){
 
         <div class="overflow-y-scroll pr-1 custom-scroll space-y-2">
         <button onclick="clearCategory()"
-          class="w-full px-4 py-3 text-left rounded-2xl text-[15px] font-medium transition-all duration-200
+          class="w-full flex items-center gap-3 px-5 py-4 text-left rounded-2xl text-[18px] font-semibold transition-all duration-200 border-b border-neutral-100/50 mb-2
           ${selectedCategoryId === null 
-            ? 'bg-red-50 text-red-800 font-bold' 
-            : 'text-neutral-700 hover:bg-neutral-50'}">
-          Tất cả danh mục
+            ? 'bg-red-50 text-red-800 font-bold shadow-sm' 
+            : 'text-neutral-800 hover:bg-neutral-50'}"
+        >
+          <!-- Icon Grid đại diện cho "Tất cả danh mục" giúp cân bằng layout với các icon bên dưới -->
+          <div class="w-16 h-16 rounded-2xl flex items-center justify-center bg-neutral-100 text-neutral-500 transition-colors
+            ${selectedCategoryId === null ? '!bg-red-100/60 !text-red-800' : ''}">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+            </svg>
+          </div>
+          
+          <span>Tất cả danh mục</span>
         </button>
 
         ${categories
