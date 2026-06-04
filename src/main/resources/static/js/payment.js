@@ -1,7 +1,7 @@
 let cart = null;
 let appliedVoucher = null;
 let discountAmount = 0;
-
+let availableVouchers = [];
 
 function money(v){
   return Number(v || 0).toLocaleString("vi-VN") + "đ";
@@ -37,7 +37,47 @@ async function loadCart(){
     return;
   }
 
+  await loadAvailableVouchers();
   renderPayment();
+}
+
+async function loadAvailableVouchers(){
+  try{
+    const res = await fetch(`${API_BASE}/vouchers`);
+    const data = await res.json();
+
+    const subtotal = (cart.items || []).reduce((sum,item)=>{
+      const v = item.variant;
+      const p = v.product;
+      const price = Number(v.price || p.basePrice || 0);
+      return sum + price * item.quantity;
+    },0);
+
+    availableVouchers = data.filter(v => {
+      const active = v.status === "ACTIVE";
+      const notExpired = !v.endDate || new Date(v.endDate + "T23:59:59") >= new Date();
+      const enoughOrder = !v.minOrderValue || subtotal >= v.minOrderValue;
+
+      return active && notExpired && enoughOrder;
+    });
+
+    availableVouchers.sort((a,b) => {
+      const discountA =
+        a.discountType === "PERCENT"
+          ? subtotal * Number(a.discountValue) / 100
+          : Number(a.discountValue);
+
+      const discountB =
+        b.discountType === "PERCENT"
+          ? subtotal * Number(b.discountValue) / 100
+          : Number(b.discountValue);
+
+      return discountB - discountA;
+    });
+
+  }catch(e){
+    availableVouchers = [];
+  }
 }
 
 function renderPayment(){
@@ -131,10 +171,31 @@ function renderPayment(){
                 </button>
               </div>
 
-              <p id="voucherInfo"
-                class="mt-2 text-sm text-green-700 font-semibold">
-                ${appliedVoucher ? `Đã áp dụng mã ${appliedVoucher.code} - Giảm ${money(discountAmount)}` : ""}
-              </p>
+              <div class="mt-4 border rounded-2xl p-3 max-h-48 overflow-y-auto space-y-2">
+                ${
+                  availableVouchers.length
+                  ? availableVouchers.map(v => `
+                    <button
+                      onclick="selectVoucher('${v.code}')"
+                      class="w-full border rounded-xl px-4 py-3 text-left hover:bg-red-50
+                      ${appliedVoucher?.code === v.code ? "border-red-800 bg-red-50" : ""}">
+                      <b>${v.code}</b>
+                      <p class="text-sm text-neutral-500">
+                        Giảm ${
+                          v.discountType === "PERCENT"
+                            ? v.discountValue + "%"
+                            : money(v.discountValue)
+                        }
+                      </p>
+                    </button>
+                  `).join("")
+                  : `<p class="text-neutral-500">Không có voucher khả dụng</p>`
+                }
+              </div>
+
+            <p id="voucherInfo" class="mt-2 text-sm text-green-700 font-semibold">
+              ${appliedVoucher ? `Đã áp dụng mã ${appliedVoucher.code} - Giảm ${money(discountAmount)}` : ""}
+            </p>
             </div>
 
             <h3 class="font-bold text-xl pt-4">
@@ -292,6 +353,16 @@ async function applyVoucher(){
   showToast("Thành công", "Áp dụng voucher thành công", "success");
 
   renderPayment();
+}
+
+function selectVoucher(code){
+  const input = document.getElementById("voucherCode");
+
+  if(input){
+    input.value = code;
+  }
+
+  applyVoucher();
 }
 
 async function submitPayment(){

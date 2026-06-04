@@ -1,3 +1,5 @@
+let recommendProducts = [];
+
 function hero(){
 
   const slides = [
@@ -206,12 +208,71 @@ function categoryGrid(){
   `;
 }
 
+function recommendSection(){
+  if(!recommendProducts || recommendProducts.length === 0){
+    return "";
+  }
+
+  return `
+    <section class="wrap py-10">
+      <div class="mb-7 flex justify-between items-end">
+        <div>
+          <p class="text-red-800 tracking-widest uppercase font-bold">
+            Gợi ý cá nhân hóa
+          </p>
+
+          <h2 class="serif text-5xl">
+            Dành riêng cho bạn
+          </h2>
+
+          <p class="text-neutral-600 mt-3">
+            Dựa trên sản phẩm bạn đã xem trước đó.
+          </p>
+        </div>
+      </div>
+
+      ${productGrid(recommendProducts)}
+    </section>
+  `;
+}
+
 function home(){
-  return header()+hero()+categoryGrid()+`<section class="wrap py-10"><div class="mb-7 flex justify-between items-end"><div><p class="text-red-800 tracking-widest uppercase font-bold">Sản phẩm nổi bật</p><h2 class="serif text-5xl">Best Sellers</h2></div><button onclick="go('shop')" class="border rounded-full px-6 py-3 bg-white font-semibold">Xem tất cả</button></div>${productGrid(
-  [...products]
-    .sort((a,b) => getSoldCount(b.productId) - getSoldCount(a.productId))
-    .slice(0,8)
-)}</section>`+footer();
+  return header()
+    + hero()
+    + categoryGrid()
+    + recommendSection()
+    + `
+      <section class="wrap py-10">
+
+        <div class="mb-7 flex justify-between items-end">
+
+          <div>
+            <p class="text-red-800 tracking-widest uppercase font-bold">
+              Sản phẩm nổi bật
+            </p>
+
+            <h2 class="serif text-5xl">
+              Best Sellers
+            </h2>
+          </div>
+
+          <button
+            onclick="go('shop')"
+            class="border rounded-full px-6 py-3 bg-white font-semibold">
+            Xem tất cả
+          </button>
+
+        </div>
+
+        ${productGrid(
+          [...products]
+            .sort((a,b) => getSoldCount(b.productId) - getSoldCount(a.productId))
+            .slice(0,8)
+        )}
+
+      </section>
+    `
+    + footer();
 }
 
 async function loadHomePage(){
@@ -228,6 +289,15 @@ async function loadHomePage(){
     categories = categoryData;
     brands = brandData;
     window.allOrders = orderData;
+    const user = getUser();
+
+    if(user?.userId){
+      try{
+        recommendProducts = await fetchJson(`${API_BASE}/recommendations/${user.userId}`);
+      }catch(e){
+        recommendProducts = [];
+      }
+    }
 
     renderApp(home());
 

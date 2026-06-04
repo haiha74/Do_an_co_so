@@ -149,7 +149,31 @@ function go(page){
   if(page === "auth") location.href = "/auth";
 }
 
-function detail(id){
+async function saveProductView(productId){
+  const user = getUser();
+
+  if(!user?.userId){
+    return;
+  }
+
+  try{
+    await fetch(`${API_BASE}/recommendations/view`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        userId: user.userId,
+        productId: productId
+      })
+    });
+  }catch(e){
+    console.error("Không lưu được lịch sử xem", e);
+  }
+}
+
+async function detail(id){
+  await saveProductView(id);
   location.href = `/detail?productId=${id}`;
 }
 

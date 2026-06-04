@@ -538,6 +538,10 @@ function reportPanel(){
         <p class="text-neutral-500 mt-2">
           Doanh thu, đơn hàng, sản phẩm bán chạy và khách hàng nổi bật.
         </p>
+        <button onclick="exportReportExcel()"
+          class="mt-5 bg-green-700 text-white rounded-full px-6 py-3 font-bold">
+          Xuất Excel báo cáo
+        </button>
       </div>
 
       <div class="grid md:grid-cols-4 gap-4">
@@ -2078,4 +2082,61 @@ function deleteUser(id){
     render();
     showToast("Thành công", "Đã xóa người dùng");
   });
+}
+
+function exportReportExcel(){
+  const today = todayOrders().filter(o => o.orderStatus !== "CANCELLED");
+  const last7 = ordersInLastDays(7);
+  const last30 = ordersInLastDays(30);
+  const allValid = validOrders();
+
+  const html = `
+    <table border="1">
+      <tr><th colspan="2">BÁO CÁO THỐNG KÊ KINH DOANH</th></tr>
+      <tr><td>Ngày xuất</td><td>${new Date().toLocaleString("vi-VN")}</td></tr>
+      <tr><td>Doanh thu hôm nay</td><td>${revenueOf(today)}</td></tr>
+      <tr><td>Doanh thu 7 ngày</td><td>${revenueOf(last7)}</td></tr>
+      <tr><td>Doanh thu 30 ngày</td><td>${revenueOf(last30)}</td></tr>
+      <tr><td>Tổng doanh thu</td><td>${revenueOf(allValid)}</td></tr>
+      <tr><td>Tổng đơn</td><td>${orders.length}</td></tr>
+      <tr><td>Đơn hoàn thành</td><td>${orders.filter(o => o.orderStatus === "COMPLETED").length}</td></tr>
+      <tr><td>Đơn đang giao</td><td>${orders.filter(o => o.orderStatus === "SHIPPING").length}</td></tr>
+      <tr><td>Đơn đã hủy</td><td>${orders.filter(o => o.orderStatus === "CANCELLED").length}</td></tr>
+
+      <tr><th colspan="3">TOP SẢN PHẨM BÁN CHẠY</th></tr>
+      <tr><th>Sản phẩm</th><th>Đã bán</th><th>Doanh thu</th></tr>
+      ${
+        topProducts().map(p => `
+          <tr>
+            <td>${p.name}</td>
+            <td>${p.qty}</td>
+            <td>${p.revenue}</td>
+          </tr>
+        `).join("")
+      }
+
+      <tr><th colspan="3">TOP KHÁCH HÀNG</th></tr>
+      <tr><th>Khách hàng</th><th>Số đơn</th><th>Tổng chi</th></tr>
+      ${
+        topCustomers().map(c => `
+          <tr>
+            <td>${c.name} - ${c.email}</td>
+            <td>${c.orders}</td>
+            <td>${c.total}</td>
+          </tr>
+        `).join("")
+      }
+    </table>
+  `;
+
+  const blob = new Blob(["\ufeff" + html], {
+    type: "application/vnd.ms-excel;charset=utf-8;"
+  });
+
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `bao-cao-thong-ke-${new Date().toISOString().slice(0,10)}.xls`;
+  a.click();
+
+  showToast("Thành công", "Đã xuất file Excel báo cáo");
 }

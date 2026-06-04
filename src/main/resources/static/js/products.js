@@ -154,14 +154,11 @@ async function loadProductsPage(){
     }
 
     if(searchKeyword){
-      try{
-        const data = await fetchJson(`${API_BASE}/products/search?keyword=${encodeURIComponent(searchKeyword)}`);
-        products = data.filter(p => p.status === "ACTIVE");
-      }catch(e){
-        products = allProducts.filter(p =>
-          (p.productName || "").toLowerCase().includes(searchKeyword.toLowerCase())
-        );
-      }
+      const kw = searchKeyword.toLowerCase().trim();
+
+      products = allProducts.filter(p =>
+        (p.productName || "").toLowerCase().includes(kw)
+      );
     }
 
     renderApp(shop());
