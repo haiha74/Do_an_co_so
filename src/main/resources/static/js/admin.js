@@ -29,6 +29,8 @@ let adminSearch = {
   orders: "",
   users: ""
 };
+let reportFrom = "";
+let reportTo = "";
 
 function icon(n, cls="w-5 h-5"){return `<i data-lucide="${n}" class="${cls}"></i>`}
 function money(v){return Number(v || 0).toLocaleString("vi-VN") + "đ"}
@@ -70,7 +72,7 @@ function showToast(title, message = "", type = "success"){
   setTimeout(() => toast.remove(), 3000);
 }
 
-function showConfirm(message, onConfirm){
+function showConfirm(message, onConfirm, confirmText = "Xóa"){
   confirmCallback = onConfirm;
 
   const old = document.getElementById("adminConfirmModal");
@@ -93,7 +95,7 @@ function showConfirm(message, onConfirm){
 
         <button onclick="confirmAction()"
           class="bg-red-800 text-white rounded-full px-6 py-3 font-bold">
-          Xóa
+          ${confirmText}
         </button>
       </div>
     </div>
@@ -442,18 +444,23 @@ function ordersInLastDays(days){
 }
 
 function revenueOf(list){
-  return list.reduce((sum, o) => sum + Number(o.finalAmount || 0), 0);
+  return list
+    .filter(o => o.orderStatus !== "CANCELLED")
+    .reduce((sum, o) => sum + Number(o.finalAmount || 0), 0);
 }
 
-function topProducts(){
+function topProducts(orderList = validOrders()){
+
   const map = {};
 
-  validOrders().forEach(order => {
+  orderList.forEach(order => {
     (order.items || []).forEach(item => {
+
       const p = item.variant?.product;
       if(!p) return;
 
       const id = p.productId;
+
       if(!map[id]){
         map[id] = {
           name: p.productName,
@@ -463,23 +470,29 @@ function topProducts(){
       }
 
       map[id].qty += Number(item.quantity || 0);
-      map[id].revenue += Number(item.price || 0) * Number(item.quantity || 0);
+      map[id].revenue +=
+        Number(item.price || 0) *
+        Number(item.quantity || 0);
+
     });
   });
 
   return Object.values(map)
-    .sort((a,b) => b.qty - a.qty)
-    .slice(0, 5);
+    .sort((a,b)=>b.qty-a.qty)
+    .slice(0,5);
 }
 
-function topCustomers(){
+function topCustomers(orderList = validOrders()){
+
   const map = {};
 
-  validOrders().forEach(o => {
+  orderList.forEach(o => {
+
     const u = o.user;
     if(!u) return;
 
     const id = u.userId;
+
     if(!map[id]){
       map[id] = {
         name: u.fullname || u.email,
@@ -491,40 +504,85 @@ function topCustomers(){
 
     map[id].total += Number(o.finalAmount || 0);
     map[id].orders += 1;
+
   });
 
   return Object.values(map)
-    .sort((a,b) => b.total - a.total)
-    .slice(0, 5);
+    .sort((a,b)=>b.total-a.total)
+    .slice(0,5);
 }
 
-function revenue7Days(){
-  return Array.from({length: 7}, (_, i) => {
-    const day = daysAgo(6 - i);
-    const list = validOrders().filter(o =>
-      o.createdAt && dateOnly(o.createdAt) === day
-    );
+function reportChartData(){
 
-    return {
-      day,
-      revenue: revenueOf(list)
-    };
+  const map = {};
+
+  reportOrders().forEach(o => {
+    const day = dateOnly(o.createdAt);
+    map[day] = (map[day] || 0) + Number(o.finalAmount || 0);
   });
+
+  let from = reportFrom;
+  let to = reportTo;
+
+  if(!from && !to){
+    const days = Object.keys(map).sort();
+
+    if(days.length === 0){
+      return [];
+    }
+
+    from = days[0];
+    to = days[days.length - 1];
+  }
+
+  if(from && !to){
+    to = dateOnly(new Date());
+  }
+
+  if(!from && to){
+    from = Object.keys(map).sort()[0] || to;
+  }
+
+  const result = [];
+  const current = new Date(from + "T00:00:00");
+  const end = new Date(to + "T00:00:00");
+
+  while(current <= end){
+    const day = dateOnly(current);
+
+    result.push({
+      day,
+      revenue: map[day] || 0
+    });
+
+    current.setDate(current.getDate() + 1);
+  }
+
+  return result;
 }
 
 function reportPanel(){
   const today = todayOrders().filter(o => o.orderStatus !== "CANCELLED");
-  const last7 = ordersInLastDays(7);
-  const last30 = ordersInLastDays(30);
-  const allValid = validOrders();
+  const reportData = reportOrders();
 
-  const completed = orders.filter(o => o.orderStatus === "COMPLETED").length;
-  const cancelled = orders.filter(o => o.orderStatus === "CANCELLED").length;
-  const shipping = orders.filter(o => o.orderStatus === "SHIPPING").length;
+  const revenue =
+    revenueOf(reportData);
 
-  const productList = topProducts();
-  const customerList = topCustomers();
-  const chartData = revenue7Days();
+  const totalOrders =
+    reportData.length;
+
+  const completed =
+    reportData.filter(o => o.orderStatus === "COMPLETED").length;
+
+  const cancelled =
+    reportData.filter(o => o.orderStatus === "CANCELLED").length;
+
+  const shipping =
+    reportData.filter(o => o.orderStatus === "SHIPPING").length;
+
+  const productList = topProducts(reportData);
+  const customerList = topCustomers(reportData);
+  const chartData = reportChartData();
   const maxRevenue = Math.max(...chartData.map(x => x.revenue), 1);
 
   return `
@@ -538,6 +596,22 @@ function reportPanel(){
         <p class="text-neutral-500 mt-2">
           Doanh thu, đơn hàng, sản phẩm bán chạy và khách hàng nổi bật.
         </p>
+
+        <div class="flex flex-wrap gap-3 mt-5">
+          <input id="reportFrom" type="date" value="${reportFrom}"
+            onchange="changeReportFilter()"
+            class="border rounded-xl px-4 py-3">
+
+          <input id="reportTo" type="date" value="${reportTo}"
+            onchange="changeReportFilter()"
+            class="border rounded-xl px-4 py-3">
+
+          <button onclick="reportFrom=''; reportTo=''; render()"
+            class="border rounded-xl px-5 py-3 font-bold">
+            Xóa lọc
+          </button>
+        </div>
+
         <button onclick="exportReportExcel()"
           class="mt-5 bg-green-700 text-white rounded-full px-6 py-3 font-bold">
           Xuất Excel báo cáo
@@ -545,31 +619,31 @@ function reportPanel(){
       </div>
 
       <div class="grid md:grid-cols-4 gap-4">
-        <div class="soft-card p-6">
-          <p class="text-neutral-500">Doanh thu hôm nay</p>
-          <h3 class="text-3xl font-bold mt-3">${money(revenueOf(today))}</h3>
-        </div>
+          <div class="soft-card p-6">
+            <p class="text-neutral-500">Doanh thu theo lọc</p>
+            <h3 class="text-3xl font-bold mt-3">${money(revenue)}</h3>
+          </div>
 
-        <div class="soft-card p-6">
-          <p class="text-neutral-500">Doanh thu 7 ngày</p>
-          <h3 class="text-3xl font-bold mt-3">${money(revenueOf(last7))}</h3>
-        </div>
+          <div class="soft-card p-6">
+            <p class="text-neutral-500">Số đơn theo lọc</p>
+            <h3 class="text-3xl font-bold mt-3">${totalOrders}</h3>
+          </div>
 
-        <div class="soft-card p-6">
-          <p class="text-neutral-500">Doanh thu 30 ngày</p>
-          <h3 class="text-3xl font-bold mt-3">${money(revenueOf(last30))}</h3>
-        </div>
+          <div class="soft-card p-6">
+            <p class="text-neutral-500">Từ ngày</p>
+            <h3 class="text-xl font-bold mt-3">${reportFrom || "Tất cả"}</h3>
+          </div>
 
-        <div class="soft-card p-6">
-          <p class="text-neutral-500">Tổng doanh thu</p>
-          <h3 class="text-3xl font-bold mt-3">${money(revenueOf(allValid))}</h3>
-        </div>
+          <div class="soft-card p-6">
+            <p class="text-neutral-500">Đến ngày</p>
+            <h3 class="text-xl font-bold mt-3">${reportTo || "Hiện tại"}</h3>
+          </div>
       </div>
 
       <div class="grid md:grid-cols-4 gap-4">
         <div class="soft-card p-6">
           <p class="text-neutral-500">Tổng đơn</p>
-          <h3 class="text-3xl font-bold mt-3">${orders.length}</h3>
+          <h3 class="text-3xl font-bold mt-3">${reportData.length}</h3>
         </div>
 
         <div class="soft-card p-6">
@@ -588,43 +662,57 @@ function reportPanel(){
         </div>
       </div>
 
-      <div class="soft-card p-6">
-        <h3 class="font-bold text-xl mb-5">Biểu đồ doanh thu 7 ngày</h3>
+      <div class="soft-card p-6 overflow-hidden max-w-full">
+        <h3 class="font-bold text-xl mb-2">Biểu đồ doanh thu theo khoảng thời gian</h3>
+        <p class="text-sm text-neutral-500 mb-6">
+          Hiển thị đầy đủ từng ngày trong khoảng lọc, ngày không có doanh thu sẽ là 0đ.
+        </p>
 
-        <div class="h-72 flex items-end gap-4 border-l border-b px-4 pb-4 mt-8">
-            ${
-              chartData.map(x => {
-                const h = x.revenue > 0
-                  ? Math.max((x.revenue / maxRevenue) * 220, 36)
-                  : 10;
+        ${
+          chartData.length
+          ? `
+            <div class="w-full max-w-full overflow-x-auto overflow-y-hidden pb-3">
+              <div class="h-80 inline-flex items-end gap-3 border-l border-b px-5 pb-6 pt-6"
+                style="width:max-content; min-width:${Math.max(chartData.length * 72, 720)}px">
 
-                return `
-                  <div class="flex-1 h-full flex flex-col items-center justify-end gap-2">
+                ${
+                  chartData.map(x => {
+                    const h = x.revenue > 0
+                      ? Math.max((x.revenue / maxRevenue) * 220, 30)
+                      : 6;
 
-                  <span class="text-[11px] font-bold text-red-800 text-center leading-tight min-h-[16px]">
-                    ${x.revenue > 0 ? money(x.revenue) : ""}
-                  </span>
+                    return `
+                      <div class="h-full flex flex-col items-center justify-end gap-2"
+                        style="width:56px; min-width:56px;">
 
-                  <div
-                    class="w-full bg-gradient-to-t from-red-900 via-red-700 to-red-500
-                          rounded-t-2xl shadow-lg hover:scale-[1.03]
-                          transition-all duration-300 relative"
-                    title="${x.day}: ${money(x.revenue)}"
-                    style="height:${h}px">
+                        <span class="text-[10px] font-semibold text-neutral-500 h-6 text-center leading-tight">
+                          ${money(x.revenue)}
+                        </span>
 
-                    <div class="absolute inset-x-0 top-0 h-3 bg-white/30 rounded-t-2xl"></div>
+                        <div
+                          class="w-8 bg-red-800 rounded-t-xl hover:bg-red-900 transition"
+                          title="${x.day}: ${money(x.revenue)}"
+                          style="height:${h}px">
+                        </div>
 
-                  </div>
+                        <span class="text-[11px] text-neutral-500 mt-1 whitespace-nowrap">
+                          ${x.day.slice(5)}
+                        </span>
 
-                </div>
-              `;
-            }).join("")
-          }
-        </div>
+                      </div>
+                    `;
+                  }).join("")
+                }
 
-        <div class="grid grid-cols-7 gap-3 text-xs text-neutral-500 mt-3 text-center">
-          ${chartData.map(x => `<span>${x.day.slice(5)}</span>`).join("")}
-        </div>
+              </div>
+            </div>
+          `
+          : `
+            <div class="h-64 flex items-center justify-center text-neutral-500 border rounded-2xl">
+              Không có dữ liệu doanh thu trong khoảng thời gian này
+            </div>
+          `
+        }
       </div>
 
       <div class="grid lg:grid-cols-2 gap-6">
@@ -761,7 +849,35 @@ function productTable(){
     ? ""
     : `<p class="text-xs text-red-800 font-bold mt-1">Chưa có biến thể</p>`
   }
-</td><td>${p.category?.categoryName || "Chưa có"}</td><td class="text-red-800 font-bold">${money(p.basePrice)}</td><td><span class="bg-green-50 text-green-700 rounded-full px-3 py-1 text-sm">${p.status || "ACTIVE"}</span></td><td class="space-x-2"><button onclick="openProductForm(${p.productId})" class="border rounded-full px-4 py-2 text-sm">Sửa</button><button onclick="deleteProduct(${p.productId})" class="bg-red-800 text-white rounded-full px-4 py-2 text-sm">Xóa</button></td></tr>`).join("")}</tbody>
+</td><td>${p.category?.categoryName || "Chưa có"}</td><td class="text-red-800 font-bold">${money(p.basePrice)}</td><td><span class="bg-green-50 text-green-700 rounded-full px-3 py-1 text-sm">${p.status || "ACTIVE"}</span></td><td class="space-x-2">
+  <button onclick="openProductForm(${p.productId})"
+    class="border rounded-full px-4 py-2 text-sm">
+    Sửa
+  </button>
+
+  ${
+    p.status === "INACTIVE"
+      ? `
+        <button onclick="showProduct(${p.productId})"
+          class="bg-green-600 text-white rounded-full px-4 py-2 text-sm">
+          Hiện
+        </button>
+      `
+      : productHasOrders(p.productId)
+        ? `
+          <button onclick="hideProduct(${p.productId})"
+            class="bg-yellow-600 text-white rounded-full px-4 py-2 text-sm">
+            Ẩn
+          </button>
+        `
+        : `
+          <button onclick="deleteProduct(${p.productId})"
+            class="bg-red-800 text-white rounded-full px-4 py-2 text-sm">
+            Xóa
+          </button>
+        `
+  }
+</td></tr>`).join("")}</tbody>
       </table>
     </div>
   </div>${productModal()}`;
@@ -973,10 +1089,10 @@ function adminPage(){
         </div>
       </div>
 
-      <div class="grid lg:grid-cols-[260px_1fr] gap-6">
+      <div class="grid lg:grid-cols-[260px_minmax(0,1fr)] gap-6">
         ${sidebar()}
 
-        <section class="space-y-6">
+        <section class="space-y-6 min-w-0">
           ${content()}
         </section>
       </div>
@@ -1429,7 +1545,7 @@ async function saveProduct(){
 }
 
 function deleteProduct(id){
-  showConfirm("Xóa sản phẩm này?", async () => {
+  showConfirm("Xóa vĩnh viễn sản phẩm này?", async () => {
     const res = await fetch(`${API_BASE}/products/${id}`, { method:'DELETE' });
 
     if(!res.ok){
@@ -1439,7 +1555,7 @@ function deleteProduct(id){
 
     showToast("Thành công", "Đã xóa sản phẩm");
     await init();
-  });
+  }, "Xóa");
 }
 
 function openVariantForm(id=null){
@@ -2085,28 +2201,40 @@ function deleteUser(id){
 }
 
 function exportReportExcel(){
-  const today = todayOrders().filter(o => o.orderStatus !== "CANCELLED");
-  const last7 = ordersInLastDays(7);
-  const last30 = ordersInLastDays(30);
-  const allValid = validOrders();
+  const reportData = reportOrders();
 
   const html = `
     <table border="1">
       <tr><th colspan="2">BÁO CÁO THỐNG KÊ KINH DOANH</th></tr>
       <tr><td>Ngày xuất</td><td>${new Date().toLocaleString("vi-VN")}</td></tr>
-      <tr><td>Doanh thu hôm nay</td><td>${revenueOf(today)}</td></tr>
-      <tr><td>Doanh thu 7 ngày</td><td>${revenueOf(last7)}</td></tr>
-      <tr><td>Doanh thu 30 ngày</td><td>${revenueOf(last30)}</td></tr>
-      <tr><td>Tổng doanh thu</td><td>${revenueOf(allValid)}</td></tr>
-      <tr><td>Tổng đơn</td><td>${orders.length}</td></tr>
-      <tr><td>Đơn hoàn thành</td><td>${orders.filter(o => o.orderStatus === "COMPLETED").length}</td></tr>
-      <tr><td>Đơn đang giao</td><td>${orders.filter(o => o.orderStatus === "SHIPPING").length}</td></tr>
-      <tr><td>Đơn đã hủy</td><td>${orders.filter(o => o.orderStatus === "CANCELLED").length}</td></tr>
+      <tr>
+        <td>Từ ngày</td>
+        <td>${reportFrom || "Tất cả"}</td>
+      </tr>
+
+      <tr>
+        <td>Đến ngày</td>
+        <td>${reportTo || "Hiện tại"}</td>
+      </tr>
+
+      <tr>
+        <td>Doanh thu</td>
+        <td>${revenueOf(reportData)}</td>
+      </tr>
+
+      <tr>
+        <td>Số đơn</td>
+        <td>${reportData.length}</td>
+      </tr>
+      <tr><td>Tổng đơn</td><td>${reportData.length}</td></tr>
+      <tr><td>Đơn hoàn thành</td><td>${reportData.filter(o => o.orderStatus === "COMPLETED").length}</td></tr>
+      <tr><td>Đơn đang giao</td><td>${reportData.filter(o => o.orderStatus === "SHIPPING").length}</td></tr>
+      <tr><td>Đơn đã hủy</td><td>${reportData.filter(o => o.orderStatus === "CANCELLED").length}</td></tr>
 
       <tr><th colspan="3">TOP SẢN PHẨM BÁN CHẠY</th></tr>
       <tr><th>Sản phẩm</th><th>Đã bán</th><th>Doanh thu</th></tr>
       ${
-        topProducts().map(p => `
+        topProducts(reportData).map(p => `
           <tr>
             <td>${p.name}</td>
             <td>${p.qty}</td>
@@ -2118,7 +2246,7 @@ function exportReportExcel(){
       <tr><th colspan="3">TOP KHÁCH HÀNG</th></tr>
       <tr><th>Khách hàng</th><th>Số đơn</th><th>Tổng chi</th></tr>
       ${
-        topCustomers().map(c => `
+        topCustomers(reportData).map(c => `
           <tr>
             <td>${c.name} - ${c.email}</td>
             <td>${c.orders}</td>
@@ -2139,4 +2267,107 @@ function exportReportExcel(){
   a.click();
 
   showToast("Thành công", "Đã xuất file Excel báo cáo");
+}
+
+function productHasOrders(productId){
+  return orders.some(order =>
+    (order.items || []).some(item =>
+      item.variant?.product?.productId === productId
+    )
+  );
+}
+
+async function hideProduct(id){
+  const p = products.find(x => x.productId === id);
+
+  if(!p) return;
+
+  showConfirm("Ẩn sản phẩm này?", async () => {
+
+    const res = await fetch(`${API_BASE}/products/${id}`,{
+      method:"PUT",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({
+        productName:p.productName,
+        description:p.description || "",
+        basePrice:p.basePrice,
+        categoryId:p.category?.categoryId,
+        brandId:p.brand?.brandId || null,
+        status:"INACTIVE"
+      })
+    });
+
+    if(!res.ok){
+      showToast("Lỗi","Không thể ẩn sản phẩm","error");
+      return;
+    }
+
+    showToast("Thành công","Đã ẩn sản phẩm khỏi shop");
+    await init();
+
+  }, "Ẩn");
+}
+
+async function showProduct(id){
+  const p = products.find(x => x.productId === id);
+
+  if(!p) return;
+
+  showConfirm("Hiện lại sản phẩm này trên shop?", async () => {
+
+    const res = await fetch(`${API_BASE}/products/${id}`,{
+      method:"PUT",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({
+        productName:p.productName,
+        description:p.description || "",
+        basePrice:p.basePrice,
+        categoryId:p.category?.categoryId,
+        brandId:p.brand?.brandId || null,
+        status:"ACTIVE"
+      })
+    });
+
+    if(!res.ok){
+      showToast("Lỗi","Không thể hiện sản phẩm","error");
+      return;
+    }
+
+    showToast("Thành công","Đã hiện sản phẩm trên shop");
+    await init();
+
+  }, "Hiện");
+}
+
+function reportOrders(){
+  let list = orders;
+
+  if(reportFrom){
+    list = list.filter(o =>
+      o.createdAt && dateOnly(o.createdAt) >= reportFrom
+    );
+  }
+
+  if(reportTo){
+    list = list.filter(o =>
+      o.createdAt && dateOnly(o.createdAt) <= reportTo
+    );
+  }
+
+  return list;
+}
+
+function changeReportFilter(){
+
+  reportFrom =
+    document.getElementById("reportFrom").value;
+
+  reportTo =
+    document.getElementById("reportTo").value;
+
+  render();
 }
