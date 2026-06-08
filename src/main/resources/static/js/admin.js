@@ -1,6 +1,5 @@
 const API_BASE = "http://localhost:8080/api";
 
-
 let products = [];
 let categories = [];
 let users = [];
@@ -268,26 +267,26 @@ async function loadData(){
 
 function loginPage(){
   return `<main class="min-h-screen grid lg:grid-cols-[1fr_520px]">
-    <section class="px-10 lg:px-20 flex items-center">
-      <div>
-        <p class="text-red-800 tracking-[.18em] uppercase font-bold mb-5">JODOK Admin</p>
-        <h1 class="serif text-6xl leading-tight mb-5">Đăng nhập quản trị</h1>
-        <p class="text-neutral-600 text-xl max-w-2xl">Quản lý sản phẩm, danh mục, đơn hàng, người dùng, khuyến mãi và báo cáo hệ thống.</p>
-      </div>
-    </section>
-    <section class="bg-white border-l flex items-center justify-center px-8 py-12">
-      <div class="soft-card p-8 w-full max-w-md">
-        <h2 class="serif text-4xl text-center mb-7">Admin Login</h2>
-        <div class="space-y-4">
-          <input id="adminEmail" class="input-ui" placeholder="Email admin">
-          <input id="adminPassword" type="password" class="input-ui" placeholder="Mật khẩu">
-          <button onclick="loginAdmin()" class="btn-primary w-full">Đăng nhập</button>
-        </div>
-        <p id="adminMsg" class="text-center mt-4 text-red-800 font-semibold text-sm"></p>
-        <a href="/" class="block text-center mt-5 text-neutral-500 hover:text-red-800">← Quay lại shop</a>
-      </div>
-    </section>
-  </main>`;
+        <section class="px-10 lg:px-20 flex items-center">
+          <div>
+            <p class="text-red-800 tracking-[.18em] uppercase font-bold mb-5">JODOK Admin</p>
+            <h1 class="serif text-6xl leading-tight mb-5">Đăng nhập quản trị</h1>
+            <p class="text-neutral-600 text-xl max-w-2xl">Quản lý sản phẩm, danh mục, đơn hàng, người dùng, khuyến mãi và báo cáo hệ thống.</p>
+          </div>
+        </section>
+        <section class="bg-white border-l flex items-center justify-center px-8 py-12">
+          <div class="soft-card p-8 w-full max-w-md">
+            <h2 class="serif text-4xl text-center mb-7">Admin Login</h2>
+            <div class="space-y-4">
+              <input id="adminEmail" class="input-ui" placeholder="Email admin">
+              <input id="adminPassword" type="password" class="input-ui" placeholder="Mật khẩu">
+              <button onclick="loginAdmin()" class="btn-primary w-full">Đăng nhập</button>
+            </div>
+            <p id="adminMsg" class="text-center mt-4 text-red-800 font-semibold text-sm"></p>
+            <a href="/" class="block text-center mt-5 text-neutral-500 hover:text-red-800">← Quay lại shop</a>
+          </div>
+        </section>
+    </main>`;
 }
 
 
@@ -299,32 +298,32 @@ function statCards(){
   const activeCategories = categories.filter(c => c.status === "ACTIVE").length;
 
   return `<div class="grid md:grid-cols-4 gap-4 mb-6">
-    <div class="soft-card p-6 overflow-hidden">
-      <p class="text-neutral-500">Tổng doanh thu</p>
-      <h3 class="text-2xl font-bold mt-3 leading-tight break-words">
-        ${money(revenue)}
-      </h3>
-      <span class="text-red-800 text-sm font-semibold">Từ đơn hàng thực tế</span>
-    </div>
+            <div class="soft-card p-6 overflow-hidden">
+              <p class="text-neutral-500">Tổng doanh thu</p>
+              <h3 class="text-2xl font-bold mt-3 leading-tight break-words">
+                ${money(revenue)}
+              </h3>
+              <span class="text-red-800 text-sm font-semibold">Từ đơn hàng thực tế</span>
+            </div>
 
-    <div class="soft-card p-6">
-      <p class="text-neutral-500">Sản phẩm</p>
-      <h3 class="text-3xl font-bold mt-3">${products.length}</h3>
-      <span class="text-red-800 text-sm font-semibold">Đang quản lý</span>
-    </div>
+            <div class="soft-card p-6">
+              <p class="text-neutral-500">Sản phẩm</p>
+              <h3 class="text-3xl font-bold mt-3">${products.length}</h3>
+              <span class="text-red-800 text-sm font-semibold">Đang quản lý</span>
+            </div>
 
-    <div class="soft-card p-6">
-      <p class="text-neutral-500">Danh mục</p>
-      <h3 class="text-3xl font-bold mt-3">${activeCategories}</h3>
-      <span class="text-red-800 text-sm font-semibold">Danh mục active</span>
-    </div>
+            <div class="soft-card p-6">
+              <p class="text-neutral-500">Danh mục</p>
+              <h3 class="text-3xl font-bold mt-3">${activeCategories}</h3>
+              <span class="text-red-800 text-sm font-semibold">Danh mục active</span>
+            </div>
 
-    <div class="soft-card p-6">
-      <p class="text-neutral-500">Người dùng</p>
-      <h3 class="text-3xl font-bold mt-3">${users.length}</h3>
-      <span class="text-red-800 text-sm font-semibold">Tài khoản hệ thống</span>
-    </div>
-  </div>`;
+            <div class="soft-card p-6">
+              <p class="text-neutral-500">Người dùng</p>
+              <h3 class="text-3xl font-bold mt-3">${users.length}</h3>
+              <span class="text-red-800 text-sm font-semibold">Tài khoản hệ thống</span>
+            </div>
+          </div>`;
 }
 
 function todayOrders(){
@@ -376,71 +375,71 @@ function overviewCharts(){
   const maxRevenue = Math.max(...hours.map(x => x.revenue), 1);
 
   return `
-    <div class="grid lg:grid-cols-2 gap-6">
+      <div class="grid lg:grid-cols-2 gap-6">
 
-      <div class="soft-card p-6">
-        <p class="uppercase tracking-widest text-red-800 font-bold mb-3">
-          Doanh thu hôm nay
-        </p>
+        <div class="soft-card p-6">
+          <p class="uppercase tracking-widest text-red-800 font-bold mb-3">
+            Doanh thu hôm nay
+          </p>
 
-        <h2 class="text-5xl font-bold mb-3 tracking-tight">
-          ${money(todayRevenue())}
-        </h2>
+          <h2 class="text-5xl font-bold mb-3 tracking-tight">
+            ${money(todayRevenue())}
+          </h2>
 
-        <p class="text-neutral-500">
-          Tính từ đơn hôm nay, không gồm đơn đã hủy.
-        </p>
+          <p class="text-neutral-500">
+            Tính từ đơn hôm nay, không gồm đơn đã hủy.
+          </p>
 
-        <div class="mt-7 h-56 flex items-end gap-1 border-b border-l px-4 pb-4">
-          ${hours.map(x => `
-            <div class="flex-1 bg-red-800 rounded-t"
-              title="${x.hour}h: ${money(x.revenue)}"
-              style="height:${x.revenue > 0 ? Math.max((x.revenue / maxRevenue) * 100, 8) : 2}%">
-            </div>
-          `).join("")}
-        </div>
-
-        <div class="flex justify-between text-xs text-neutral-500 mt-3">
-          <span>0h</span>
-          <span>6h</span>
-          <span>12h</span>
-          <span>18h</span>
-          <span>23h</span>
-        </div>
-      </div>
-
-      <div class="soft-card p-6">
-        <p class="uppercase tracking-widest text-red-800 font-bold mb-3">
-          Đơn hàng hôm nay
-        </p>
-
-        <h2 class="text-5xl font-bold mb-3 tracking-tight">
-          ${todayList.length}
-        </h2>
-
-        <p class="text-neutral-500 mb-6">
-          Thống kê đơn theo trạng thái trong ngày.
-        </p>
-
-        <div class="space-y-4">
-          ${statusCounts.map(s => `
-            <div>
-              <div class="flex justify-between mb-1">
-                <span class="font-semibold">${s.label}</span>
-                <b>${s.count}</b>
+          <div class="mt-7 h-56 flex items-end gap-1 border-b border-l px-4 pb-4">
+            ${hours.map(x => `
+              <div class="flex-1 bg-red-800 rounded-t"
+                title="${x.hour}h: ${money(x.revenue)}"
+                style="height:${x.revenue > 0 ? Math.max((x.revenue / maxRevenue) * 100, 8) : 2}%">
               </div>
+            `).join("")}
+          </div>
 
-              <div class="h-3 bg-neutral-100 rounded-full overflow-hidden">
-                <div class="h-full bg-red-800 rounded-full"
-                  style="width:${s.count > 0 ? (s.count / maxStatus) * 100 : 0}%">
+          <div class="flex justify-between text-xs text-neutral-500 mt-3">
+            <span>0h</span>
+            <span>6h</span>
+            <span>12h</span>
+            <span>18h</span>
+            <span>23h</span>
+          </div>
+        </div>
+
+        <div class="soft-card p-6">
+          <p class="uppercase tracking-widest text-red-800 font-bold mb-3">
+            Đơn hàng hôm nay
+          </p>
+
+          <h2 class="text-5xl font-bold mb-3 tracking-tight">
+            ${todayList.length}
+          </h2>
+
+          <p class="text-neutral-500 mb-6">
+            Thống kê đơn theo trạng thái trong ngày.
+          </p>
+
+          <div class="space-y-4">
+            ${statusCounts.map(s => `
+              <div>
+                <div class="flex justify-between mb-1">
+                  <span class="font-semibold">${s.label}</span>
+                  <b>${s.count}</b>
+                </div>
+
+                <div class="h-3 bg-neutral-100 rounded-full overflow-hidden">
+                  <div class="h-full bg-red-800 rounded-full"
+                    style="width:${s.count > 0 ? (s.count / maxStatus) * 100 : 0}%">
+                  </div>
                 </div>
               </div>
-            </div>
-          `).join("")}
+            `).join("")}
+          </div>
         </div>
-      </div>
 
-    </div>
+      </div>
   `;
 }
 
