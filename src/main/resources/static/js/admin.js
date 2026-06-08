@@ -1,10 +1,5 @@
 const API_BASE = "http://localhost:8080/api";
-// const fallbackImages = [
-//   "https://images.unsplash.com/photo-1539008835657-9e8e9680c956?q=80&w=900&auto=format&fit=crop",
-//   "https://images.unsplash.com/photo-1434389677669-e08b4cac3105?q=80&w=900&auto=format&fit=crop",
-//   "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?q=80&w=900&auto=format&fit=crop",
-//   "https://images.unsplash.com/photo-1485968579580-b6d095142e6e?q=80&w=900&auto=format&fit=crop"
-// ];
+
 
 let products = [];
 let categories = [];
