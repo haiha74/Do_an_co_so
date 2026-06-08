@@ -31,9 +31,7 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginDTO dto) {
         try {
-            User user = authService.login(dto);
-            user.setPassword(null);
-            return ResponseEntity.ok(user);
+            return ResponseEntity.ok(authService.login(dto));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }

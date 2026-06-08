@@ -19,7 +19,19 @@ public class Review {
     private Long reviewId;
 
     @ManyToOne
-    @JsonIgnoreProperties({"password", "orders", "reviews", "cart"})
+    @JsonIgnoreProperties({
+            "password",
+            "email",
+            "phone",
+            "address",
+            "role",
+            "status",
+            "orders",
+            "reviews",
+            "cart",
+            "hibernateLazyInitializer",
+            "handler"
+    })
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 

@@ -27,7 +27,10 @@ public class ProductVariantService {
     }
 
     public List<ProductVariant> getByProduct(Long productId) {
-        return variantRepository.findByProduct_ProductId(productId);
+        return variantRepository.findByProduct_ProductId(productId)
+                .stream()
+                .filter(v -> "ACTIVE".equals(v.getStatus()))
+                .toList();
     }
 
     public ProductVariant create(ProductVariantDTO dto) {
@@ -46,7 +49,7 @@ public class ProductVariantService {
         return variantRepository.save(variant);
     }
 
-    public ProductVariant update(Long id, ProductVariantDTO dto) {
+    public ProductVariant update(Long id, ProductVariantDTO dto, String staffName) {
         ProductVariant variant = getById(id);
 
         if (dto.getProductId() != null) {
@@ -59,9 +62,13 @@ public class ProductVariantService {
         variant.setColor(dto.getColor());
         variant.setSku(dto.getSku());
         variant.setPrice(dto.getPrice());
+        if (dto.getStock() != null && dto.getStock() < 0) {
+            throw new RuntimeException("Tồn kho không được âm");
+        }
         variant.setStock(dto.getStock());
         variant.setStatus(dto.getStatus());
 
+        variant.setUpdatedByStaff(staffName);
         return variantRepository.save(variant);
     }
 

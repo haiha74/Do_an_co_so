@@ -4,6 +4,8 @@ import com.dacs.fashion.entity.Review;
 import com.dacs.fashion.service.ReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
+import com.dacs.fashion.entity.User;
 
 import java.util.List;
 import java.util.Map;
@@ -31,8 +33,9 @@ public class ReviewController {
     }
 
     @PostMapping
-    public Review create(@RequestBody Map<String, Object> body) {
-        Long userId = Long.valueOf(body.get("userId").toString());
+    public Review create(@RequestBody Map<String, Object> body, Authentication authentication) {
+        User currentUser = (User) authentication.getPrincipal();
+        Long userId = currentUser.getUserId();
         Long orderItemId = Long.valueOf(body.get("orderItemId").toString());
         Integer rating = Integer.valueOf(body.get("rating").toString());
         String comment = body.get("comment").toString();

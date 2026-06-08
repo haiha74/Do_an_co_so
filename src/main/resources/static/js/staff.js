@@ -11,6 +11,8 @@ let staffInventoryLimit = 10;
 let staffInventorySearch = "";
 let staffInventorySearchTimer = null;
 
+
+
 function money(v){
   return Number(v || 0).toLocaleString("vi-VN") + "đ";
 }
@@ -40,6 +42,21 @@ function showStaffToast(title, message, type = "success"){
 
 function staff(){
   return JSON.parse(localStorage.getItem("ha_staff") || "null");
+}
+
+function staffAuthHeaders(){
+  const s = staff();
+
+  return s?.token
+    ? { "Authorization": "Bearer " + s.token }
+    : {};
+}
+
+function staffJsonHeaders(){
+  return {
+    "Content-Type": "application/json",
+    ...staffAuthHeaders()
+  };
 }
 
 async function checkStaff(){
@@ -87,12 +104,16 @@ function logoutStaff(){
 }
 
 async function loadOrders(){
-  const res = await fetch(`${API_BASE}/orders`);
+  const res = await fetch(`${API_BASE}/orders`, {
+    headers: staffAuthHeaders()
+  });
   orders = await res.json();
 }
 
 async function loadVariants(){
-  const res = await fetch(`${API_BASE}/variants`);
+  const res = await fetch(`${API_BASE}/variants`, {
+    headers: staffAuthHeaders()
+  });
   variants = await res.json();
 }
 
@@ -144,7 +165,7 @@ filteredOrders.sort((a,b)=>{
 
   document.getElementById("orderBody").innerHTML = list.map(o => `
     <tr class="border-t">
-      <td class="p-4 font-bold">#${o.orderId}</td>
+      <td class="p-4 font-bold">${o.orderCode || ("DH" + String(o.orderId).padStart(6, "0"))}</td>
       <td>${o.user?.fullname || o.user?.email || "Khách hàng"}</td>
       <td class="max-w-[260px] text-sm text-neutral-600">${o.address || "Chưa có"}</td>
       <td class="text-red-800 font-bold">${money(o.finalAmount || o.totalAmount)}</td>
@@ -168,6 +189,7 @@ filteredOrders.sort((a,b)=>{
         </select>
       </td>
 
+      <td>${o.updatedByStaff || "Chưa cập nhật"}</td>
       <td>
         <button onclick="openOrderDetail(${o.orderId})"
           class="bg-black text-white rounded-full px-4 py-2 text-sm">
@@ -177,7 +199,7 @@ filteredOrders.sort((a,b)=>{
     </tr>
   `).join("") || `
     <tr>
-      <td colspan="6" class="p-6 text-center text-neutral-500">
+      <td colspan="7" class="p-6 text-center text-neutral-500">
         Không tìm thấy đơn hàng
       </td>
     </tr>
@@ -255,7 +277,8 @@ async function refreshStaffOrders(){
 
 async function updateOrderStatus(orderId, status){
   const res = await fetch(`${API_BASE}/orders/${orderId}/status?status=${status}`, {
-    method: "PUT"
+    method: "PUT",
+    headers: staffAuthHeaders()
   });
 
   if(!res.ok){
@@ -268,7 +291,9 @@ async function updateOrderStatus(orderId, status){
 }
 
 async function openOrderDetail(orderId){
-  const res = await fetch(`${API_BASE}/orders/${orderId}`);
+  const res = await fetch(`${API_BASE}/orders/${orderId}`, {
+    headers: staffAuthHeaders()
+  });
   const order = await res.json();
 
   document.getElementById("orderModal").classList.remove("hidden");
@@ -278,7 +303,7 @@ async function openOrderDetail(orderId){
     <div class="grid md:grid-cols-2 gap-4 mb-6">
       <div class="border rounded-2xl p-4">
         <p class="text-neutral-500">Mã đơn</p>
-        <b>#${order.orderId}</b>
+        <b>${order.orderCode || ("DH" + String(order.orderId).padStart(6, "0"))}</b>
       </div>
 
       <div class="border rounded-2xl p-4">
@@ -426,6 +451,7 @@ function orderPanel(){
               <th>Địa chỉ</th>
               <th>Tổng tiền</th>
               <th>Trạng thái</th>
+              <th>Nhân viên</th>
               <th>Thao tác</th>
             </tr>
           </thead>
@@ -488,6 +514,7 @@ function inventoryPanel(){
             <th>Màu</th>
             <th>SKU</th>
             <th>Tồn kho</th>
+            <th>Nhân viên</th>
             <th>Cập nhật</th>
           </tr>
         </thead>
@@ -511,6 +538,7 @@ function inventoryPanel(){
                     class="border rounded-xl px-4 py-2 w-28"
                   >
                 </td>
+                <td>${v.updatedByStaff || "Chưa cập nhật"}</td>
                 <td>
                   <button onclick="updateStock(${v.variantId})"
                     class="bg-red-800 text-white rounded-full px-5 py-2 font-bold">
@@ -519,7 +547,7 @@ function inventoryPanel(){
                 </td>
               </tr>
             `).join("")
-            : `<tr><td colspan="6" class="p-6 text-center text-neutral-500">Không tìm thấy biến thể</td></tr>`
+            : `<tr><td colspan="7" class="p-6 text-center text-neutral-500">Không tìm thấy biến thể</td></tr>`
           }
         </tbody>
       </table>
@@ -602,7 +630,7 @@ async function updateStock(variantId){
 
   const res = await fetch(`${API_BASE}/variants/${variantId}`, {
     method: "PUT",
-    headers: {"Content-Type":"application/json"},
+    headers: staffJsonHeaders(),
     body: JSON.stringify(body)
   });
 

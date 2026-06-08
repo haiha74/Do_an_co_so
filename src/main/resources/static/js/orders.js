@@ -19,7 +19,11 @@ async function loadMyOrders(){
   }
 
   try{
-    const res = await fetch(`${API_BASE}/orders/user/${user.userId}`);
+    const res = await fetch(`${API_BASE}/orders/user/${user.userId}`, {
+      headers: {
+        "Authorization": "Bearer " + user.token
+      }
+    });
     myOrders = await res.json();
 
     if(!res.ok){
@@ -49,6 +53,11 @@ async function loadMyOrders(){
 }
 
 async function checkPayOSReturn(){
+  const user = JSON.parse(localStorage.getItem("ha_user") || "null");
+
+    if(!user){
+      return;
+    }
   const params = new URLSearchParams(location.search);
 
   const status = params.get("status");
@@ -56,7 +65,10 @@ async function checkPayOSReturn(){
 
   if(status === "PAID" && orderCode){
     await fetch(`${API_BASE}/orders/${orderCode}/paid`, {
-      method: "PUT"
+      method: "PUT",
+      headers: {
+        "Authorization": "Bearer " + user.token
+      }
     });
 
     history.replaceState(null, "", "/orders");

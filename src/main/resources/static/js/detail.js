@@ -1,6 +1,23 @@
 let productFeedbacks = [];
 let showReviewForm = false;
 
+function productDetailImages(p){
+  const imgs = [...(p.images || [])]
+    .sort((a,b) => Number(a.imageId || 0) - Number(b.imageId || 0))
+    .map(img => img.imageUrl)
+    .filter(Boolean);
+
+  const main = imgs[0] || getProductImg(p,0);
+  const second = imgs[1] || main;
+  const third = imgs[2] || second;
+
+  return `
+    <img class="col-span-2 h-[560px] w-full object-cover rounded-3xl" src="${main}">
+    <img class="h-56 w-full object-cover rounded-3xl" src="${second}">
+    <img class="h-56 w-full object-cover rounded-3xl" src="${third}">
+  `;
+}
+
 function detailPage(){
   const p = selectedProduct || products[0];
 
@@ -28,9 +45,7 @@ ${feedbackSection()}
   <main class="wrap py-12 grid lg:grid-cols-2 gap-10">
 
     <div class="grid grid-cols-2 gap-4">
-      <img class="col-span-2 h-[560px] w-full object-cover rounded-3xl" src="${getProductImg(p,0)}">
-      <img class="h-56 w-full object-cover rounded-3xl" src="${getProductImg(p,1)}">
-      <img class="h-56 w-full object-cover rounded-3xl" src="${getProductImg(p,2)}">
+      ${productDetailImages(p)}
     </div>
 
     <div class="bg-white rounded-3xl border shadow-sm p-9 h-fit sticky top-36">
@@ -274,7 +289,8 @@ async function addToCart(){
         const res = await fetch(`${API_BASE}/cart/add`, {
         method: "POST",
         headers: {
-            "Content-Type":"application/json"
+            "Content-Type":"application/json",
+            "Authorization":"Bearer " + user.token
         },
         body: JSON.stringify({
             userId: user.userId,
@@ -402,7 +418,7 @@ function reviewFormSection(){
 
             <div class="mt-5">
               <label class="font-bold">Số sao</label>
-              <input id="reviewRating" type="number" min="0" max="5" value="5"
+              <input id="reviewRating" type="number" min="1" max="5" value="5"
                 class="block mt-2 border rounded-xl px-4 py-3 w-32">
             </div>
 
@@ -429,7 +445,7 @@ function submitReview(){
   const rating = Number(document.getElementById("reviewRating").value);
   const comment = document.getElementById("reviewComment").value.trim();
 
-  if(rating < 0 || rating > 5){
+  if(rating < 1 || rating > 5){
     showToast("Lỗi", "Số sao phải từ 0 đến 5", "error");
     return;
   }
@@ -445,7 +461,8 @@ function submitReview(){
   fetch(`${API_BASE}/reviews`, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + user.token
     },
     body: JSON.stringify({
       userId: user.userId,

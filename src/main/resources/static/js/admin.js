@@ -14,7 +14,7 @@ let variants = [];
 let brands = [];
 let vouchers = [];
 let currentTab = "overview";
-let selectedFile = null;
+let selectedFiles = [];
 let selectedCategoryFile = null;
 let confirmCallback = null;
 let orderLimit = 10;
@@ -33,10 +33,27 @@ let reportFrom = "";
 let reportTo = "";
 
 function icon(n, cls="w-5 h-5"){return `<i data-lucide="${n}" class="${cls}"></i>`}
-function money(v){return Number(v || 0).toLocaleString("vi-VN") + "đ"}
+function money(v){
+  return Math.round(Number(v || 0)).toLocaleString("vi-VN") + "đ";
+}
 function isVoucherExpired(v){
   if(!v.endDate) return false;
   return new Date(v.endDate + "T23:59:59") < new Date();
+}
+
+function adminAuthHeaders(){
+  const admin = JSON.parse(localStorage.getItem("ha_admin") || "null");
+
+  return admin?.token
+    ? { "Authorization": "Bearer " + admin.token }
+    : {};
+}
+
+function adminJsonHeaders(){
+  return {
+    "Content-Type": "application/json",
+    ...adminAuthHeaders()
+  };
 }
 
 function voucherStatusText(v){
@@ -227,7 +244,15 @@ function productHasVariant(productId){
 }
 
 async function fetchJson(url){
-  const res = await fetch(url);
+  const res = await fetch(url, {
+    headers: adminAuthHeaders()
+  });
+
+  if(res.status === 401 || res.status === 403){
+    localStorage.removeItem("ha_admin");
+    return null;
+  }
+
   if(!res.ok){
     const text = await res.text();
     console.error("API lỗi:", url, text);
@@ -237,13 +262,13 @@ async function fetchJson(url){
 }
 
 async function loadData(){
-  try{ products = await fetchJson(`${API_BASE}/products`); }catch(e){ products = []; }
-  try{ categories = await fetchJson(`${API_BASE}/categories`); }catch(e){ categories = []; }
-  try{ users = await fetchJson(`${API_BASE}/users`); }catch(e){ users = []; }
-  try{ orders = await fetchJson(`${API_BASE}/orders`); }catch(e){ orders = []; }
-  try{ variants = await fetchJson(`${API_BASE}/variants`); }catch(e){ variants = []; }
-  try{ brands = await fetchJson(`${API_BASE}/brands`); }catch(e){ brands = []; }
-  try{ vouchers = await fetchJson(`${API_BASE}/vouchers`); }catch(e){ vouchers = []; }
+  try{ products = await fetchJson(`${API_BASE}/products?all=true`) || []; }catch(e){ products = []; }
+  try{ categories = await fetchJson(`${API_BASE}/categories`) || []; }catch(e){ categories = []; }
+  try{ users = await fetchJson(`${API_BASE}/users`) || []; }catch(e){ users = []; }
+  try{ orders = await fetchJson(`${API_BASE}/orders`) || []; }catch(e){ orders = []; }
+  try{ variants = await fetchJson(`${API_BASE}/variants`) || []; }catch(e){ variants = []; }
+  try{ brands = await fetchJson(`${API_BASE}/brands`) || []; }catch(e){ brands = []; }
+  try{ vouchers = await fetchJson(`${API_BASE}/vouchers`) || []; }catch(e){ vouchers = []; }
 }
 
 function loginPage(){
@@ -279,9 +304,11 @@ function statCards(){
   const activeCategories = categories.filter(c => c.status === "ACTIVE").length;
 
   return `<div class="grid md:grid-cols-4 gap-4 mb-6">
-    <div class="soft-card p-6">
+    <div class="soft-card p-6 overflow-hidden">
       <p class="text-neutral-500">Tổng doanh thu</p>
-      <h3 class="text-3xl font-bold mt-3">${money(revenue)}</h3>
+      <h3 class="text-2xl font-bold mt-3 leading-tight break-words">
+        ${money(revenue)}
+      </h3>
       <span class="text-red-800 text-sm font-semibold">Từ đơn hàng thực tế</span>
     </div>
 
@@ -619,9 +646,11 @@ function reportPanel(){
       </div>
 
       <div class="grid md:grid-cols-4 gap-4">
-          <div class="soft-card p-6">
+          <div class="soft-card p-6 overflow-hidden">
             <p class="text-neutral-500">Doanh thu theo lọc</p>
-            <h3 class="text-3xl font-bold mt-3">${money(revenue)}</h3>
+            <h3 class="text-2xl font-bold mt-3 leading-tight break-words">
+              ${money(revenue)}
+            </h3>
           </div>
 
           <div class="soft-card p-6">
@@ -1103,7 +1132,11 @@ function adminPage(){
 
 async function loginAdmin(){
   const body = {email:document.getElementById("adminEmail").value.trim(), password:document.getElementById("adminPassword").value};
-  const res = await fetch(`${API_BASE}/auth/login`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method:"POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify(body)
+  });
   const data = await res.json();
   if(!res.ok){document.getElementById("adminMsg").innerText = data.message || "Đăng nhập thất bại"; return;}
   if(data.role !== "ADMIN"){document.getElementById("adminMsg").innerText = "Tài khoản không có quyền Admin"; return;}
@@ -1111,7 +1144,13 @@ async function loginAdmin(){
   await init();
 }
 
-function logoutAdmin(){localStorage.removeItem("ha_admin"); render();}
+function logoutAdmin(){
+
+   localStorage.removeItem("ha_admin");
+   localStorage.removeItem("token");
+
+   location.reload();
+}
 function setTab(tab){currentTab = tab; render();}
 function render(){document.getElementById("app").innerHTML = adminPage(); lucide.createIcons();}
 async function init(){await loadData(); render();}
@@ -1135,7 +1174,7 @@ function productModal(){
           <select id="productStatus" class="input-ui"><option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option></select>
           <div>
             <label class="font-semibold">Ảnh sản phẩm</label>
-            <input id="productImageFile" type="file" accept="image/*" class="mt-2 block w-full border rounded-xl p-3" onchange="previewImage(event)">
+            <input id="productImageFile" type="file" accept="image/*" multiple class="mt-2 block w-full border rounded-xl p-3" onchange="previewImage(event)">
             <img id="previewImage" class="mt-4 w-40 h-52 object-cover rounded-xl border hidden">
           </div>
         </div>
@@ -1324,7 +1363,7 @@ function orderTable(){
             list.length
             ? list.map(o => `
               <tr class="border-t">
-                <td class="p-4 font-bold">#${o.orderId}</td>
+                <td class="p-4 font-bold">${o.orderCode || ("DH" + String(o.orderId).padStart(6, "0"))}</td>
                 <td>${o.user?.fullname || o.user?.email || "Khách hàng"}</td>
                 <td class="max-w-[240px] text-sm text-neutral-600">${o.address || "Chưa có"}</td>
                 <td class="text-red-800 font-bold">${money(o.finalAmount || o.totalAmount)}</td>
@@ -1396,7 +1435,7 @@ function orderDetailModal(){
 }
 
 async function openProductForm(id=null){
-  selectedFile = null;
+  selectedFiles = [];
   document.getElementById('productModal').classList.remove('hidden');
   document.getElementById('productModal').classList.add('flex');
   document.getElementById('productFormTitle').innerText = id ? 'Sửa sản phẩm' : 'Thêm sản phẩm';
@@ -1428,17 +1467,21 @@ function closeProductForm(){
 }
 
 function previewImage(event){
-  const file = event.target.files[0];
-  if(!file) return;
-  if(!file.type.startsWith('image/')){showToast("Lỗi", "Vui lòng chọn file ảnh", "error");return;}
-  selectedFile = file;
-  const reader = new FileReader();
-  reader.onload = function(e){
-    const img = document.getElementById('previewImage');
-    img.src = e.target.result;
-    img.classList.remove('hidden');
-  };
-  reader.readAsDataURL(file);
+  const files = Array.from(event.target.files || []);
+
+  if(files.length === 0) return;
+
+  selectedFiles = files.slice(0, 3);
+
+  if(selectedFiles.some(file => !file.type.startsWith("image/"))){
+    showToast("Lỗi", "Vui lòng chỉ chọn file ảnh", "error");
+    selectedFiles = [];
+    return;
+  }
+
+  const img = document.getElementById("previewImage");
+  img.src = URL.createObjectURL(selectedFiles[0]);
+  img.classList.remove("hidden");
 }
 
 function previewCategoryImage(event){
@@ -1477,46 +1520,47 @@ async function saveProduct(){
 
   const url = id ? `${API_BASE}/products/${id}` : `${API_BASE}/products`;
   const method = id ? 'PUT' : 'POST';
-  const res = await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const res = await fetch(url,{method,headers: adminJsonHeaders(),body:JSON.stringify(body)});
   if(!res.ok){ showToast("Lỗi", await res.text(), "error"); return; }
 
   const product = await res.json();
 
-  if(selectedFile){
-    const formData = new FormData();
-    formData.append("file", selectedFile);
+  if(selectedFiles.length > 0){
+    for(let i = 0; i < selectedFiles.length; i++){
+      const formData = new FormData();
+      formData.append("file", selectedFiles[i]);
 
-    const uploadRes = await fetch(`${API_BASE}/upload/image`, {
-      method: "POST",
-      body: formData
-    });
+      const uploadRes = await fetch(`${API_BASE}/upload/image`, {
+        method: "POST",
+        headers: adminAuthHeaders(),
+        body: formData
+      });
 
-    const uploadData = await uploadRes.json().catch(()=>({}));
+      const uploadData = await uploadRes.json().catch(()=>({}));
 
-    if(!uploadRes.ok || !uploadData.imageUrl){
-      showToast("Lỗi", uploadData.message || "Upload ảnh thất bại", "error");
-      return;
-    }
+      if(!uploadRes.ok || !uploadData.imageUrl){
+        showToast("Lỗi", uploadData.message || "Upload ảnh thất bại", "error");
+        return;
+      }
 
-    const imageRes = await fetch(`${API_BASE}/product-images`, {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({
-        productId: product.productId,
-        imageUrl: uploadData.imageUrl,
-        isMain: true
-      })
-    });
+      const imageRes = await fetch(`${API_BASE}/product-images`, {
+        method: "POST",
+        headers: adminJsonHeaders(),
+        body: JSON.stringify({
+          productId: product.productId,
+          imageUrl: uploadData.imageUrl,
+          isMain: i === 0
+        })
+      });
 
-    const imageData = await imageRes.json().catch(()=>({}));
-
-    if(!imageRes.ok){
-      showToast("Lỗi", imageData.message || "Lưu ảnh sản phẩm thất bại", "error");
-      return;
+      if(!imageRes.ok){
+        showToast("Lỗi", "Lưu ảnh sản phẩm thất bại", "error");
+        return;
+      }
     }
   }
 
-  selectedFile = null;
+  selectedFiles = [];
   closeProductForm();
 
   await init();
@@ -1546,7 +1590,10 @@ async function saveProduct(){
 
 function deleteProduct(id){
   showConfirm("Xóa vĩnh viễn sản phẩm này?", async () => {
-    const res = await fetch(`${API_BASE}/products/${id}`, { method:'DELETE' });
+    const res = await fetch(`${API_BASE}/products/${id}`, {
+  method:'DELETE',
+  headers: adminAuthHeaders()
+});
 
     if(!res.ok){
       showToast("Lỗi", await res.text(), "error");
@@ -1605,7 +1652,7 @@ async function saveVariant(){
 
   const res = await fetch(url,{
     method,
-    headers:{'Content-Type':'application/json'},
+    headers: adminJsonHeaders(),
     body:JSON.stringify(body)
   });
 
@@ -1623,7 +1670,13 @@ async function saveVariant(){
 
 function deleteVariant(id){
   showConfirm("Xóa biến thể này?", async () => {
-    const res = await fetch(`${API_BASE}/variants/${id}`, { method:'DELETE' });
+    const res = await fetch(
+      `${API_BASE}/variants/${id}`,
+      {
+        method:'DELETE',
+        headers: adminAuthHeaders()
+      }
+    );
 
     if(!res.ok){
       showToast("Lỗi", await res.text(), "error");
@@ -1687,7 +1740,7 @@ async function saveCategory(){
 
   const res = await fetch(url,{
     method,
-    headers:{'Content-Type':'application/json'},
+    headers: adminJsonHeaders(),
     body:JSON.stringify(body)
   });
 
@@ -1704,6 +1757,7 @@ if(selectedCategoryFile){
 
   const uploadRes = await fetch(`${API_BASE}/upload/image`, {
     method: 'POST',
+    headers: adminAuthHeaders(),
     body: formData
   });
 
@@ -1721,7 +1775,7 @@ if(selectedCategoryFile){
 
   const updateRes = await fetch(`${API_BASE}/categories/${category.categoryId}`, {
     method: 'PUT',
-    headers: {'Content-Type':'application/json'},
+    headers: adminJsonHeaders(),
     body: JSON.stringify(updateBody)
   });
 
@@ -1741,7 +1795,13 @@ await init();
 
 function deleteCategory(id){
   showConfirm("Xóa danh mục này?", async () => {
-    const res = await fetch(`${API_BASE}/categories/${id}`, { method:'DELETE' });
+    const res = await fetch(
+      `${API_BASE}/categories/${id}`,
+      {
+        method:'DELETE',
+        headers: adminAuthHeaders()
+      }
+    );
 
     if(!res.ok){
       showToast("Lỗi", "Không thể xóa danh mục đang có sản phẩm hoặc danh mục con", "error");
@@ -1789,7 +1849,7 @@ async function saveBrand(){
 
   const res = await fetch(url,{
     method,
-    headers:{'Content-Type':'application/json'},
+    headers: adminJsonHeaders(),
     body:JSON.stringify(body)
   });
 
@@ -1809,7 +1869,13 @@ async function saveBrand(){
 
 function deleteBrand(id){
   showConfirm("Xóa thương hiệu này?", async () => {
-    const res = await fetch(`${API_BASE}/brands/${id}`, { method:'DELETE' });
+    const res = await fetch(
+      `${API_BASE}/brands/${id}`,
+      {
+        method:'DELETE',
+        headers: adminAuthHeaders()
+      }
+    );
     const data = await res.json().catch(() => ({}));
 
     if(!res.ok){
@@ -1828,8 +1894,8 @@ function deleteBrand(id){
 
 async function updateOrderStatus(orderId, status){
   const res = await fetch(`${API_BASE}/orders/${orderId}/status?status=${status}`, {
-    method: "PUT"
-    
+    method: "PUT",
+    headers: adminAuthHeaders()
   });
 
   const data = await res.json().catch(()=>({}));
@@ -1844,7 +1910,12 @@ async function updateOrderStatus(orderId, status){
 }
 
 async function openOrderDetail(orderId){
-  const res = await fetch(`${API_BASE}/orders/${orderId}`);
+  const res = await fetch(
+      `${API_BASE}/orders/${orderId}`,
+      {
+        headers: adminAuthHeaders()
+      }
+    );
   const order = await res.json();
 
   if(!res.ok){
@@ -1859,7 +1930,7 @@ async function openOrderDetail(orderId){
     <div class="grid md:grid-cols-2 gap-4 mb-6">
       <div class="border rounded-2xl p-4">
         <p class="text-neutral-500">Mã đơn</p>
-        <b>#${order.orderId}</b>
+        <b>${order.orderCode || ("DH" + String(order.orderId).padStart(6, "0"))}</b>
       </div>
 
       <div class="border rounded-2xl p-4">
@@ -2071,7 +2142,7 @@ async function saveVoucher(){
 
   const res = await fetch(url,{
     method,
-    headers:{ "Content-Type":"application/json" },
+    headers: adminJsonHeaders(),
     body: JSON.stringify(body)
   });
 
@@ -2090,7 +2161,13 @@ async function saveVoucher(){
 
 function deleteVoucher(id){
   showConfirm("Xóa voucher này?", async () => {
-    const res = await fetch(`${API_BASE}/vouchers/${id}`, { method:"DELETE" });
+    const res = await fetch(
+      `${API_BASE}/vouchers/${id}`,
+      {
+        method:"DELETE",
+        headers: adminAuthHeaders()
+      }
+    );
 
     if(!res.ok){
       showToast("Lỗi", "Xóa voucher thất bại", "error");
@@ -2155,7 +2232,7 @@ async function saveUser(){
 
   const res = await fetch(url, {
     method,
-    headers: {"Content-Type":"application/json"},
+    headers: adminJsonHeaders(),
     body: JSON.stringify(body)
   });
 
@@ -2182,9 +2259,13 @@ function deleteUser(id){
   }
 
   showConfirm("Xóa người dùng này?", async () => {
-    const res = await fetch(`${API_BASE}/users/${id}`, {
-      method: "DELETE"
-    });
+    const res = await fetch(
+      `${API_BASE}/users/${id}`,
+      {
+        method:"DELETE",
+        headers: adminAuthHeaders()
+      }
+    );
 
     const data = await res.json().catch(() => ({}));
 
@@ -2286,9 +2367,7 @@ async function hideProduct(id){
 
     const res = await fetch(`${API_BASE}/products/${id}`,{
       method:"PUT",
-      headers:{
-        "Content-Type":"application/json"
-      },
+      headers: adminJsonHeaders(),
       body:JSON.stringify({
         productName:p.productName,
         description:p.description || "",
@@ -2317,28 +2396,38 @@ async function showProduct(id){
 
   showConfirm("Hiện lại sản phẩm này trên shop?", async () => {
 
+    const body = {
+      productName: p.productName,
+      description: p.description || "",
+      basePrice: Number(p.basePrice),
+      categoryId: p.category?.categoryId || null,
+      brandId: p.brand?.brandId || null,
+      status: "ACTIVE"
+    };
+
+    if(!body.productName || !body.categoryId){
+      showToast("Lỗi", "Sản phẩm thiếu tên hoặc danh mục", "error");
+      return;
+    }
+
     const res = await fetch(`${API_BASE}/products/${id}`,{
       method:"PUT",
-      headers:{
-        "Content-Type":"application/json"
-      },
-      body:JSON.stringify({
-        productName:p.productName,
-        description:p.description || "",
-        basePrice:p.basePrice,
-        categoryId:p.category?.categoryId,
-        brandId:p.brand?.brandId || null,
-        status:"ACTIVE"
-      })
+      headers: adminJsonHeaders(),
+      body: JSON.stringify(body)
     });
 
     if(!res.ok){
-      showToast("Lỗi","Không thể hiện sản phẩm","error");
+      const text = await res.text();
+      console.error("Lỗi hiện sản phẩm:", text);
+      showToast("Lỗi", text || "Không thể hiện sản phẩm", "error");
       return;
     }
 
     showToast("Thành công","Đã hiện sản phẩm trên shop");
     await init();
+
+    currentTab = "products";
+    render();
 
   }, "Hiện");
 }

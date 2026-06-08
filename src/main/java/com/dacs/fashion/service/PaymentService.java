@@ -7,6 +7,7 @@ import com.dacs.fashion.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -40,6 +41,17 @@ public class PaymentService {
 
     public Payment updateStatus(Long id, String status) {
         Payment payment = getById(id);
+        List<String> allowedStatus = List.of(
+                "UNPAID",
+                "PENDING",
+                "PAID",
+                "FAILED",
+                "CANCELLED"
+        );
+
+        if (!allowedStatus.contains(status)) {
+            throw new RuntimeException("Trạng thái thanh toán không hợp lệ");
+        }
         payment.setPaymentStatus(status);
 
         if ("PAID".equals(status)) {

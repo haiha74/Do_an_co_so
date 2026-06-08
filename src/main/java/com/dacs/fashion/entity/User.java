@@ -2,6 +2,7 @@ package com.dacs.fashion.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "users")
@@ -24,6 +25,7 @@ public class User {
 
     private String phone;
 
+    @JsonIgnore
     @Column(nullable = false)
     private String password;
 

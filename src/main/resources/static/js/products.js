@@ -137,6 +137,18 @@ async function loadProductsPage(){
     categories = categoryData;
     brands = brandData;
     window.allOrders = orderData;
+    window.soldCounts = {};
+
+    await Promise.all(
+      allProducts.map(async p => {
+        try {
+          const count = await fetchJson(`${API_BASE}/products/${p.productId}/sold-count`);
+          window.soldCounts[p.productId] = Number(count || 0);
+        } catch (e) {
+          window.soldCounts[p.productId] = 0;
+        }
+      })
+    );
 
     if(selectedCategoryId){
       const childIds = categories

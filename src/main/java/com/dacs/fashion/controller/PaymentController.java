@@ -11,8 +11,11 @@ import org.springframework.web.client.RestTemplate;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
-
+import com.dacs.fashion.entity.Order;
+import com.dacs.fashion.service.OrderService;
 import java.util.List;
+import org.springframework.security.core.Authentication;
+import com.dacs.fashion.entity.User;
 
 @RestController
 @RequestMapping("/api/payments")
@@ -20,6 +23,7 @@ import java.util.List;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final OrderService orderService;
     @Value("${payos.client-id}")
     private String clientId;
 
@@ -74,17 +78,27 @@ public class PaymentController {
 
 
     @PostMapping("/payos/create")
-    public Object createPayOSPayment(@RequestBody Map<String, Object> body) {
+    public Object createPayOSPayment(@RequestBody Map<String, Object> body, Authentication authentication) {
 
         try {
-            int amount = Integer.parseInt(body.get("amount").toString());
-            String description = body.get("description").toString();
+            long orderCode = Long.parseLong(body.get("orderId").toString());
+
+            Order order = orderService.getById(orderCode);
+            User currentUser = (User) authentication.getPrincipal();
+
+            if (!order.getUser().getUserId().equals(currentUser.getUserId())
+                    && !"ADMIN".equals(currentUser.getRole())
+                    && !"STAFF".equals(currentUser.getRole())) {
+                return Map.of("error", "Không có quyền thanh toán đơn hàng này");
+            }
+
+            int amount = order.getFinalAmount().intValue();
+
+            String description = "Don hang " + orderCode;
 
             if (description.length() > 25) {
                 description = description.substring(0, 25);
             }
-
-            long orderCode = Long.parseLong(body.get("orderId").toString());
 
             String returnUrl = "http://localhost:8080/orders";
             String cancelUrl = "http://localhost:8080/payment";

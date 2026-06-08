@@ -25,7 +25,16 @@ public class Order {
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "user_id")
-    @JsonIgnoreProperties({"password", "hibernateLazyInitializer", "handler"})
+    @JsonIgnoreProperties({
+            "password",
+            "role",
+            "status",
+            "orders",
+            "reviews",
+            "cart",
+            "hibernateLazyInitializer",
+            "handler"
+    })
     private User user;
 
     @ManyToOne(fetch = FetchType.EAGER)
@@ -62,4 +71,7 @@ public class Order {
     @ManyToOne
     @JoinColumn(name = "voucher_id")
     private Voucher voucher;
+
+    @Column(name = "updated_by_staff")
+    private String updatedByStaff;
 }

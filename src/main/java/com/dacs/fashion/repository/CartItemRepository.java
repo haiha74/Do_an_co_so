@@ -16,4 +16,13 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long> {
     @Modifying
     @Query(value = "DELETE FROM cart_items WHERE cart_item_id = ?1", nativeQuery = true)
     void deleteCartItemByIdNative(Long cartItemId);
+
+    @Modifying
+    @Query(value = """
+            DELETE FROM cart_items
+            WHERE variant_id IN (
+                SELECT variant_id FROM product_variants WHERE product_id = ?1
+            )
+            """, nativeQuery = true)
+    void deleteByProductId(Long productId);
 }

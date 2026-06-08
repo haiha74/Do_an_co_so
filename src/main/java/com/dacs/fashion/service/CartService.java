@@ -21,6 +21,13 @@ public class CartService {
                 .orElseGet(() -> createCart(userId));
     }
 
+    public boolean isItemOwner(Long itemId, Long userId) {
+        CartItem item = cartItemRepository.findById(itemId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy item"));
+
+        return item.getCart().getUser().getUserId().equals(userId);
+    }
+
     private Cart createCart(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy user"));

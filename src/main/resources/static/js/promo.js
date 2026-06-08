@@ -24,8 +24,13 @@ function promo(){
 
 async function loadPromoPage(){
   try{
+
     const productData = await fetchJson(`${API_BASE}/products`);
-    allProducts = productData.filter(p => p.status === "ACTIVE");
+
+    allProducts = productData.filter(
+      p => p.status === "ACTIVE"
+    );
+
     products = allProducts;
 
     try{
@@ -34,10 +39,37 @@ async function loadPromoPage(){
       vouchers = [];
     }
 
+    window.soldCounts = {};
+
+    await Promise.all(
+      products.map(async p => {
+        try{
+          const sold = await fetchJson(
+            `${API_BASE}/products/${p.productId}/sold-count`
+          );
+
+          window.soldCounts[p.productId] = Number(sold || 0);
+
+        }catch(e){
+
+          window.soldCounts[p.productId] = 0;
+
+        }
+      })
+    );
+
     renderApp(promo());
+
   }catch(err){
+
     console.error(err);
-    renderApp(header()+`<main class="wrap py-20">Không tải được dữ liệu.</main>`+footer());
+
+    renderApp(
+      header()+
+      `<main class="wrap py-20">Không tải được dữ liệu.</main>`+
+      footer()
+    );
+
   }
 }
 

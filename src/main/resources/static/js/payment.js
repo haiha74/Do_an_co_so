@@ -3,6 +3,21 @@ let appliedVoucher = null;
 let discountAmount = 0;
 let availableVouchers = [];
 
+function userAuthHeaders(){
+  const user = getUser();
+
+  return user?.token
+    ? { "Authorization": "Bearer " + user.token }
+    : {};
+}
+
+function userJsonHeaders(){
+  return {
+    "Content-Type": "application/json",
+    ...userAuthHeaders()
+  };
+}
+
 function money(v){
   return Number(v || 0).toLocaleString("vi-VN") + "đ";
 }
@@ -22,7 +37,9 @@ async function loadCart(){
     return;
   }
 
-  const res = await fetch(`${API_BASE}/cart/${user.userId}`);
+  const res = await fetch(`${API_BASE}/cart/${user.userId}`, {
+    headers: userAuthHeaders()
+  });
   cart = await res.json();
 
   if(!res.ok){
@@ -382,9 +399,7 @@ async function submitPayment(){
 
   const res = await fetch(`${API_BASE}/orders/checkout`, {
     method: "POST",
-    headers: {
-      "Content-Type":"application/json"
-    },
+    headers: userJsonHeaders(),
     body: JSON.stringify({
       userId: user.userId,
       fullname,
@@ -415,9 +430,7 @@ async function submitPayment(){
 
   const payosRes = await fetch(`${API_BASE}/payments/payos/create`, {
     method:"POST",
-    headers:{
-      "Content-Type":"application/json"
-    },
+    headers: userJsonHeaders(),
     body: JSON.stringify({
       orderId: orderId,
       amount: total,

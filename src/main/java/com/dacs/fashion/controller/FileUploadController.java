@@ -20,11 +20,32 @@ public class FileUploadController {
                 return ResponseEntity.badRequest().body(Map.of("message", "File rỗng"));
             }
 
+            String contentType = file.getContentType();
+
+            if (contentType == null || !contentType.startsWith("image/")) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("message", "Chỉ cho phép upload ảnh"));
+            }
+
+            long maxSize = 5 * 1024 * 1024;
+
+            if (file.getSize() > maxSize) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("message", "Ảnh không được vượt quá 5MB"));
+            }
+
             String originalName = file.getOriginalFilename();
             String ext = ".jpg";
 
             if (originalName != null && originalName.contains(".")) {
-                ext = originalName.substring(originalName.lastIndexOf("."));
+                ext = originalName
+                        .substring(originalName.lastIndexOf("."))
+                        .toLowerCase();
+            }
+
+            if (!ext.matches("\\.(jpg|jpeg|png|webp)$")) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("message", "Định dạng ảnh không hợp lệ"));
             }
 
             String fileName = UUID.randomUUID() + ext;
@@ -32,7 +53,14 @@ public class FileUploadController {
             Path uploadPath = Path.of(System.getProperty("user.dir"), "uploads");
             Files.createDirectories(uploadPath);
 
-            Path filePath = uploadPath.resolve(fileName);
+            Path filePath = uploadPath
+                    .resolve(fileName)
+                    .normalize();
+
+            if (!filePath.startsWith(uploadPath)) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("message", "Tên file không hợp lệ"));
+            }
             file.transferTo(filePath.toFile());
 
             return ResponseEntity.ok(Map.of("imageUrl", "/uploads/" + fileName));

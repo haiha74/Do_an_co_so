@@ -16,8 +16,17 @@ public class ProductController {
     private final ProductService productService;
 
     @GetMapping
-    public List<Product> getAll() {
+    public List<Product> getAll(@RequestParam(required = false) Boolean all) {
+        if (Boolean.TRUE.equals(all)) {
+            return productService.getAllForAdmin();
+        }
+
         return productService.getAll();
+    }
+
+    @GetMapping("/{id}/sold-count")
+    public Long getSoldCount(@PathVariable Long id) {
+        return productService.getSoldCount(id);
     }
 
     @GetMapping("/{id}")

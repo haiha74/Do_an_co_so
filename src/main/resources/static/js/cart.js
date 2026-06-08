@@ -1,3 +1,11 @@
+function userAuthHeaders(){
+  const user = getUser();
+
+  return user?.token
+    ? { "Authorization": "Bearer " + user.token }
+    : {};
+}
+
 function productImg(item){
   const p = item.variant?.product;
 
@@ -33,7 +41,9 @@ async function fetchCart(){
   }
 
   try{
-    const res = await fetch(`${API_BASE}/cart/${user.userId}`);
+    const res = await fetch(`${API_BASE}/cart/${user.userId}`, {
+      headers: userAuthHeaders()
+    });
     cart = await res.json();
 
     if(!res.ok){
@@ -212,7 +222,8 @@ async function updateQty(itemId, quantity){
   }
 
   const res = await fetch(`${API_BASE}/cart/items/${itemId}?quantity=${quantity}`, {
-    method: "PUT"
+    method: "PUT",
+    headers: userAuthHeaders()
   });
 
   if(!res.ok){
@@ -251,7 +262,8 @@ async function removeItem(itemId){
 if(!ok) return;
 
   const res = await fetch(`${API_BASE}/cart/items/${itemId}`, {
-    method: "DELETE"
+    method: "DELETE",
+    headers: userAuthHeaders()
   });
 
   const data = await res.json().catch(()=>({}));

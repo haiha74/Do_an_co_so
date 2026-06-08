@@ -8,10 +8,10 @@ import com.dacs.fashion.repository.ReviewRepository;
 import com.dacs.fashion.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-
 
 @Service
 @RequiredArgsConstructor
@@ -22,11 +22,11 @@ public class ReviewService {
     private final OrderItemRepository orderItemRepository;
 
     public List<Review> getAll() {
-        return reviewRepository.findAll();
+        return reviewRepository.findAllByOrderByCreatedAtDesc();
     }
 
     public List<Review> getByUser(Long userId) {
-        return reviewRepository.findByUser_UserId(userId);
+        return reviewRepository.findByUser_UserIdOrderByCreatedAtDesc(userId);
     }
 
     public Review getById(Long id) {
@@ -34,6 +34,7 @@ public class ReviewService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đánh giá"));
     }
 
+    @Transactional
     public Review create(
             Long userId,
             Long orderItemId,
@@ -48,25 +49,36 @@ public class ReviewService {
         OrderItem orderItem = orderItemRepository.findById(orderItemId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy order item"));
 
-        // check đã review chưa
-        boolean exists = reviewRepository.existsByOrderItem_OrderItemId(orderItemId);
+        if (rating == null || rating < 1 || rating > 5) {
+            throw new RuntimeException("Số sao phải từ 1 đến 5");
+        }
 
-        if(exists){
+        if (comment == null || comment.isBlank()) {
+            throw new RuntimeException("Nội dung đánh giá không được để trống");
+        }
+
+        if (!orderItem.getOrder().getUser().getUserId().equals(userId)) {
+            throw new RuntimeException("Bạn không có quyền đánh giá sản phẩm này");
+        }
+
+        if (!"COMPLETED".equals(orderItem.getOrder().getOrderStatus())) {
+            throw new RuntimeException("Chỉ được đánh giá đơn hàng đã hoàn thành");
+        }
+
+        boolean exists =
+                reviewRepository.existsByOrderItem_OrderItemId(orderItemId);
+
+        if (exists) {
             throw new RuntimeException("Sản phẩm này đã được đánh giá");
         }
 
         Review review = new Review();
 
         review.setUser(user);
-
         review.setOrderItem(orderItem);
-
         review.setRating(rating);
-
         review.setComment(comment);
-
         review.setImageUrl(imageUrl);
-
         review.setCreatedAt(LocalDateTime.now());
 
         return reviewRepository.save(review);
@@ -75,6 +87,4 @@ public class ReviewService {
     public void delete(Long id) {
         reviewRepository.deleteById(id);
     }
-
-    
 }

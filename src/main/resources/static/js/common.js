@@ -37,36 +37,7 @@ function formatPrice(price){
 }
 
 function getSoldCount(productId){
-
-  let total = 0;
-
-  if(!window.allOrders){
-    return 0;
-  }
-
-  allOrders.forEach(order => {
-
-    if(
-      order.orderStatus === "CANCELLED" ||
-      order.orderStatus === "PENDING"
-    ){
-      return;
-    }
-
-    (order.items || []).forEach(item => {
-
-      const itemProductId =
-        item.variant?.product?.productId;
-
-      if(itemProductId === productId){
-        total += Number(item.quantity || 0);
-      }
-
-    });
-
-  });
-
-  return total;
+  return Number(window.soldCounts?.[productId] || 0);
 }
 
 function getProductImg(p,index=0){
@@ -99,8 +70,18 @@ function getBrandName(p){
 }
 
 async function fetchJson(url){
-  const res = await fetch(url);
+  const user = getUser();
+
+  const headers = user?.token
+    ? { "Authorization": "Bearer " + user.token }
+    : {};
+
+  const res = await fetch(url, {
+    headers
+  });
+
   if(!res.ok) throw new Error("API lỗi: " + url);
+
   return res.json();
 }
 
@@ -113,7 +94,11 @@ async function getCartCount(){
 
   if(user?.userId){
     try{
-      const res = await fetch(`${API_BASE}/cart/${user.userId}`);
+      const res = await fetch(`${API_BASE}/cart/${user.userId}`, {
+        headers: {
+          "Authorization": "Bearer " + user.token
+        }
+      });
 
       if(res.ok){
         const data = await res.json();
@@ -160,7 +145,8 @@ async function saveProductView(productId){
     await fetch(`${API_BASE}/recommendations/view`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + user.token
       },
       body: JSON.stringify({
         userId: user.userId,
@@ -283,17 +269,17 @@ function card(p,index){
           ${getBrandName(p)}
         </p>
 
-        <h3 class="line-clamp-2 min-h-12 font-semibold mt-1">
+        <h3 class="line-clamp-2 min-h-10 font-semibold mt-1">
           ${p.productName}
         </h3>
 
-        <div class="mt-3 flex justify-between items-end">
+        <div class="mt-1 flex items-end justify-between gap-3">
 
-          <b class="text-red-800 text-xl">
+          <b class="text-red-800 text-xl leading-tight whitespace-nowrap">
             ${formatPrice(p.basePrice)}
           </b>
 
-          <span class="text-xs text-neutral-500">
+          <span class="text-xs text-neutral-500 whitespace-nowrap text-right">
             Đã bán ${getSoldCount(p.productId)}
           </span>
 

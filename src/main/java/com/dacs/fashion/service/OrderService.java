@@ -157,9 +157,49 @@ public class OrderService {
         return order;
     }
 
-    public Order updateStatus(Long orderId, String status) {
+    @Transactional
+    public Order updateStatus(Long orderId, String status, String staffName) {
+        List<String> allowedStatus = List.of(
+                "PENDING",
+                "PENDING_PAYMENT",
+                "PAID",
+                "CONFIRMED",
+                "SHIPPING",
+                "COMPLETED",
+                "CANCELLED"
+        );
+
+        if (!allowedStatus.contains(status)) {
+            throw new RuntimeException("Trạng thái đơn hàng không hợp lệ");
+        }
+
         Order order = getById(orderId);
+        String oldStatus = order.getOrderStatus();
+
+        if ("CANCELLED".equals(status) && !"CANCELLED".equals(oldStatus)) {
+            if (order.getItems() != null) {
+                for (OrderItem item : order.getItems()) {
+                    ProductVariant variant = item.getVariant();
+
+                    if (variant != null) {
+                        variant.setStock(
+                                (variant.getStock() == null ? 0 : variant.getStock())
+                                        + item.getQuantity()
+                        );
+
+                        variantRepository.save(variant);
+                    }
+                }
+            }
+
+            if (order.getPayment() != null) {
+                order.getPayment().setPaymentStatus("CANCELLED");
+                paymentRepository.save(order.getPayment());
+            }
+        }
+
         order.setOrderStatus(status);
+        order.setUpdatedByStaff(staffName);
         return orderRepository.save(order);
     }
 

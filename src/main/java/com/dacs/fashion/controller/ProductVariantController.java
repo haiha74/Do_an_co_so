@@ -5,6 +5,8 @@ import com.dacs.fashion.entity.ProductVariant;
 import com.dacs.fashion.service.ProductVariantService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
+import com.dacs.fashion.entity.User;
 
 import java.util.List;
 
@@ -37,8 +39,11 @@ public class ProductVariantController {
 
     @PutMapping("/{id}")
     public ProductVariant update(@PathVariable Long id,
-                                 @RequestBody ProductVariantDTO dto) {
-        return variantService.update(id, dto);
+                                @RequestBody ProductVariantDTO dto,
+                                Authentication authentication) {
+        User staff = (User) authentication.getPrincipal();
+
+        return variantService.update(id, dto, staff.getFullname());
     }
 
     @DeleteMapping("/{id}")

@@ -46,4 +46,7 @@ public class ProductVariant {
 
     @Column(name = "status")
     private String status;
+
+    @Column(name = "updated_by_staff")
+    private String updatedByStaff;
 }
