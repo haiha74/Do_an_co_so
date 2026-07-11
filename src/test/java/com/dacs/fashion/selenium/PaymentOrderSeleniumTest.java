@@ -26,7 +26,6 @@ class PaymentOrderSeleniumTest extends BaseSeleniumTest {
     @SuppressWarnings("unchecked")
     private Map<String, Object> findActiveVariantInStock() {
         open("/");
-        pause(2);
 
         Object result = ((JavascriptExecutor) driver).executeAsyncScript("""
             const done = arguments[arguments.length - 1];
@@ -75,7 +74,7 @@ class PaymentOrderSeleniumTest extends BaseSeleniumTest {
                 "arguments[0].scrollIntoView({block: 'center'});",
                 element
         );
-        pause(2);
+        pause(1);
     }
 
     private void selectButtonByText(String text) {
@@ -85,14 +84,12 @@ class PaymentOrderSeleniumTest extends BaseSeleniumTest {
 
         scrollTo(button);
         button.click();
-        pause(2);
 
         takeScreenshot("selected-" + text);
     }
 
     private void addProductToCartIfEmpty() {
         open("/cart");
-        pause(2);
 
         if (!driver.getPageSource().contains("Giỏ hàng đang trống")) {
             takeScreenshot("cart-not-empty");
@@ -102,7 +99,6 @@ class PaymentOrderSeleniumTest extends BaseSeleniumTest {
         Map<String, Object> variant = findActiveVariantInStock();
 
         open("/detail?productId=" + variant.get("productId"));
-        pause(2);
 
         wait.until(ExpectedConditions.textToBePresentInElementLocated(
                 By.tagName("body"),
@@ -126,12 +122,10 @@ class PaymentOrderSeleniumTest extends BaseSeleniumTest {
         takeScreenshot("before-add-cart");
 
         addButton.click();
-        pause(2);
 
         takeScreenshot("after-add-cart");
 
         open("/cart");
-        pause(2);
 
         assertFalse(
                 driver.getPageSource().contains("Giỏ hàng đang trống"),
@@ -224,9 +218,7 @@ class PaymentOrderSeleniumTest extends BaseSeleniumTest {
             scrollTo(input);
 
             input.clear();
-            pause(1);
             input.sendKeys(code);
-            pause(2);
 
             List<WebElement> applyButtons = driver.findElements(By.xpath(
                     "//button[contains(normalize-space(),'Áp dụng') " +
@@ -243,7 +235,6 @@ class PaymentOrderSeleniumTest extends BaseSeleniumTest {
             WebElement applyButton = applyButtons.get(0);
             scrollTo(applyButton);
             applyButton.click();
-            pause(3);
 
             takeScreenshot("after-apply-voucher-" + code);
 
@@ -274,12 +265,10 @@ class PaymentOrderSeleniumTest extends BaseSeleniumTest {
     @Test
     void paymentWithoutRequiredReceiverInfo_shouldShowValidationMessage() {
         loginAsUser();
-        pause(2);
 
         addProductToCartIfEmpty();
 
         open("/payment");
-        pause(2);
 
         if (driver.getCurrentUrl().contains("/cart")) {
             assertTrue(driver.getPageSource().contains("Giỏ hàng"));
@@ -288,20 +277,16 @@ class PaymentOrderSeleniumTest extends BaseSeleniumTest {
 
         WebElement fullname = byId("fullname");
         fullname.clear();
-        pause(2);
 
         WebElement phone = byId("phone");
         phone.clear();
-        pause(2);
 
         WebElement address = byId("address");
         address.clear();
-        pause(2);
 
         takeScreenshot("before-submit-empty-payment");
 
         clickByText("button", "Xác nhận đặt hàng");
-        pause(2);
 
         takeScreenshot("after-submit-empty-payment");
 
@@ -322,50 +307,29 @@ class PaymentOrderSeleniumTest extends BaseSeleniumTest {
     @Test
     void checkoutCash_shouldCreateOrderAndDisplayInOrdersPage() {
         loginAsUser();
-        pause(2);
-
         addProductToCartIfEmpty();
-
         open("/payment");
-        pause(2);
-
         if (driver.getCurrentUrl().contains("/cart")) {
             fail("Giỏ hàng vẫn trống nên không vào được trang thanh toán");
         }
-
         boolean voucherApplied = applyVoucherIfExists();
-
         if (voucherApplied) {
             assertTrue(
-                    containsAnyNow(
-                            "Giảm giá",
-                            "Đã áp dụng",
-                            "Áp dụng thành công",
-                            "Voucher",
-                            "voucher",
-                            "Tổng thanh toán"
-                    ),
+                    containsAnyNow("Giảm giá", "Đã áp dụng", "Áp dụng thành công", "Voucher","voucher","Tổng thanh toán"),
                     "Sau khi áp dụng voucher, trang thanh toán phải hiển thị thông tin giảm giá"
             );
         }
-
         WebElement fullname = byId("fullname");
         fullname.clear();
-        pause(1);
         fullname.sendKeys("Vu Yen");
-        pause(2);
 
         WebElement phone = byId("phone");
         phone.clear();
-        pause(1);
         phone.sendKeys("0976914999");
-        pause(2);
 
         WebElement address = byId("address");
         address.clear();
-        pause(1);
         address.sendKeys("Ha Noi");
-        pause(2);
 
         WebElement cash = driver.findElement(
                 By.cssSelector("input[name='paymentMethod'][value='CASH']")
@@ -374,13 +338,11 @@ class PaymentOrderSeleniumTest extends BaseSeleniumTest {
         if (!cash.isSelected()) {
             scrollTo(cash);
             cash.click();
-            pause(2);
         }
 
         takeScreenshot("before-confirm-order");
 
         clickByText("button", "Xác nhận đặt hàng");
-        pause(3);
 
         wait.until(ExpectedConditions.or(
                 ExpectedConditions.urlContains("/orders"),
@@ -389,11 +351,8 @@ class PaymentOrderSeleniumTest extends BaseSeleniumTest {
                 ExpectedConditions.textToBePresentInElementLocated(By.tagName("body"), "Thanh toán")
         ));
 
-        pause(2);
-
         if (!driver.getCurrentUrl().contains("/orders")) {
             open("/orders");
-            pause(2);
         }
 
         takeScreenshot("orders-after-checkout");
@@ -414,10 +373,8 @@ class PaymentOrderSeleniumTest extends BaseSeleniumTest {
     @Test
     void ordersPage_shouldShowOnlyAfterLogin() {
         logoutByLocalStorage();
-        pause(2);
 
         open("/orders");
-        pause(2);
 
         takeScreenshot("orders-without-login");
 

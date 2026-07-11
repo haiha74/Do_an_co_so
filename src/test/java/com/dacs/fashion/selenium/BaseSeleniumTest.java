@@ -21,15 +21,11 @@ public abstract class BaseSeleniumTest {
 
     protected WebDriver driver;
     protected WebDriverWait wait;
-
     protected final String BASE_URL = System.getProperty("baseUrl", "http://localhost:8080");
-
     protected final String EMAIL = System.getProperty("test.email", "eniuu127@gmail.com");
     protected final String PASSWORD = System.getProperty("test.password", "123456");
-
     private String testName;
     private int screenshotIndex = 1;
-
     private static final int MIN_DELAY_SECONDS = 2;
 
     @BeforeEach
@@ -37,18 +33,16 @@ public abstract class BaseSeleniumTest {
         this.testName = testInfo.getTestMethod()
                 .map(method -> method.getName())
                 .orElse("selenium-test");
-
         ChromeOptions options = new ChromeOptions();
         options.addArguments("--start-maximized");
         options.addArguments("--remote-allow-origins=*");
-
+        options.addArguments("--force-device-scale-factor=0.9");
+        options.addArguments("--high-dpi-support=0.9");
         driver = new ChromeDriver(options);
         wait = new WebDriverWait(driver, Duration.ofSeconds(20));
-
-        pause(2);
+        waitForPageLoad();
         takeScreenshot("start");
     }
-
     @AfterEach
     void tearDown() {
         if (driver != null) {
@@ -57,93 +51,63 @@ public abstract class BaseSeleniumTest {
             driver.quit();
         }
     }
-
     protected void open(String path) {
         driver.get(BASE_URL + path);
-        pause(2);
+        waitForPageLoad();
         takeScreenshot("open-" + cleanFileName(path));
     }
-
     protected WebElement byId(String id) {
         WebElement element = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id(id)));
-        pause(1);
+        waitForPageLoad();
         takeScreenshot("find-id-" + id);
         return element;
     }
-
     protected WebElement clickable(By locator) {
         WebElement element = wait.until(ExpectedConditions.elementToBeClickable(locator));
-        pause(1);
         return element;
     }
-
     protected void clickByText(String tag, String text) {
         By locator = By.xpath("//" + tag + "[contains(normalize-space(), '" + text + "')]");
         WebElement element = clickable(locator);
 
         ((JavascriptExecutor) driver).executeScript(
-                "arguments[0].scrollIntoView({block: 'center'});",
-                element
+                "arguments[0].scrollIntoView({block: 'center'});", element
         );
-
-        pause(1);
         element.click();
-        pause(4);
+        waitForPageLoad();
         takeScreenshot("click-" + cleanFileName(text));
     }
-
     protected boolean pageContains(String text) {
         boolean result = wait.until(d -> d.getPageSource().contains(text));
-        pause(1);
         takeScreenshot("check-" + cleanFileName(text));
         return result;
     }
-
     protected void loginAsUser() {
         open("/auth");
-
         byId("loginEmail").clear();
-        pause(1);
         byId("loginEmail").sendKeys(EMAIL);
-        pause(1);
-
         byId("loginPassword").clear();
-        pause(1);
         byId("loginPassword").sendKeys(PASSWORD);
-        pause(1);
-
         takeScreenshot("before-login");
-
         clickByText("button", "Đăng nhập");
-
-        wait.until(d -> ((JavascriptExecutor) d)
-                .executeScript("return localStorage.getItem('ha_user')") != null);
-
+        wait.until(d -> ((JavascriptExecutor) d).executeScript("return localStorage.getItem('ha_user')") != null);
         wait.until(ExpectedConditions.or(
                 ExpectedConditions.urlContains("/auth"),
                 ExpectedConditions.textToBePresentInElementLocated(By.tagName("body"), "Xin chào")
         ));
-
-        pause(4);
+        waitForPageLoad();
         takeScreenshot("login-success");
     }
-
     protected void logoutByLocalStorage() {
         driver.get(BASE_URL + "/");
-
         ((JavascriptExecutor) driver).executeScript(
-                "localStorage.removeItem('ha_user'); localStorage.removeItem('ha_cart');"
-        );
-
-        pause(4);
+                "localStorage.removeItem('ha_user'); localStorage.removeItem('ha_cart');");
+        waitForPageLoad();
         takeScreenshot("logout");
     }
-
     protected List<WebElement> findAll(By locator) {
-        pause(1);
         return driver.findElements(locator);
     }
-
     protected void pause(int seconds) {
         try {
             Thread.sleep(Math.max(seconds, MIN_DELAY_SECONDS) * 1000L);
@@ -151,17 +115,23 @@ public abstract class BaseSeleniumTest {
             Thread.currentThread().interrupt();
         }
     }
-
+    protected void waitForPageLoad() {
+        try {
+            wait.until(d -> ((JavascriptExecutor) d)
+                    .executeScript("return document.readyState").equals("complete"));
+        } catch (Exception e) {
+            System.out.println("Cảnh báo: Không thể đợi trang load: " + e.getMessage());
+        }
+    }
     protected void takeScreenshot(String stepName) {
         try {
+            waitForPageLoad();    
+            Thread.sleep(500);
             File screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
-
             Path folder = Path.of("target", "selenium-screenshots");
             Files.createDirectories(folder);
-
             String time = LocalDateTime.now()
                     .format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
-
             String fileName = String.format(
                     "%02d-%s-%s-%s.png",
                     screenshotIndex++,
@@ -169,7 +139,6 @@ public abstract class BaseSeleniumTest {
                     cleanFileName(stepName),
                     time
             );
-
             Files.copy(
                     screenshot.toPath(),
                     folder.resolve(fileName)
@@ -179,12 +148,10 @@ public abstract class BaseSeleniumTest {
             System.out.println("Không thể chụp màn hình: " + e.getMessage());
         }
     }
-
     private String cleanFileName(String value) {
         if (value == null || value.isBlank()) {
             return "empty";
         }
-
         return value
                 .replaceAll("[^a-zA-Z0-9-_]", "-")
                 .replaceAll("-+", "-")
