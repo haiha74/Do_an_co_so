@@ -13,6 +13,7 @@ let orders = [];
 let variants = [];
 let brands = [];
 let vouchers = [];
+let reviews = [];
 let currentTab = "overview";
 let selectedFiles = [];
 let selectedCategoryFile = null;
@@ -27,7 +28,8 @@ let adminSearch = {
   variants: "",
   promo: "",
   orders: "",
-  users: ""
+  users: "",
+  reviews: ""
 };
 let reportFrom = "";
 let reportTo = "";
@@ -269,6 +271,11 @@ async function loadData(){
   try{ variants = await fetchJson(`${API_BASE}/variants`) || []; }catch(e){ variants = []; }
   try{ brands = await fetchJson(`${API_BASE}/brands`) || []; }catch(e){ brands = []; }
   try{ vouchers = await fetchJson(`${API_BASE}/vouchers`) || []; }catch(e){ vouchers = []; }
+  try{
+    reviews = await fetchJson(`${API_BASE}/reviews`) || [];
+  }catch(e){
+    reviews = [];
+  }
 }
 
 function loginPage(){
@@ -852,6 +859,7 @@ function sidebar(){
     ["orders","Quản lý đơn hàng","receipt"],
     ["variants","Biến thể sản phẩm","palette"],
     ["users","Quản lý người dùng","users"],
+    ["reviews","Quản lý đánh giá","message-square"],
     ["promo","Voucher","badge-percent"],
     ["payos","Lịch sử PayOS","wallet"],
     ["reports","Báo cáo thống kê","bar-chart-3"]
@@ -1072,6 +1080,7 @@ function content(){
   if(currentTab === "orders") return orderTable();
   if(currentTab === "variants") return variantPanel();
   if(currentTab === "users") return userTable();
+  if(currentTab === "reviews") return reviewPanel();
   if(currentTab === "promo") return voucherPanel();
   if(currentTab === "payos") return payosPanel();
   if(currentTab === "reports") return reportPanel();
@@ -2459,4 +2468,227 @@ function changeReportFilter(){
     document.getElementById("reportTo").value;
 
   render();
+}
+
+function escapeHtml(value){
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function reviewProductName(review){
+  return review.orderItem?.variant?.product?.productName
+    || review.orderItem?.product?.productName
+    || "Không rõ sản phẩm";
+}
+
+function reviewPanel(){
+  const keyword = adminSearch.reviews || "";
+
+  const list = reviews.filter(r => {
+    const userName = (r.user?.fullname || "").toLowerCase();
+    const email = (r.user?.email || "").toLowerCase();
+    const productName = reviewProductName(r).toLowerCase();
+    const comment = (r.comment || "").toLowerCase();
+
+    return userName.includes(keyword)
+      || email.includes(keyword)
+      || productName.includes(keyword)
+      || comment.includes(keyword);
+  });
+
+  return `
+    <div class="soft-card overflow-hidden">
+
+      <div class="px-6 py-4 border-b flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+
+        <div>
+          <h2 class="font-bold text-xl">Quản lý đánh giá</h2>
+          <p class="text-sm text-neutral-500 mt-1">
+            Tổng cộng ${reviews.length} đánh giá
+          </p>
+        </div>
+
+        <div class="flex gap-3">
+          <input
+            data-search="reviews"
+            value="${escapeHtml(adminSearch.reviews || "")}"
+            oninput="searchAdmin('reviews', this.value)"
+            class="border rounded-full px-5 py-3 w-full lg:w-80 outline-none"
+            placeholder="Tìm user, sản phẩm, nội dung..."
+          >
+
+          <button
+            onclick="loadData().then(() => { currentTab='reviews'; render(); })"
+            class="border rounded-full px-5 py-3 font-bold whitespace-nowrap">
+            Làm mới
+          </button>
+        </div>
+
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left">
+
+          <thead class="bg-neutral-50 text-sm text-neutral-500">
+            <tr>
+              <th class="p-4">Khách hàng</th>
+              <th>Sản phẩm</th>
+              <th>Đánh giá</th>
+              <th>Nội dung</th>
+              <th>Hình ảnh</th>
+              <th>Ngày</th>
+              <th>Thao tác</th>
+            </tr>
+          </thead>
+
+          <tbody>
+
+            ${
+              list.length
+              ? list.map(r => {
+
+                  const image = r.imageUrl;
+
+                  return `
+                    <tr class="border-t align-top">
+
+                      <td class="p-4 min-w-[180px]">
+                        <b>${escapeHtml(r.user?.fullname || "Khách hàng")}</b>
+
+                        <p class="text-sm text-neutral-500">
+                          ${escapeHtml(r.user?.email || "")}
+                        </p>
+                      </td>
+
+                      <td class="min-w-[180px]">
+                        <b>
+                          ${escapeHtml(reviewProductName(r))}
+                        </b>
+
+                        <p class="text-xs text-neutral-500 mt-1">
+                          Size:
+                          ${escapeHtml(r.orderItem?.variant?.size || "-")}
+                          · Màu:
+                          ${escapeHtml(r.orderItem?.variant?.color || "-")}
+                        </p>
+                      </td>
+
+                      <td class="min-w-[120px]">
+                        <div class="text-yellow-500 text-lg">
+                          ${"★".repeat(Number(r.rating || 0))}
+                          <span class="text-neutral-300">
+                            ${"★".repeat(Math.max(0, 5 - Number(r.rating || 0)))}
+                          </span>
+                        </div>
+
+                        <span class="text-sm font-bold">
+                          ${r.rating || 0}/5
+                        </span>
+                      </td>
+
+                      <td class="max-w-[300px]">
+                        <p class="whitespace-normal break-words">
+                          ${escapeHtml(r.comment || "")}
+                        </p>
+                      </td>
+
+                      <td>
+                        ${
+                          image
+                          ? `
+                            <a href="${image}" target="_blank">
+                              <img
+                                src="${image}"
+                                class="w-20 h-20 object-cover rounded-xl border"
+                                onerror="this.src='/images/no-image.png'"
+                              >
+                            </a>
+                          `
+                          : `
+                            <span class="text-sm text-neutral-400">
+                              Không có ảnh
+                            </span>
+                          `
+                        }
+                      </td>
+
+                      <td class="min-w-[150px] text-sm text-neutral-500">
+                        ${
+                          r.createdAt
+                          ? new Date(r.createdAt).toLocaleString("vi-VN")
+                          : "-"
+                        }
+                      </td>
+
+                      <td>
+                        <button
+                          onclick="deleteReview(${r.reviewId})"
+                          class="bg-red-800 text-white rounded-full px-4 py-2 text-sm font-bold">
+                          Xóa
+                        </button>
+                      </td>
+
+                    </tr>
+                  `;
+                }).join("")
+              : `
+                <tr>
+                  <td colspan="7"
+                    class="p-8 text-center text-neutral-500">
+                    Chưa có đánh giá
+                  </td>
+                </tr>
+              `
+            }
+
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function deleteReview(id){
+  showConfirm(
+    "Xóa vĩnh viễn đánh giá này? Đánh giá sẽ không còn hiển thị trên sản phẩm.",
+    async () => {
+
+      const res = await fetch(
+        `${API_BASE}/reviews/${id}`,
+        {
+          method: "DELETE",
+          headers: adminAuthHeaders()
+        }
+      );
+
+      const text = await res.text();
+
+      if(!res.ok){
+        showToast(
+          "Lỗi",
+          text || "Không thể xóa đánh giá",
+          "error"
+        );
+        return;
+      }
+
+      reviews = reviews.filter(
+        r => Number(r.reviewId) !== Number(id)
+      );
+
+      currentTab = "reviews";
+      render();
+
+      showToast(
+        "Thành công",
+        "Đã xóa đánh giá"
+      );
+
+    },
+    "Xóa"
+  );
 }

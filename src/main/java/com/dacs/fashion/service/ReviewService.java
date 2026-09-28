@@ -84,7 +84,14 @@ public class ReviewService {
         return reviewRepository.save(review);
     }
 
+    @Transactional
     public void delete(Long id) {
-        reviewRepository.deleteById(id);
+
+        Review review = reviewRepository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException("Không tìm thấy đánh giá")
+                );
+
+        reviewRepository.delete(review);
     }
 }

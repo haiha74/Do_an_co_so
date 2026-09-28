@@ -1,5 +1,7 @@
 let productFeedbacks = [];
 let showReviewForm = false;
+let reviewImageFile = null;
+let reviewImagePreviewUrl = null;
 
 function productDetailImages(p){
   const imgs = [...(p.images || [])]
@@ -389,8 +391,30 @@ function feedbackSection(){
                 ${f.comment}
               </p>
 
+              ${f.imageUrl ? `
+                <div class="mt-4">
+                  <img
+                    src="${f.imageUrl}"
+                    alt="Ảnh đánh giá"
+                    onclick="window.open('${f.imageUrl}', '_blank')"
+                    class="
+                      w-28 h-28
+                      object-cover
+                      rounded-2xl
+                      border
+                      cursor-pointer
+                      hover:opacity-90
+                      transition
+                    "
+                  >
+                </div>
+              ` : ""}
+
               <p class="text-sm text-neutral-500 mt-2">
-                Phân loại: Size ${f.orderItem?.variant?.size || "-"} · Màu ${f.orderItem?.variant?.color || "-"}
+                Phân loại:
+                Size ${f.orderItem?.variant?.size || "-"}
+                ·
+                Màu ${f.orderItem?.variant?.color || "-"}
               </p>
             </div>
           `).join("")
@@ -407,32 +431,110 @@ function reviewFormSection(){
   return `
     <section class="wrap pb-10">
       <div class="bg-white border rounded-3xl p-8 shadow-sm">
-        <h2 class="serif text-4xl mb-6">Đánh giá sản phẩm</h2>
+
+        <h2 class="serif text-4xl mb-6">
+          Đánh giá sản phẩm
+        </h2>
 
         <div class="grid md:grid-cols-[120px_1fr] gap-6">
-          <img src="${getProductImg(selectedProduct,0)}"
-            class="w-28 h-36 object-cover rounded-2xl border">
+
+          <img
+            src="${getProductImg(selectedProduct,0)}"
+            class="w-28 h-36 object-cover rounded-2xl border"
+          >
 
           <div>
-            <b class="text-xl">${selectedProduct.productName}</b>
+
+            <b class="text-xl">
+              ${selectedProduct.productName}
+            </b>
 
             <div class="mt-5">
-              <label class="font-bold">Số sao</label>
-              <input id="reviewRating" type="number" min="1" max="5" value="5"
-                class="block mt-2 border rounded-xl px-4 py-3 w-32">
+              <label class="font-bold">
+                Số sao
+              </label>
+
+              <input
+                id="reviewRating"
+                type="number"
+                min="1"
+                max="5"
+                value="5"
+                class="block mt-2 border rounded-xl px-4 py-3 w-32"
+              >
             </div>
 
             <div class="mt-5">
-              <label class="font-bold">Comment đánh giá</label>
-              <textarea id="reviewComment"
+              <label class="font-bold">
+                Comment đánh giá
+              </label>
+
+              <textarea
+                id="reviewComment"
                 class="w-full mt-2 border rounded-2xl px-5 py-4 h-32"
-                placeholder="Nhập cảm nhận của bạn về sản phẩm..."></textarea>
+                placeholder="Nhập cảm nhận của bạn về sản phẩm..."
+              ></textarea>
             </div>
 
-            <button onclick="submitReview()"
-              class="mt-5 bg-red-800 text-white rounded-full px-8 py-3 font-bold">
+            <div class="mt-5">
+
+              <label class="font-bold">
+                Hình ảnh sản phẩm
+              </label>
+
+              <p class="text-sm text-neutral-500 mt-1">
+                Không bắt buộc · JPG, PNG, WEBP · tối đa 5MB
+              </p>
+
+              <input
+                id="reviewImage"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onchange="selectReviewImage(event)"
+                class="hidden"
+              >
+
+              <label
+                for="reviewImage"
+                class="
+                  mt-3
+                  border-2 border-dashed
+                  rounded-2xl
+                  p-6
+                  flex flex-col
+                  items-center
+                  justify-center
+                  cursor-pointer
+                  hover:border-red-800
+                  transition
+                "
+              >
+                ${icon("image-plus", "w-8 h-8")}
+
+                <span class="mt-2 font-semibold">
+                  Thêm hình ảnh
+                </span>
+
+                <span class="text-sm text-neutral-500">
+                  Chọn ảnh thực tế của sản phẩm
+                </span>
+              </label>
+
+              <div
+                id="reviewImagePreview"
+                class="mt-4">
+              </div>
+
+            </div>
+
+            <button
+              id="submitReviewBtn"
+              onclick="submitReview()"
+              class="mt-5 bg-red-800 text-white rounded-full px-8 py-3 font-bold"
+            >
               Gửi đánh giá
             </button>
+
           </div>
         </div>
       </div>
@@ -440,53 +542,326 @@ function reviewFormSection(){
   `;
 }
 
-function submitReview(){
+function selectReviewImage(event){
+
+  const file = event.target.files?.[0];
+
+  if(!file){
+    reviewImageFile = null;
+    return;
+  }
+
+  const allowedTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/webp"
+  ];
+
+  if(!allowedTypes.includes(file.type)){
+    showToast(
+      "Ảnh không hợp lệ",
+      "Chỉ chấp nhận JPG, PNG hoặc WEBP",
+      "error"
+    );
+
+    event.target.value = "";
+    reviewImageFile = null;
+    return;
+  }
+
+  if(file.size > 5 * 1024 * 1024){
+    showToast(
+      "Ảnh quá lớn",
+      "Ảnh không được vượt quá 5MB",
+      "error"
+    );
+
+    event.target.value = "";
+    reviewImageFile = null;
+    return;
+  }
+
+  reviewImageFile = file;
+
+  if(reviewImagePreviewUrl){
+    URL.revokeObjectURL(reviewImagePreviewUrl);
+  }
+
+  reviewImagePreviewUrl =
+    URL.createObjectURL(file);
+
+  const preview =
+    document.getElementById("reviewImagePreview");
+
+  preview.innerHTML = `
+    <div class="relative w-32">
+
+      <img
+        src="${reviewImagePreviewUrl}"
+        class="
+          w-32 h-32
+          object-cover
+          rounded-2xl
+          border
+        "
+      >
+
+      <button
+        type="button"
+        onclick="removeReviewImage()"
+        class="
+          absolute
+          -top-2 -right-2
+          w-7 h-7
+          rounded-full
+          bg-black text-white
+          font-bold
+          flex items-center justify-center
+        "
+      >
+        ×
+      </button>
+
+    </div>
+  `;
+
+  if(window.lucide){
+    lucide.createIcons();
+  }
+}
+
+function removeReviewImage(){
+
+  reviewImageFile = null;
+
+  if(reviewImagePreviewUrl){
+    URL.revokeObjectURL(reviewImagePreviewUrl);
+    reviewImagePreviewUrl = null;
+  }
+
+  const input =
+    document.getElementById("reviewImage");
+
+  if(input){
+    input.value = "";
+  }
+
+  const preview =
+    document.getElementById("reviewImagePreview");
+
+  if(preview){
+    preview.innerHTML = "";
+  }
+}
+
+async function submitReview(){
+
   const user = getUser();
-  const rating = Number(document.getElementById("reviewRating").value);
-  const comment = document.getElementById("reviewComment").value.trim();
+
+  if(!user?.token){
+    showToast(
+      "Chưa đăng nhập",
+      "Vui lòng đăng nhập để đánh giá",
+      "error"
+    );
+    return;
+  }
+
+  const rating =
+    Number(
+      document.getElementById("reviewRating").value
+    );
+
+  const comment =
+    document
+      .getElementById("reviewComment")
+      .value
+      .trim();
 
   if(rating < 1 || rating > 5){
-    showToast("Lỗi", "Số sao phải từ 0 đến 5", "error");
+    showToast(
+      "Lỗi",
+      "Số sao phải từ 1 đến 5",
+      "error"
+    );
     return;
   }
 
   if(!comment){
-    showToast("Lỗi", "Vui lòng nhập comment đánh giá", "error");
+    showToast(
+      "Lỗi",
+      "Vui lòng nhập comment đánh giá",
+      "error"
+    );
     return;
   }
 
-  const params = new URLSearchParams(location.search);
-  const orderItemId = params.get("orderItemId");
+  const params =
+    new URLSearchParams(location.search);
 
-  fetch(`${API_BASE}/reviews`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer " + user.token
-    },
-    body: JSON.stringify({
-      userId: user.userId,
-      orderItemId: Number(orderItemId),
-      rating: rating,
-      comment: comment,
-      imageUrl: null
-    })
-  })
-  .then(async res => {
-    if(!res.ok){
-      showToast("Lỗi", await res.text(), "error");
-      return;
+  const orderItemId =
+    params.get("orderItemId");
+
+  if(!orderItemId){
+    showToast(
+      "Lỗi",
+      "Không xác định được sản phẩm trong đơn hàng",
+      "error"
+    );
+    return;
+  }
+
+  const button =
+    document.getElementById("submitReviewBtn");
+
+  try{
+
+    if(button){
+      button.disabled = true;
+      button.innerText = "Đang gửi...";
+      button.classList.add("opacity-60");
     }
 
-    showToast("Thành công", "Đã gửi đánh giá sản phẩm");
+    // 1. Upload ảnh trước nếu khách có chọn ảnh
+    const imageUrl =
+      await uploadReviewImage();
+
+    // 2. Sau đó mới tạo review
+    const res = await fetch(
+      `${API_BASE}/reviews`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization":
+            "Bearer " + user.token
+        },
+
+        body: JSON.stringify({
+          orderItemId: Number(orderItemId),
+          rating: rating,
+          comment: comment,
+          imageUrl: imageUrl
+        })
+      }
+    );
+
+    if(!res.ok){
+
+      let message =
+        "Không thể gửi đánh giá";
+
+      try{
+        const data = await res.json();
+        message =
+          data.message ||
+          data.error ||
+          message;
+      }catch(e){
+
+        try{
+          message = await res.text();
+        }catch(ignore){}
+      }
+
+      throw new Error(message);
+    }
+
+    showToast(
+      "Thành công",
+      "Đã gửi đánh giá sản phẩm"
+    );
 
     setTimeout(()=>{
-      location.href = `/detail?productId=${selectedProduct.productId}`;
+      location.href =
+        `/detail?productId=${selectedProduct.productId}`;
     },1000);
-  })
-  .catch(() => {
-    showToast("Lỗi", "Không kết nối được backend", "error");
-  });
+
+  }catch(err){
+
+    console.error(err);
+
+    showToast(
+      "Lỗi",
+      err.message || "Không thể gửi đánh giá",
+      "error"
+    );
+
+  }finally{
+
+    if(button){
+      button.disabled = false;
+      button.innerText = "Gửi đánh giá";
+      button.classList.remove("opacity-60");
+    }
+  }
+}
+
+async function uploadReviewImage(){
+
+  if(!reviewImageFile){
+    return null;
+  }
+
+  const user = getUser();
+
+  if(!user?.token){
+    throw new Error("Bạn chưa đăng nhập");
+  }
+
+  const formData = new FormData();
+  formData.append("file", reviewImageFile);
+
+  const res = await fetch(
+    `${API_BASE}/upload/image`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + user.token
+      },
+      body: formData
+    }
+  );
+
+  const text = await res.text();
+
+  console.log("UPLOAD STATUS:", res.status);
+  console.log("UPLOAD RESPONSE:", text);
+
+  if(!res.ok){
+    let message = "Upload ảnh thất bại";
+
+    if(text){
+      try{
+        const data = JSON.parse(text);
+        message = data.message || data.error || message;
+      }catch(e){
+        message = text;
+      }
+    }
+
+    throw new Error(message);
+  }
+
+  if(!text){
+    throw new Error("Backend upload ảnh không trả dữ liệu");
+  }
+
+  let data;
+
+  try{
+    data = JSON.parse(text);
+  }catch(e){
+    console.error("Upload response không phải JSON:", text);
+    throw new Error("Dữ liệu trả về từ upload ảnh không hợp lệ");
+  }
+
+  if(!data.imageUrl){
+    throw new Error("Backend không trả về imageUrl");
+  }
+
+  return data.imageUrl;
 }
 
 loadDetailPage();

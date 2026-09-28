@@ -18,8 +18,8 @@ function authPage(){
 
   const isLogin = authMode === "login";
 
-  return header()+`<main class="wrap py-12 lg:py-16">
-    <div class="grid lg:grid-cols-[1fr_540px] gap-10 items-center">
+  return header()+`<main class="wrap py-12 lg:py-16 min-h-[calc(100vh-260px)] flex items-center">
+    <div class="w-full grid lg:grid-cols-[1fr_540px] gap-10 items-center">
       <section class="pr-4">
         <p class="text-red-800 tracking-[.18em] uppercase font-bold text-base mb-5">JODOK ACCOUNT</p>
         <h1 class="serif text-5xl lg:text-6xl leading-tight mb-5">${isLogin ? "Chào mừng bạn quay lại" : "Tạo tài khoản mua hàng"}</h1>

@@ -63,6 +63,11 @@ public class SecurityConfig {
                                 "/api/variants/product/**"
                         ).permitAll()
 
+                        // AI CHATBOT - khách chưa đăng nhập cũng có thể tìm sản phẩm
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/chatbot/message"
+                        ).permitAll()
+
                         // PRODUCT ADMIN
                         .requestMatchers(HttpMethod.POST,
                                 "/api/products/**"
@@ -74,16 +79,19 @@ public class SecurityConfig {
 
                         .requestMatchers(HttpMethod.DELETE,
                                 "/api/products/**"
-                        ).permitAll()
+                        ).hasRole("ADMIN")
 
                         // CATEGORY - BRAND - VOUCHER
                         .requestMatchers(HttpMethod.POST,
                                 "/api/categories/**",
                                 "/api/brands/**",
                                 "/api/vouchers/**",
-                                "/api/product-images/**",
-                                "/api/upload/**"
+                                "/api/product-images/**"
                         ).hasRole("ADMIN")
+
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/upload/image"
+                        ).hasAnyRole("USER", "ADMIN", "STAFF")
 
                         .requestMatchers(HttpMethod.PUT,
                                 "/api/categories/**",
@@ -130,6 +138,11 @@ public class SecurityConfig {
                         ).hasAnyRole("ADMIN", "STAFF")
 
                         // REVIEW
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/reviews",
+                                "/api/reviews/**"
+                        ).hasAnyRole("USER", "ADMIN", "STAFF")
+
                         .requestMatchers(HttpMethod.DELETE,
                                 "/api/reviews/**"
                         ).hasRole("ADMIN")
@@ -137,7 +150,6 @@ public class SecurityConfig {
                         // ADMIN ONLY
                         .requestMatchers(
                                 "/api/users/**",
-                                "/api/upload/**",
                                 "/api/product-images/**",
                                 "/api/variants/**",
                                 "/api/reports/**",

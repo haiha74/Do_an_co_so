@@ -239,7 +239,40 @@ function header(){
 }
 
 function footer(){
-  return `<footer class="mt-16 bg-black text-white"><div class="wrap py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 text-center sm:text-left"><div><h2 class="serif text-3xl tracking-widest font-bold">JODOK</h2><p class="mt-4 text-neutral-300">Thời trang nữ thanh lịch, hiện đại.</p></div><div><b>Danh mục</b><p class="mt-3 text-neutral-300">Đầm nữ</p><p>Áo sơ mi</p><p>Blazer</p></div><div><b>Hỗ trợ</b><p class="mt-3">Đổi trả</p><p>Chọn size</p><p>Theo dõi đơn</p></div><div><b>Liên hệ</b><p class="mt-3">Hà Nội, Việt Nam</p><p>0900 888 999</p></div></div></footer>`;
+  return `
+    <footer class="site-footer bg-black text-white">
+      <div class="wrap py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 text-center sm:text-left">
+
+        <div>
+          <h2 class="serif text-3xl tracking-widest font-bold">JODOK</h2>
+          <p class="mt-4 text-neutral-300">
+            Thời trang nữ thanh lịch, hiện đại.
+          </p>
+        </div>
+
+        <div>
+          <b>Danh mục</b>
+          <p class="mt-3 text-neutral-300">Đầm nữ</p>
+          <p>Áo sơ mi</p>
+          <p>Blazer</p>
+        </div>
+
+        <div>
+          <b>Hỗ trợ</b>
+          <p class="mt-3">Đổi trả</p>
+          <p>Chọn size</p>
+          <p>Theo dõi đơn</p>
+        </div>
+
+        <div>
+          <b>Liên hệ</b>
+          <p class="mt-3">Hà Nội, Việt Nam</p>
+          <p>0900 888 999</p>
+        </div>
+
+      </div>
+    </footer>
+  `;
 }
 
 
@@ -296,7 +329,11 @@ function productGrid(list = products){
 }
 
 function renderApp(html){
-  document.getElementById("app").innerHTML = html;
+  document.getElementById("app").innerHTML = `
+    <div class="site-page">
+      ${html}
+    </div>
+  `;
 
   if(window.lucide){
     lucide.createIcons();

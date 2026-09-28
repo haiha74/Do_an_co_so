@@ -213,3 +213,58 @@ body{
 .custom-scroll::-webkit-scrollbar-thumb:hover{
   background:#a1a1aa;
 }
+
+/* ========================================
+   GLOBAL PAGE / FOOTER LAYOUT
+   ======================================== */
+
+html,
+body{
+  margin:0;
+  padding:0;
+  width:100%;
+  min-height:100%;
+}
+
+*,
+*::before,
+*::after{
+  box-sizing:border-box;
+}
+
+/* #app phải ít nhất bằng chiều cao màn hình */
+#app{
+  min-height:100vh;
+}
+
+/* Wrapper chung cho tất cả các trang */
+.site-page{
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+
+/* Main tự chiếm phần chiều cao còn thiếu */
+.site-page > main{
+  flex:1 0 auto;
+}
+
+/* Footer luôn full ngang và được đẩy xuống đáy */
+.site-footer{
+  width:100%;
+  max-width:none;
+  flex-shrink:0;
+  margin-top:4rem;
+  background:#000;
+  color:#fff;
+}
+
+/* Nội dung footer vẫn giới hạn 1280px */
+.site-footer > .wrap{
+  width:100%;
+  max-width:1280px;
+  margin-left:auto;
+  margin-right:auto;
+  padding-left:24px;
+  padding-right:24px;
+}
