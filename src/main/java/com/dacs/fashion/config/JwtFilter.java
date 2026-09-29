@@ -68,4 +68,16 @@ public class JwtFilter extends OncePerRequestFilter {
 
         filterChain.doFilter(request, response);
     }
+    
+    @Override
+    protected boolean shouldNotFilter(
+            jakarta.servlet.http.HttpServletRequest request
+    ) {
+        String path = request.getServletPath();
+
+        return path.equals("/pages")
+                || path.startsWith("/pages/")
+                || path.equals("/favicon.ico");
+    }
+
 }

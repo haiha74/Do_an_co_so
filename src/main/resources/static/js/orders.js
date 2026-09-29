@@ -1,8 +1,10 @@
 let myOrders = [];
 let orderLimit = 10;
 let orderSort = "newest";
-let orderPeriod = "";
+let orderStatusFilter = "ALL";
+let orderSearch = "";
 let reviews = [];
+
 
 async function loadMyOrders(){
   await checkPayOSReturn();
@@ -108,15 +110,34 @@ function getUserOrderNo(order){
   return sortedByCreatedAt.findIndex(o => o.orderId === order.orderId) + 1;
 }
 
+
 function renderOrders(){
   let filteredOrders = [...myOrders];
-  
-  if(orderPeriod){
-  filteredOrders = filteredOrders.filter(o =>
-    o.createdAt &&
-    new Date(o.createdAt).toISOString().slice(0,10) === orderPeriod
-  );
-}
+
+  if(orderStatusFilter !== "ALL"){
+    filteredOrders = filteredOrders.filter(o => {
+      if(orderStatusFilter === "PROCESSING"){
+        return ["CONFIRMED", "PAID", "PENDING_PAYMENT"].includes(o.orderStatus);
+      }
+      return o.orderStatus === orderStatusFilter;
+    });
+  }
+
+  if(orderSearch.trim()){
+    const keyword = orderSearch.trim().toLowerCase();
+
+    filteredOrders = filteredOrders.filter(o => {
+      const products = (o.items || [])
+        .map(i => i.variant?.product?.productName || "")
+        .join(" ");
+
+      return [
+        String(o.orderId || ""),
+        `đơn hàng #${getUserOrderNo(o)}`,
+        products
+      ].join(" ").toLowerCase().includes(keyword);
+    });
+  }
 
   filteredOrders.sort((a,b)=>{
     const da = new Date(a.createdAt || 0);
@@ -124,177 +145,342 @@ function renderOrders(){
     return orderSort === "oldest" ? da - db : db - da;
   });
 
+  const tabs = [
+    ["ALL", "Tất cả"],
+    ["PENDING", "Chờ xác nhận"],
+    ["PROCESSING", "Đang xử lý"],
+    ["SHIPPING", "Đang giao"],
+    ["COMPLETED", "Hoàn thành"],
+    ["CANCELLED", "Đã hủy"]
+  ];
+
+  const countStatus = status => {
+    if(status === "ALL") return myOrders.length;
+
+    if(status === "PROCESSING"){
+      return myOrders.filter(o =>
+        ["CONFIRMED", "PAID", "PENDING_PAYMENT"].includes(o.orderStatus)
+      ).length;
+    }
+
+    return myOrders.filter(o => o.orderStatus === status).length;
+  };
+
   const html = header() + `
-    <main class="wrap py-12">
+    <main class="wrap orders-page">
 
-      <div class="mb-8">
-        <p class="text-red-800 tracking-widest uppercase font-bold">
-          JODOK Orders
-        </p>
+      <div class="orders-layout">
 
-        <h1 class="serif text-5xl mt-2">
-          Đơn hàng của tôi
-        </h1>
+        <aside class="orders-sidebar">
+          <h3>Tài khoản của tôi</h3>
 
-        <p class="text-neutral-600 mt-3">
-          Theo dõi trạng thái các đơn hàng bạn đã đặt.
-        </p>
+          <a href="/account">
+              <i data-lucide="user-round"></i>
+              Thông tin tài khoản
+          </a>
+
+          <a href="/orders" class="active">
+            <i data-lucide="package"></i>
+            Đơn hàng của tôi
+          </a>
+
+          <a href="/products">
+            <i data-lucide="shopping-bag"></i>
+            Tiếp tục mua sắm
+          </a>
+
+          <button onclick="logoutOrderAccount()">
+            <i data-lucide="log-out"></i>
+            Đăng xuất
+          </button>
+        </aside>
+
+        <section class="orders-content">
+
+          <nav class="orders-breadcrumb">
+            <a href="/">Trang chủ</a>
+            <i data-lucide="chevron-right"></i>
+            <span>Tài khoản</span>
+            <i data-lucide="chevron-right"></i>
+            <strong>Đơn hàng của tôi</strong>
+          </nav>
+
+          <div class="orders-heading">
+            <h1>Đơn hàng của tôi</h1>
+            <p>Theo dõi trạng thái và quản lý các đơn hàng bạn đã đặt.</p>
+          </div>
+
+          <div class="orders-tabs">
+            ${tabs.map(([value,label]) => `
+              <button
+                class="${orderStatusFilter === value ? "active" : ""}"
+                onclick="changeOrderStatus('${value}')">
+                ${label} (${countStatus(value)})
+              </button>
+            `).join("")}
+          </div>
+
+          <div class="orders-toolbar">
+
+            <div class="orders-search">
+              <i data-lucide="search"></i>
+              <input
+                id="orderSearchInput"
+                placeholder="Tìm theo mã đơn, tên sản phẩm..."
+                value="${escapeOrderText(orderSearch)}"
+                oninput="changeOrderSearch(this.value)"
+              >
+            </div>
+
+            <select
+              class="orders-sort"
+              onchange="changeOrderSort(this.value)">
+              <option value="newest"
+                ${orderSort === "newest" ? "selected" : ""}>
+                Mới nhất
+              </option>
+              <option value="oldest"
+                ${orderSort === "oldest" ? "selected" : ""}>
+                Cũ nhất
+              </option>
+            </select>
+
+          </div>
+
+          <div class="orders-list">
+            ${
+              myOrders.length === 0
+              ? `
+                <div class="orders-empty">
+                  <i data-lucide="package-open"></i>
+                  <h2>Bạn chưa có đơn hàng</h2>
+                  <p>Khám phá sản phẩm và bắt đầu mua sắm tại JODOK.</p>
+                  <a href="/products">Mua sắm ngay</a>
+                </div>
+              `
+              : filteredOrders.length === 0
+              ? `
+                <div class="orders-empty">
+                  <i data-lucide="search-x"></i>
+                  <h2>Không tìm thấy đơn hàng</h2>
+                  <p>Thử tìm kiếm hoặc chọn trạng thái khác.</p>
+                  <button onclick="resetOrderFilter()">Xóa bộ lọc</button>
+                </div>
+              `
+              : filteredOrders.slice(0,orderLimit)
+                  .map(order => orderCard(order)).join("")
+            }
+          </div>
+
+          <div class="orders-pagination">
+            ${
+              filteredOrders.length > orderLimit
+              ? `<button onclick="showMoreOrders()">Xem thêm đơn hàng</button>`
+              : ""
+            }
+
+            ${
+              orderLimit > 10
+              ? `<button onclick="hideOrders()">Thu gọn</button>`
+              : ""
+            }
+          </div>
+
+        </section>
       </div>
-
-      <div class="soft-card p-5 mb-6 flex flex-col lg:flex-row gap-3">
-
-      <select onchange="changeOrderSort(this.value)"
-        class="border rounded-full px-5 py-3">
-
-        <option value="newest"
-          ${orderSort === "newest" ? "selected" : ""}>
-          Mới nhất
-        </option>
-
-        <option value="oldest"
-          ${orderSort === "oldest" ? "selected" : ""}>
-          Cũ nhất
-        </option>
-
-      </select>
-
-      <input
-        type="date"
-        value="${orderPeriod}"
-        onchange="changeOrderPeriod(this.value)"
-        class="border rounded-full px-5 py-3"
-      >
-
-      <button
-        onclick="resetOrderFilter()"
-        class="border rounded-full px-5 py-3 font-bold">
-
-        Xóa lọc
-
-      </button>
-
-    </div>
-
-      ${
-        myOrders.length === 0
-        ? `
-          <div class="soft-card p-12 text-center">
-            <h2 class="serif text-4xl">Bạn chưa có đơn hàng</h2>
-            <p class="text-neutral-600 mt-3">Hãy chọn sản phẩm yêu thích và đặt hàng.</p>
-            <a href="/products" class="inline-block mt-7 bg-red-800 text-white rounded-full px-8 py-3 font-bold">
-              Mua sắm ngay
-            </a>
-          </div>
-        `
-        : `
-          <div class="max-h-[700px] overflow-y-auto pr-2 custom-scroll space-y-5">
-            ${filteredOrders.slice(0, orderLimit).map(order => orderCard(order)).join("")}
-          </div>
-
-          <div class="text-center mt-8 flex justify-center gap-4">
-
-  ${
-    filteredOrders.length > orderLimit
-    ? `
-      <button onclick="showMoreOrders()"
-        class="border rounded-full px-8 py-3 font-bold hover:bg-black hover:text-white transition">
-        Xem thêm
-      </button>
-    `
-    : ""
-  }
-
-  ${
-    orderLimit > 10
-    ? `
-      <button onclick="hideOrders()"
-        class="border rounded-full px-8 py-3 font-bold hover:bg-red-800 hover:text-white transition">
-        Ẩn bớt
-      </button>
-    `
-    : ""
-  }
-
-</div>
-        `
-      }
-
     </main>
   ` + footer();
 
   renderApp(html);
+  if(window.lucide) lucide.createIcons();
 }
 
+function escapeOrderText(value){
+  return String(value ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[c]));
+}
+
+function changeOrderStatus(status){
+  orderStatusFilter = status;
+  orderLimit = 10;
+  renderOrders();
+}
+
+function changeOrderSearch(value){
+  orderSearch = value;
+  orderLimit = 10;
+
+  const cursor = document.getElementById("orderSearchInput")?.selectionStart;
+  renderOrders();
+
+  const input = document.getElementById("orderSearchInput");
+  if(input){
+    input.focus();
+    input.setSelectionRange(cursor ?? value.length, cursor ?? value.length);
+  }
+}
+
+function logoutOrderAccount(){
+  localStorage.removeItem("ha_user");
+  location.href = "/auth";
+}
+
+
 function orderCard(order){
+  const items = order.items || [];
+
   return `
-    <div class="soft-card p-6">
+    <article class="order-card">
 
-      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b pb-5">
+      <!-- HEADER -->
+      <div class="order-card-header">
+        <div class="order-card-title">
+          <span class="order-card-icon">
+            <i data-lucide="receipt-text"></i>
+          </span>
 
-        <div>
-          <h2 class="text-xl font-bold">
-            Đơn hàng #${getUserOrderNo(order)}
-          </h2>
-
-          <p class="text-neutral-500 mt-1">
-            Ngày đặt: ${order.createdAt ? new Date(order.createdAt).toLocaleString("vi-VN") : "Không rõ"}
-          </p>
+          <div>
+            <h2>Đơn hàng #${getUserOrderNo(order)}</h2>
+            <p>
+              Ngày đặt:
+              ${order.createdAt
+                ? new Date(order.createdAt).toLocaleString("vi-VN")
+                : "Không rõ"}
+            </p>
+          </div>
         </div>
 
-        <span class="rounded-full px-4 py-2 font-bold ${statusClass(order.orderStatus)}">
-          ${statusText(order.orderStatus)}
-        </span>
+        <div class="order-card-actions">
+          <span class="order-status ${statusClass(order.orderStatus)}">
+            ${statusText(order.orderStatus)}
+          </span>
+
+          <button
+            class="order-detail-btn"
+            onclick="toggleOrderItems(${order.orderId})">
+            <span id="order-detail-label-${order.orderId}">
+              Xem chi tiết
+            </span>
+            <i data-lucide="chevron-down"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- THÔNG TIN ĐƠN HÀNG -->
+      <div class="order-card-info">
+
+        <div class="order-info-block">
+          <i data-lucide="map-pin"></i>
+          <div>
+            <span>Địa chỉ nhận hàng</span>
+            <strong>
+              ${escapeOrderText(order.address || "Chưa có địa chỉ")}
+            </strong>
+          </div>
+        </div>
+
+        <div class="order-info-block">
+          <i data-lucide="wallet"></i>
+          <div>
+            <span>Tổng thanh toán</span>
+            <strong class="order-total">
+              ${formatPrice(order.finalAmount ?? order.totalAmount ?? 0)}
+            </strong>
+          </div>
+        </div>
+
+        <div class="order-info-block">
+          <i data-lucide="credit-card"></i>
+          <div>
+            <span>Hình thức thanh toán</span>
+            <strong>
+              ${orderPaymentText(order)}
+            </strong>
+          </div>
+        </div>
 
       </div>
 
-      <div class="grid md:grid-cols-3 gap-4 mt-5">
-
-        <div>
-          <p class="text-neutral-500">Địa chỉ nhận hàng</p>
-          <b>${order.address || "Chưa có"}</b>
-        </div>
-
-        <div>
-          <p class="text-neutral-500">Tạm tính</p>
-          <b>${formatPrice(order.totalAmount)}</b>
-        </div>
-
-        <div class="flex items-end justify-between gap-4">
-
-        <div>
-          <p class="text-neutral-500">
-            ${order.orderStatus === "PAID"
-              ? "Đã thanh toán"
-              : "Tổng thanh toán"}
-          </p>
-          <b class="text-red-800">${formatPrice(order.finalAmount)}</b>
-        </div>
-
-        <button onclick="toggleOrderItems(${order.orderId})"
-          class="border rounded-full px-5 py-2 font-bold hover:bg-black hover:text-white transition">
-          Xem chi tiết
-        </button>
-
-      </div>
-
-      </div>
-
-      <div id="order-items-${order.orderId}" class="hidden mt-5 border-t pt-5">
+      <!-- DANH SÁCH SẢN PHẨM -->
+      <div class="order-products">
         ${
-          order.items && order.items.length
-          ? order.items.map((item,index)=>orderItemHtml(item,index, order)).join("")
-          : `<p class="text-neutral-500">Không có sản phẩm trong đơn.</p>`
+          items.length
+          ? items.map((item,index) =>
+              orderItemHtml(item,index,order)
+            ).join("")
+          : `<p class="order-no-products">Không có sản phẩm trong đơn.</p>`
         }
       </div>
 
-    </div>
+      <!-- CHI TIẾT MỞ RỘNG -->
+      <div id="order-items-${order.orderId}"
+           class="order-extra hidden">
+
+        <div>
+          <span>Mã đơn hàng</span>
+          <strong>#${order.orderId}</strong>
+        </div>
+
+        <div>
+          <span>Trạng thái</span>
+          <strong>${statusText(order.orderStatus)}</strong>
+        </div>
+
+        <div>
+          <span>Tổng thanh toán</span>
+          <strong class="order-total">
+            ${formatPrice(order.finalAmount ?? order.totalAmount ?? 0)}
+          </strong>
+        </div>
+
+        <div>
+          <span>Hình thức thanh toán</span>
+          <strong>${orderPaymentText(order)}</strong>
+        </div>
+
+      </div>
+
+    </article>
   `;
 }
 
-function orderItemHtml(item,index, order){
+function orderPaymentText(order) {
+    const method = String(
+        order.payment?.paymentMethod ??
+        order.paymentMethod ??
+        ""
+    ).trim().toUpperCase();
+
+    switch (method) {
+        case "CASH":
+        case "COD":
+        case "CASH_ON_DELIVERY":
+            return "COD - Thanh toán khi nhận hàng";
+
+        case "PAYOS":
+        case "PAY_OS":
+        case "BANK_TRANSFER":
+        case "BANKING":
+        case "QR":
+            return "Chuyển khoản ngân hàng";
+
+        default:
+            return "Chưa xác định";
+    }
+}
+
+function orderItemHtml(item,index,order){
   const v = item.variant;
   const p = v?.product;
-  const img = p ? getProductImg(p,index) : fallbackImages[index % fallbackImages.length];
+
+  const img = p
+    ? getProductImg(p,index)
+    : fallbackImages[index % fallbackImages.length];
 
   const orderItemId = String(item.orderItemId || item.id || index);
 
@@ -302,56 +488,82 @@ function orderItemHtml(item,index, order){
     String(r.orderItem?.orderItemId) === orderItemId
   );
 
+  const productId = p?.productId;
+
   const reviewUrl =
-    `/detail?productId=${p?.productId}` +
+    `/detail?productId=${productId}` +
     `${reviewed ? "" : "&review=1"}` +
     `&orderItemId=${orderItemId}` +
     `&size=${encodeURIComponent(v?.size || "")}` +
     `&color=${encodeURIComponent(v?.color || "")}`;
 
   return `
-    <div class="grid grid-cols-[70px_1fr_120px] gap-4 items-center border-b py-4">
+    <div class="order-product">
 
-      <img src="${img}" class="w-16 h-20 object-cover rounded-xl border">
+      <a href="/detail?productId=${productId}" class="order-product-image">
+        <img src="${img}" alt="${escapeOrderText(p?.productName || "Sản phẩm")}">
+      </a>
 
-      <div>
-        <b onclick="location.href='/detail?productId=${p?.productId}'"
-          class="cursor-pointer hover:text-red-800">
-          ${p?.productName || "Sản phẩm"}
-        </b>
+      <div class="order-product-info">
+        <a href="/detail?productId=${productId}" class="order-product-name">
+          ${escapeOrderText(p?.productName || "Sản phẩm")}
+        </a>
 
-        <p class="text-sm text-neutral-500">
-          Size: ${v?.size || "-"} · Màu: ${v?.color || "-"}
-        </p>
-
-        <p class="text-sm text-neutral-500">
+        <p>
+          Size: ${escapeOrderText(v?.size || "-")}
+          <span> | </span>
+          Màu: ${escapeOrderText(v?.color || "-")}
+          <span> | </span>
           Số lượng: ${item.quantity}
         </p>
 
+        <strong>${formatPrice(item.price || item.unitPrice)}</strong>
+      </div>
+
+      <div class="order-product-actions">
         ${
           order.orderStatus === "COMPLETED"
           ? `
             <button
-              onclick="location.href='${reviewUrl}'"
-              class="block mt-3 ${reviewed ? "bg-black" : "bg-red-800"} text-white rounded-full px-5 py-2 text-sm font-bold w-fit">
+              class="order-review-btn"
+              onclick="location.href='${reviewUrl}'">
+              <i data-lucide="star"></i>
               ${reviewed ? "Xem đánh giá" : "Đánh giá"}
             </button>
           `
           : ""
         }
-      </div>
 
-      <b class="text-red-800">
-        ${formatPrice(item.price || item.unitPrice)}
-      </b>
+        ${
+          productId
+          ? `
+            <a class="order-rebuy-btn"
+               href="/detail?productId=${productId}">
+              <i data-lucide="shopping-bag"></i>
+              Mua lại
+            </a>
+          `
+          : ""
+        }
+      </div>
 
     </div>
   `;
 }
 
+
 function toggleOrderItems(orderId){
   const box = document.getElementById(`order-items-${orderId}`);
+  const label = document.getElementById(`order-detail-label-${orderId}`);
+
+  if(!box) return;
+
+  const isOpening = box.classList.contains("hidden");
   box.classList.toggle("hidden");
+
+  if(label){
+    label.textContent = isOpening ? "Thu gọn" : "Xem chi tiết";
+  }
 }
 
 function showMoreOrders(){
@@ -376,15 +588,10 @@ function changeOrderSort(value){
   renderOrders();
 }
 
-function changeOrderPeriod(value){
-  orderPeriod = value;
-  orderLimit = 10;
-  renderOrders();
-}
-
 function resetOrderFilter(){
   orderSort = "newest";
-  orderPeriod = "";
+  orderStatusFilter = "ALL";
+  orderSearch = "";
   orderLimit = 10;
   renderOrders();
 }

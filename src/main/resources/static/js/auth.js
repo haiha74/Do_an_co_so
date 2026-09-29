@@ -18,6 +18,7 @@ function authPage(){
 
   const isLogin = authMode === "login";
 
+
   return header()+`<main class="wrap py-12 lg:py-16 min-h-[calc(100vh-260px)] flex items-center">
     <div class="w-full grid lg:grid-cols-[1fr_540px] gap-10 items-center">
       <section class="pr-4">
@@ -86,8 +87,10 @@ async function login(){
     return;
   }
 
-  localStorage.setItem('ha_user', JSON.stringify(data));
-  location.href = "/auth";
+  localStorage.setItem("ha_user", JSON.stringify(data));
+
+  window.location.replace("/");
+  return;
 }
 
 async function register(){

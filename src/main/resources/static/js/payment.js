@@ -130,18 +130,19 @@ function renderPayment(){
     const total = Math.max(subtotal + shipping - discountAmount, 0);
 
   const qrContent = `U${user.userId}_${total}`;
+  
   document.getElementById("app").innerHTML = `
-  ${header()}
+    ${header()}
 
-    <div class="max-w-6xl mx-auto px-6 py-10">
-
+      <main class="payment-page max-w-6xl mx-auto px-6 py-10 w-full">
+  
       <h1 class="text-5xl font-serif mb-8">
         Thanh toán
       </h1>
 
       <div class="grid lg:grid-cols-[1fr_420px] gap-8">
 
-        <div class="bg-white rounded-3xl p-8 shadow">
+        <div class="payment-panel bg-white rounded-3xl p-8 shadow">
           <h2 class="text-2xl font-bold mb-5">
             Thông tin nhận hàng
           </h2>
@@ -188,7 +189,7 @@ function renderPayment(){
                 </button>
               </div>
 
-              <div class="mt-4 border rounded-2xl p-3 max-h-48 overflow-y-auto space-y-2">
+              <div class="payment-voucher-list mt-4 border rounded-2xl p-3 max-h-48 overflow-y-auto space-y-2">
                 ${
                   availableVouchers.length
                   ? availableVouchers.map(v => `
@@ -245,7 +246,7 @@ function renderPayment(){
           </div>
         </div>
 
-        <div class="bg-white rounded-3xl p-8 shadow h-fit">
+        <div class="payment-summary bg-white rounded-3xl p-8 shadow h-fit">
 
           <h2 class="text-2xl font-bold mb-5">
             Đơn hàng
@@ -295,10 +296,10 @@ function renderPayment(){
 
         </div>
       </div>
-    </div>
+        </main>
 
-    ${footer()}
-  `;
+        ${footer()}
+      `;
 
   if(window.lucide){
     lucide.createIcons();

@@ -1,7 +1,11 @@
+
 let recommendProducts = [];
 
-function hero(){
+/* =========================================
+   HERO SLIDER
+========================================= */
 
+function hero() {
   const slides = [
     {
       image: "https://images.unsplash.com/photo-1496747611176-843222e1e57c?q=80&w=1600&auto=format&fit=crop",
@@ -25,12 +29,13 @@ function hero(){
 
       <div id="heroSlides" class="relative w-full h-full">
 
-        ${slides.map((slide,index)=>`
+        ${slides.map((slide, index) => `
           <div class="hero-slide absolute inset-0 transition-opacity duration-700 ${index === 0 ? 'opacity-100 z-10' : 'opacity-0 z-0'}">
 
             <img
               class="absolute inset-0 w-full h-full object-cover"
               src="${slide.image}"
+              alt="${slide.title}"
             >
 
             <div class="absolute inset-0 bg-gradient-to-r from-black/80 via-black/30 to-transparent"></div>
@@ -59,6 +64,7 @@ function hero(){
 
               </div>
             </div>
+
           </div>
         `).join("")}
 
@@ -67,6 +73,7 @@ function hero(){
       <!-- BUTTON LEFT -->
       <button
         onclick="prevHeroSlide()"
+        aria-label="Slide trước"
         class="absolute left-6 top-1/2 -translate-y-1/2 z-30
                w-14 h-14 rounded-full bg-white/20 backdrop-blur
                text-white text-3xl hover:bg-white hover:text-black transition"
@@ -77,6 +84,7 @@ function hero(){
       <!-- BUTTON RIGHT -->
       <button
         onclick="nextHeroSlide()"
+        aria-label="Slide tiếp theo"
         class="absolute right-6 top-1/2 -translate-y-1/2 z-30
                w-14 h-14 rounded-full bg-white/20 backdrop-blur
                text-white text-3xl hover:bg-white hover:text-black transition"
@@ -86,242 +94,419 @@ function hero(){
 
       <!-- DOTS -->
       <div class="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 flex gap-3">
-        ${slides.map((_,index)=>`
+
+        ${slides.map((_, index) => `
           <button
             onclick="goHeroSlide(${index})"
+            aria-label="Chuyển đến slide ${index + 1}"
             class="hero-dot w-3 h-3 rounded-full transition ${index === 0 ? 'bg-white scale-125' : 'bg-white/40'}"
           ></button>
         `).join("")}
+
       </div>
 
     </section>
   `;
 }
 
+/* =========================================
+   HERO SLIDER FUNCTIONS
+========================================= */
+
 let currentHeroSlide = 0;
 let heroInterval;
 
-function updateHeroSlides(){
-
+function updateHeroSlides() {
   const slides = document.querySelectorAll(".hero-slide");
   const dots = document.querySelectorAll(".hero-dot");
 
-  slides.forEach((slide,index)=>{
+  if (!slides.length) return;
 
-    if(index === currentHeroSlide){
-      slide.classList.remove("opacity-0","z-0");
-      slide.classList.add("opacity-100","z-10");
-    }else{
-      slide.classList.remove("opacity-100","z-10");
-      slide.classList.add("opacity-0","z-0");
+  slides.forEach((slide, index) => {
+    if (index === currentHeroSlide) {
+      slide.classList.remove("opacity-0", "z-0");
+      slide.classList.add("opacity-100", "z-10");
+    } else {
+      slide.classList.remove("opacity-100", "z-10");
+      slide.classList.add("opacity-0", "z-0");
     }
-
   });
 
-  dots.forEach((dot,index)=>{
-
-    if(index === currentHeroSlide){
+  dots.forEach((dot, index) => {
+    if (index === currentHeroSlide) {
       dot.classList.remove("bg-white/40");
-      dot.classList.add("bg-white","scale-125");
-    }else{
-      dot.classList.remove("bg-white","scale-125");
+      dot.classList.add("bg-white", "scale-125");
+    } else {
+      dot.classList.remove("bg-white", "scale-125");
       dot.classList.add("bg-white/40");
     }
-
   });
-
 }
 
-function nextHeroSlide(){
-
+function nextHeroSlide() {
   const slides = document.querySelectorAll(".hero-slide");
+
+  if (!slides.length) return;
 
   currentHeroSlide++;
 
-  if(currentHeroSlide >= slides.length){
+  if (currentHeroSlide >= slides.length) {
     currentHeroSlide = 0;
   }
 
   updateHeroSlides();
 }
 
-function prevHeroSlide(){
-
+function prevHeroSlide() {
   const slides = document.querySelectorAll(".hero-slide");
+
+  if (!slides.length) return;
 
   currentHeroSlide--;
 
-  if(currentHeroSlide < 0){
+  if (currentHeroSlide < 0) {
     currentHeroSlide = slides.length - 1;
   }
 
   updateHeroSlides();
 }
 
-function goHeroSlide(index){
+function goHeroSlide(index) {
   currentHeroSlide = index;
   updateHeroSlides();
 }
 
-function startHeroAutoSlide(){
-
+function startHeroAutoSlide() {
   clearInterval(heroInterval);
 
-  heroInterval = setInterval(()=>{
+  heroInterval = setInterval(() => {
     nextHeroSlide();
-  },8000);
-
+  }, 8000);
 }
 
+/* =========================================
+   FEATURED CATEGORIES
+========================================= */
 
-
-function categoryGrid(){
-  const parentCategories = categories.filter(c => !c.parent && !c.parentId);
+function categoryGrid() {
+  const parentCategories = categories.filter(
+    c => !c.parent && !c.parentId
+  );
 
   return `
     <section class="wrap py-12">
-      <div class="bg-white border rounded-3xl overflow-hidden shadow-sm">
-        <h2 class="px-6 py-5 border-b text-xl font-bold uppercase text-neutral-700">
+
+      <div class="w-full bg-white border rounded-3xl overflow-hidden shadow-sm">
+
+        <h2 class="px-6 py-4 border-b text-lg font-bold uppercase text-neutral-700">
           Danh mục nổi bật
         </h2>
 
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
-          ${parentCategories.map((c,i)=>`
+
+          ${parentCategories.map((c, i) => `
+
             <button
+              type="button"
               onclick="location.href='/products?categoryId=${c.categoryId}'"
-              class="h-40 border-r border-b hover:bg-red-50 flex flex-col items-center justify-center gap-3">
+              class="h-28 border-r border-b hover:bg-red-50
+                     flex flex-col items-center justify-center
+                     gap-2 transition"
+            >
 
               <img
-                class="w-20 h-20 rounded-full object-cover"
-                src="${c.imageUrl ? c.imageUrl + '?t=' + Date.now() : '/images/no-image.png'}"
+                class="w-14 h-14 rounded-full object-cover"
+                src="${c.imageUrl ? c.imageUrl + (c.imageUrl.includes('?') ? '&' : '?') + 't=' + Date.now() : '/images/no-image.png'}"
+                alt="${c.categoryName}"
+                loading="lazy"
+                onerror="this.onerror=null;this.src='/images/no-image.png';"
               >
 
-              <span class="font-semibold">
+              <span class="text-sm font-semibold text-center px-2">
                 ${c.categoryName}
               </span>
 
             </button>
+
           `).join("")}
+
         </div>
+
       </div>
+
     </section>
   `;
 }
 
-function recommendSection(){
-  if(!recommendProducts || recommendProducts.length === 0){
+/* =========================================
+   PERSONALIZED RECOMMENDATIONS
+========================================= */
+function recommendSection() {
+  if (!recommendProducts || recommendProducts.length === 0) {
     return "";
   }
 
   return `
     <section class="wrap py-10">
-      <div class="mb-7 flex justify-between items-end">
-        <div>
-          <p class="text-red-800 tracking-widest uppercase font-bold">
-            Gợi ý cá nhân hóa
-          </p>
 
-          <h2 class="serif text-5xl">
-            Dành riêng cho bạn
-          </h2>
+      <div class="mb-7">
+        <p class="text-red-800 tracking-widest uppercase font-bold">
+          Gợi ý cá nhân hóa
+        </p>
 
-          <p class="text-neutral-600 mt-3">
-            Dựa trên sản phẩm bạn đã xem trước đó.
-          </p>
-        </div>
+        <h2 class="serif text-5xl">
+          Dành riêng cho bạn
+        </h2>
+
+        <p class="mt-3 text-neutral-500">
+          Dựa trên sản phẩm bạn đã xem trước đó.
+        </p>
       </div>
 
-      ${productGrid(recommendProducts)}
+      ${productGrid(recommendProducts.slice(0, 10))}
+
+      <div class="flex justify-center mt-8">
+        <a href="/products"
+           class="inline-flex items-center justify-center
+                  border border-neutral-200 rounded-full
+                  px-10 py-3 bg-white font-semibold
+                  hover:bg-red-800 hover:text-white
+                  hover:border-red-800 transition">
+          Xem thêm
+        </a>
+      </div>
+
     </section>
   `;
 }
 
-function home(){
-  return header()
-    + hero()
-    + categoryGrid()
-    + recommendSection()
-    + `
-      <section class="wrap py-10">
+/* =========================================
+   JODOK - SERVICE BENEFITS
+========================================= */
 
-        <div class="mb-7 flex justify-between items-end">
+function serviceBenefits() {
+  const benefits = [
+    {
+      icon: "thumbs-up",
+      title: "HÀNG HOÁ CHẤT LƯỢNG",
+      description: "Tận hưởng các mặt hàng chất lượng hàng đầu với giá cả hợp lý"
+    },
+    {
+      icon: "headset",
+      title: "HỖ TRỢ 24/7",
+      description: "Nhận hỗ trợ ngay lập tức bất cứ khi nào bạn cần"
+    },
+    {
+      icon: "truck",
+      title: "VẬN CHUYỂN NHANH CHÓNG",
+      description: "Tùy chọn giao hàng nhanh chóng và đáng tin cậy"
+    },
+    {
+      icon: "circle-dollar-sign",
+      title: "THANH TOÁN AN TOÀN",
+      description: "Nhiều phương thức thanh toán an toàn"
+    }
+  ];
 
-          <div>
-            <p class="text-red-800 tracking-widest uppercase font-bold">
-              Sản phẩm nổi bật
-            </p>
+  return `
+      <section class="jodok-benefits wrap">
+        
+        <div class="text-left mb-5">
 
-            <h2 class="serif text-5xl">
-              Best Sellers
-            </h2>
-          </div>
+          <h2 class="serif text-2xl md:text-3xl font-bold text-neutral-900 mb-2">
+            Mua sắm an tâm, trải nghiệm trọn vẹn
+          </h2>
 
-          <button
-            onclick="go('shop')"
-            class="border rounded-full px-6 py-3 bg-white font-semibold">
-            Xem tất cả
-          </button>
+          <p class="text-neutral-500 text-sm md:text-base leading-relaxed">
+            JODOK luôn đồng hành cùng bạn trong từng trải nghiệm mua sắm
+          </p>
 
         </div>
 
-        ${productGrid(
-          [...products]
-            .sort((a,b) => getSoldCount(b.productId) - getSoldCount(a.productId))
-            .slice(0,8)
-        )}
+        <div class="jodok-benefits-grid">
 
-      </section>
+        ${benefits.map(item => `
+          <div class="jodok-benefit-card">
+
+            <div class="jodok-benefit-icon">
+              ${icon(item.icon, "w-9 h-9")}
+            </div>
+
+            <h3 class="jodok-benefit-title">
+              ${item.title}
+            </h3>
+
+            <p class="jodok-benefit-description">
+              ${item.description}
+            </p>
+
+          </div>
+        `).join("")}
+
+      </div>
+
+    </section>
+  `;
+}
+
+/* =========================================
+   HOME PAGE
+========================================= */
+
+function home() {
+  return header()
+
+    + hero()
+
+    + categoryGrid()
+
+    + recommendSection()
+
+    + `
+
+      <!-- BEST SELLERS -->
+    <section class="wrap py-10">
+
+      <div class="mb-7">
+        <p class="text-red-800 tracking-widest uppercase font-bold">
+          Sản phẩm nổi bật
+        </p>
+
+        <h2 class="serif text-5xl">
+          Best Sellers
+        </h2>
+      </div>
+
+      ${productGrid(
+        [...products]
+          .sort((a, b) =>
+            getSoldCount(b.productId) - getSoldCount(a.productId)
+          )
+          .slice(0, 10)
+      )}
+
+      <div class="flex justify-center mt-8">
+        <a href="/products"
+          class="inline-flex items-center justify-center
+                  border border-neutral-200 rounded-full
+                  px-10 py-3 bg-white font-semibold
+                  hover:bg-red-800 hover:text-white
+                  hover:border-red-800 transition">
+          Xem thêm
+        </a>
+      </div>
+
+    </section>
     `
+
+    /* Khối 4 cam kết nằm trước footer */
+    + serviceBenefits()
+
     + footer();
 }
 
-async function loadHomePage(){
-  try{
-    const [productData, categoryData, brandData, orderData] = await Promise.all([
+/* =========================================
+   LOAD HOME PAGE
+========================================= */
+
+async function loadHomePage() {
+  try {
+    const [
+      productData,
+      categoryData,
+      brandData,
+      orderData
+    ] = await Promise.all([
       fetchJson(`${API_BASE}/products`),
       fetchJson(`${API_BASE}/categories`),
-      fetchJson(`${API_BASE}/brands`).catch(()=>[]),
-      fetchJson(`${API_BASE}/orders`).catch(()=>[])
+      fetchJson(`${API_BASE}/brands`).catch(() => []),
+      fetchJson(`${API_BASE}/orders`).catch(() => [])
     ]);
 
-    allProducts = productData.filter(p => p.status === "ACTIVE");
+    /* PRODUCTS */
+    allProducts = productData.filter(
+      p => p.status === "ACTIVE"
+    );
+
     products = allProducts;
+
+    /* CATEGORIES */
     categories = categoryData;
+
+    /* BRANDS */
     brands = brandData;
+
+    /* ORDERS */
     window.allOrders = orderData;
+
+    /* SOLD COUNTS */
     window.soldCounts = {};
 
     await Promise.all(
       allProducts.map(async p => {
         try {
-          const count = await fetchJson(`${API_BASE}/products/${p.productId}/sold-count`);
+          const count = await fetchJson(
+            `${API_BASE}/products/${p.productId}/sold-count`
+          );
+
           window.soldCounts[p.productId] = Number(count || 0);
         } catch (e) {
           window.soldCounts[p.productId] = 0;
         }
       })
     );
+
+    /* PERSONALIZED RECOMMENDATIONS */
     const user = getUser();
 
-    if(user?.userId){
-      try{
-        recommendProducts = await fetchJson(`${API_BASE}/recommendations/${user.userId}`);
-      }catch(e){
+    recommendProducts = [];
+
+    if (user?.userId) {
+      try {
+        recommendProducts = await fetchJson(
+          `${API_BASE}/recommendations/${user.userId}`
+        );
+      } catch (e) {
         recommendProducts = [];
       }
     }
 
+    /* RENDER HOME */
     renderApp(home());
 
-    setTimeout(()=>{
+    /* START SLIDER */
+    setTimeout(() => {
       startHeroAutoSlide();
-    },100);
+    }, 100);
 
-  }catch(err){
+  } catch (err) {
     console.error(err);
-    document.getElementById("app").innerHTML =
-      `<div class="p-10 text-center"><h1 class="text-3xl font-bold text-red-800">Không kết nối được backend</h1><p class="mt-3">Kiểm tra Spring Boot đang chạy ở cổng 8080 và API /api/products hoạt động.</p></div>`;
+
+    renderApp(
+      header()
+
+      + `
+        <main class="wrap flex-1 p-10 text-center">
+
+          <h1 class="text-3xl font-bold text-red-800">
+            Không kết nối được backend
+          </h1>
+
+          <p class="mt-3">
+            Kiểm tra Spring Boot đang chạy ở cổng 8080
+            và API /api/products hoạt động.
+          </p>
+
+        </main>
+      `
+
+      + footer()
+    );
   }
 }
+
+/* =========================================
+   INITIALIZE
+========================================= */
 
 loadHomePage();

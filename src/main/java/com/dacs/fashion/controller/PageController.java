@@ -35,7 +35,10 @@ public class PageController {
     public String auth() {
         return "auth";
     }
-
+    @GetMapping("/account")
+    public String account() {
+        return "account";
+    }
     @GetMapping("/cart")
     public String cart() {
         return "cart";

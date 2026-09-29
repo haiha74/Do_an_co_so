@@ -1,13 +1,18 @@
+
 package com.dacs.fashion.config;
 
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -24,17 +29,23 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
 
                 .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                        session.sessionCreationPolicy(
+                                SessionCreationPolicy.STATELESS
+                        )
                 )
 
                 .authorizeHttpRequests(auth -> auth
 
-                        // PUBLIC PAGE
+                        // =====================================
+                        // PUBLIC PAGES
+                        // =====================================
+
                         .requestMatchers(
                                 "/",
                                 "/products",
                                 "/detail/**",
                                 "/auth",
+                                "/account",
                                 "/cart",
                                 "/payment",
                                 "/promo",
@@ -42,20 +53,35 @@ public class SecurityConfig {
                                 "/orders",
                                 "/admin",
                                 "/staff",
+
+                                // Trang hỗ trợ và chính sách
+                                "/pages",
+                                "/pages/**",
+
+                                // Static resources
                                 "/css/**",
                                 "/js/**",
                                 "/images/**",
                                 "/uploads/**",
+                                "/favicon.ico",
+
+                                // Authentication API
                                 "/api/auth/**"
                         ).permitAll()
 
+                        // =====================================
                         // PRODUCT PUBLIC API
-                        .requestMatchers(HttpMethod.GET,
+                        // =====================================
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+
                                 "/api/products",
                                 "/api/products/search",
                                 "/api/products/category/**",
                                 "/api/products/*",
                                 "/api/products/*/sold-count",
+
                                 "/api/categories/**",
                                 "/api/brands/**",
                                 "/api/reviews/**",
@@ -63,58 +89,85 @@ public class SecurityConfig {
                                 "/api/variants/product/**"
                         ).permitAll()
 
-                        // AI CHATBOT - khách chưa đăng nhập cũng có thể tìm sản phẩm
-                        .requestMatchers(HttpMethod.POST,
+                        // =====================================
+                        // AI CHATBOT
+                        // =====================================
+
+                        .requestMatchers(
+                                HttpMethod.POST,
                                 "/api/chatbot/message"
                         ).permitAll()
 
+                        // =====================================
                         // PRODUCT ADMIN
-                        .requestMatchers(HttpMethod.POST,
-                                "/api/products/**"
-                        ).hasAuthority("ROLE_ADMIN")
+                        // =====================================
 
-                        .requestMatchers(HttpMethod.PUT,
-                                "/api/products/**"
-                        ).hasAuthority("ROLE_ADMIN")
-
-                        .requestMatchers(HttpMethod.DELETE,
+                        .requestMatchers(
+                                HttpMethod.POST,
                                 "/api/products/**"
                         ).hasRole("ADMIN")
 
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/api/products/**"
+                        ).hasRole("ADMIN")
+
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/api/products/**"
+                        ).hasRole("ADMIN")
+
+                        // =====================================
                         // CATEGORY - BRAND - VOUCHER
-                        .requestMatchers(HttpMethod.POST,
+                        // =====================================
+
+                        .requestMatchers(
+                                HttpMethod.POST,
+
                                 "/api/categories/**",
                                 "/api/brands/**",
                                 "/api/vouchers/**",
                                 "/api/product-images/**"
                         ).hasRole("ADMIN")
 
-                        .requestMatchers(HttpMethod.POST,
+                        .requestMatchers(
+                                HttpMethod.POST,
                                 "/api/upload/image"
                         ).hasAnyRole("USER", "ADMIN", "STAFF")
 
-                        .requestMatchers(HttpMethod.PUT,
+                        .requestMatchers(
+                                HttpMethod.PUT,
+
                                 "/api/categories/**",
                                 "/api/brands/**",
                                 "/api/vouchers/**",
                                 "/api/product-images/**"
                         ).hasRole("ADMIN")
 
-                        .requestMatchers(HttpMethod.DELETE,
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+
                                 "/api/categories/**",
                                 "/api/brands/**",
                                 "/api/vouchers/**",
                                 "/api/product-images/**"
                         ).hasRole("ADMIN")
+                        // Hồ sơ người dùng đang đăng nhập
+                        .requestMatchers("/api/account/**")
+                        .hasAnyRole("USER", "ADMIN", "STAFF")
 
+                        // =====================================
                         // USER ORDER
+                        // =====================================
+
                         .requestMatchers(
                                 "/api/orders/checkout",
                                 "/api/orders/from-cart",
                                 "/api/orders/user/**"
                         ).hasAnyRole("USER", "ADMIN", "STAFF")
 
-                        .requestMatchers(HttpMethod.PUT,
+                        .requestMatchers(
+                                HttpMethod.PUT,
                                 "/api/orders/*/paid"
                         ).hasAnyRole("USER", "ADMIN", "STAFF")
 
@@ -123,31 +176,45 @@ public class SecurityConfig {
                                 "/api/payments/payos/create"
                         ).hasAnyRole("USER", "ADMIN", "STAFF")
 
+                        // =====================================
                         // STAFF + ADMIN
+                        // =====================================
+
                         .requestMatchers(
                                 "/api/orders/**",
                                 "/api/shipments/**"
                         ).hasAnyRole("ADMIN", "STAFF")
 
-                        .requestMatchers(HttpMethod.GET,
+                        .requestMatchers(
+                                HttpMethod.GET,
                                 "/api/variants/**"
                         ).hasAnyRole("ADMIN", "STAFF")
 
-                        .requestMatchers(HttpMethod.PUT,
+                        .requestMatchers(
+                                HttpMethod.PUT,
                                 "/api/variants/**"
                         ).hasAnyRole("ADMIN", "STAFF")
 
+                        // =====================================
                         // REVIEW
-                        .requestMatchers(HttpMethod.POST,
+                        // =====================================
+
+                        .requestMatchers(
+                                HttpMethod.POST,
+
                                 "/api/reviews",
                                 "/api/reviews/**"
                         ).hasAnyRole("USER", "ADMIN", "STAFF")
 
-                        .requestMatchers(HttpMethod.DELETE,
+                        .requestMatchers(
+                                HttpMethod.DELETE,
                                 "/api/reviews/**"
                         ).hasRole("ADMIN")
 
+                        // =====================================
                         // ADMIN ONLY
+                        // =====================================
+
                         .requestMatchers(
                                 "/api/users/**",
                                 "/api/product-images/**",
@@ -156,14 +223,21 @@ public class SecurityConfig {
                                 "/api/payments/**"
                         ).hasRole("ADMIN")
 
+                        // =====================================
+                        // OTHER REQUESTS
+                        // =====================================
+
                         .anyRequest().authenticated()
                 )
 
                 .formLogin(form -> form.disable())
+
                 .httpBasic(basic -> basic.disable())
 
-                .addFilterBefore(jwtFilter,
-                        UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(
+                        jwtFilter,
+                        UsernamePasswordAuthenticationFilter.class
+                );
 
         return http.build();
     }

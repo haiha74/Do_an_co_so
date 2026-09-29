@@ -84,19 +84,11 @@ function renderCart(){
 
   document.getElementById("app").innerHTML =
     header() + `
-    <main class="wrap py-12">
-      <div class="mb-8">
-        <p class="text-red-800 tracking-widest uppercase font-bold">
-          JODOK Cart
-        </p>
-
-        <h1 class="serif text-5xl mt-2">
+    <main class="wrap cart-page py-8">
+      <div class="mb-6">
+        <h1 class="serif text-4xl mt-2">
           Giỏ hàng của bạn
         </h1>
-
-        <p class="text-neutral-600 mt-3">
-          Kiểm tra sản phẩm, số lượng và tiến hành đặt hàng.
-        </p>
       </div>
 
       ${
@@ -115,7 +107,7 @@ function renderCart(){
           </div>
         `
         : `
-          <div class="grid lg:grid-cols-[1fr_380px] gap-7">
+          <div class="grid lg:grid-cols-[minmax(0,1fr)_320px] gap-5">
 
             <section class="soft-card overflow-hidden">
               <div class="px-6 py-4 border-b flex justify-between">
@@ -132,12 +124,11 @@ function renderCart(){
                   const stock = Number(v?.stock || 0);
 
                   return `
-                  <div class="p-6 border-b grid md:grid-cols-[96px_1fr_150px_130px_80px] gap-5 items-center">
-
-                    <img src="${productImg(item)}" class="w-24 h-28 object-cover rounded-2xl border">
+                    <div class="p-4 border-b grid md:grid-cols-[76px_minmax(0,1fr)_110px_110px_45px] gap-3 items-center">
+                    <img src="${productImg(item)}" class="w-[76px] h-[88px] object-cover rounded-xl border">
 
                     <div>
-                      <h3 class="font-bold text-lg">
+                      <h3 class="font-bold text-base">
                         ${p?.productName || "Sản phẩm"}
                       </h3>
 
@@ -174,7 +165,7 @@ function renderCart(){
               </div>
             </section>
 
-            <aside class="soft-card p-6 h-fit sticky top-36">
+            <aside class="soft-card p-5 h-fit sticky top-28">
               <h2 class="font-bold text-xl mb-5">
                 Tổng đơn hàng
               </h2>
@@ -198,7 +189,7 @@ function renderCart(){
 
               </div>
 
-              <button onclick="goToPayment()" class="mt-7 w-full bg-red-800 text-white rounded-full py-4 font-bold">
+              <button onclick="goToPayment()" class="mt-5 w-full bg-red-800 text-white rounded-full py-3 font-bold">
                 Đặt hàng
               </button>
 

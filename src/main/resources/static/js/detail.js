@@ -1,228 +1,91 @@
+
+/* =========================================
+   JODOK - PRODUCT DETAIL
+========================================= */
+
 let productFeedbacks = [];
 let showReviewForm = false;
 let reviewImageFile = null;
 let reviewImagePreviewUrl = null;
 
-function productDetailImages(p){
-  const imgs = [...(p.images || [])]
-    .sort((a,b) => Number(a.imageId || 0) - Number(b.imageId || 0))
+let detailImageIndex = 0;
+let detailReviewPage = 1;
+let detailRelatedProducts = [];
+
+const DETAIL_REVIEWS_PER_PAGE = 3;
+
+/* =========================================
+   HELPERS
+========================================= */
+
+function detailEscape(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function detailImages(p) {
+  const images = [...(p.images || [])]
+    .sort((a, b) => Number(a.imageId || 0) - Number(b.imageId || 0))
     .map(img => img.imageUrl)
     .filter(Boolean);
 
-  const main = imgs[0] || getProductImg(p,0);
-  const second = imgs[1] || main;
-  const third = imgs[2] || second;
-
-  return `
-    <img class="col-span-2 h-[560px] w-full object-cover rounded-3xl" src="${main}">
-    <img class="h-56 w-full object-cover rounded-3xl" src="${second}">
-    <img class="h-56 w-full object-cover rounded-3xl" src="${third}">
-  `;
+  return images.length
+    ? images
+    : [getProductImg(p, 0)];
 }
 
-function detailPage(){
-  const p = selectedProduct || products[0];
+function detailChangeImage(index) {
+  if (!selectedProduct) return;
 
-  if(!p){
-    return header()+`<main class="wrap py-20">Không tìm thấy sản phẩm.</main>
-${feedbackSection()}
-`+footer();
+  const images = detailImages(selectedProduct);
+
+  detailImageIndex =
+    (index + images.length) % images.length;
+
+  const main = document.getElementById("detailMainImage");
+
+  if (main) {
+    main.src = images[detailImageIndex];
   }
 
-  const activeVariants = selectedProductVariants.filter(v => v.status === "ACTIVE");
-  const sizes = [...new Set(activeVariants.map(v => v.size).filter(Boolean))];
+  document.querySelectorAll(".detail-thumb").forEach((el, i) => {
+    el.classList.toggle("active", i === detailImageIndex);
+  });
+}
 
-  const colors = selectedSize
-    ? [...new Set(activeVariants.filter(v => v.size === selectedSize).map(v => v.color).filter(Boolean))]
-    : [];
+function detailChangeQty(delta) {
+  const variant = getSelectedVariant();
+  const max = Math.max(1, Number(variant?.stock || 1));
 
-  const selectedVariant = activeVariants.find(v =>
-    v.size === selectedSize && v.color === selectedColor
+  selectedQty = Math.max(
+    1,
+    Math.min(max, selectedQty + delta)
   );
 
-  const displayPrice = selectedVariant?.price || p.basePrice;
-  const stock = selectedVariant?.stock ?? 0;
+  const input = document.getElementById("detailQty");
 
-  return header()+`
-  <main class="wrap py-12 grid lg:grid-cols-2 gap-10">
-
-    <div class="grid grid-cols-2 gap-4">
-      ${productDetailImages(p)}
-    </div>
-
-    <div class="bg-white rounded-3xl border shadow-sm p-9 h-fit sticky top-36">
-
-    <div class="flex items-center justify-between mb-7">
-
-      <button
-        onclick="location.href='/products'"
-        class="group inline-flex items-center gap-3 border border-neutral-300 bg-white hover:bg-black hover:text-white px-5 py-3 rounded-full transition-all duration-300 shadow-sm hover:shadow-lg"
-      >
-        <span class="text-lg transition-transform duration-300 group-hover:-translate-x-1">
-          ←
-        </span>
-
-        <span class="font-semibold">
-          Quay lại cửa hàng
-        </span>
-      </button>
-
-      <div class="text-sm text-neutral-400">
-        JODOK
-      </div>
-
-    </div>
-    
-      <p class="text-red-800 uppercase tracking-widest font-bold">${getBrandName(p)}</p>
-
-      <h1 class="serif text-5xl mt-3">${p.productName}</h1>
-
-      <p class="mt-4">
-        ⭐ 4.9 · Đánh giá tốt · 
-        ${p.status === "ACTIVE" ? "Đang bán" : "Ngừng bán"}
-      </p>
-
-      <div class="mt-7">
-        <b class="text-4xl text-red-800">${formatPrice(displayPrice)}</b>
-      </div>
-
-      <p class="mt-6 text-neutral-600">
-        ${p.description || "Thiết kế thanh lịch, chất liệu cao cấp."}
-      </p>
-
-      <h3 class="font-bold mt-7 mb-3">Kích thước</h3>
-      <div class="flex flex-wrap gap-3">
-        ${
-          sizes.length
-          ? sizes.map(s => `
-              <button onclick="selectSize('${s}')"
-                class="border rounded-xl px-6 py-3 ${selectedSize === s ? 'border-red-800 text-red-800 font-bold bg-red-50' : 'hover:border-red-800'}">
-                ${s}
-              </button>
-            `).join("")
-          : `<span class="text-neutral-500">Chưa có biến thể size</span>`
-        }
-      </div>
-
-      <h3 class="font-bold mt-7 mb-3">Màu sắc</h3>
-      <div class="flex flex-wrap gap-3">
-        ${
-          selectedSize
-          ? colors.map(c => `
-              <button onclick="selectColor('${c}')"
-                class="border rounded-xl px-6 py-3 ${selectedColor === c ? 'border-red-800 text-red-800 font-bold bg-red-50' : 'hover:border-red-800'}">
-                ${c}
-              </button>
-            `).join("")
-          : `<span class="text-neutral-500">Vui lòng chọn size trước</span>`
-        }
-      </div>
-
-      <div class="mt-7">
-        <h3 class="font-bold mb-3">Tồn kho</h3>
-        ${
-          selectedVariant
-          ? `<p class="${stock > 0 ? 'text-green-700' : 'text-red-800'} font-bold">
-              ${stock > 0 ? `Còn ${stock} sản phẩm` : "Hết hàng"}
-            </p>`
-          : `<p class="text-neutral-500">Chọn size và màu để xem tồn kho</p>`
-        }
-      </div>
-
-      <div class="mt-7">
-        <h3 class="font-bold mb-3">Số lượng</h3>
-        <input type="number"
-          min="1"
-          max="${stock || 1}"
-          value="${selectedQty}"
-          onchange="changeQty(this.value)"
-          class="border rounded-xl px-4 py-3 w-28">
-      </div>
-
-      <div class="mt-8 flex gap-4">
-        <button onclick="addToCart()"
-          class="flex-1 bg-black text-white rounded-full py-4 font-bold ${!selectedVariant || stock <= 0 ? 'opacity-50' : ''}">
-          Thêm vào giỏ
-        </button>
-
-        <button onclick="buyNow()"
-          class="flex-1 bg-red-800 text-white rounded-full py-4 font-bold ${!selectedVariant || stock <= 0 ? 'opacity-50' : ''}">
-          Mua ngay
-        </button>
-      </div>
-    </div>
-  </main>
-  ${reviewFormSection()}
-  ${feedbackSection()}
-  `+footer();
+  if (input) input.value = selectedQty;
 }
 
-async function loadDetailPage(){
-  const params = new URLSearchParams(location.search);
-  const productId = params.get("productId") ? Number(params.get("productId")) : null;
-  showReviewForm = params.get("review") === "1";
+function changeQty(value) {
+  const variant = getSelectedVariant();
+  const max = Math.max(1, Number(variant?.stock || 1));
 
-  if(!productId){
-    renderApp(header()+`<main class="wrap py-20">Không tìm thấy sản phẩm.</main>`+footer());
-    return;
-  }
-
-  try{
-    try{
-      selectedProduct = await fetchJson(`${API_BASE}/products/${productId}`);
-    }catch(e){
-      const all = await fetchJson(`${API_BASE}/products`);
-      selectedProduct = all.find(p => p.productId === productId);
-    }
-
-    try{
-      selectedProductVariants = await fetchJson(`${API_BASE}/variants/product/${productId}`);
-    }catch(e){
-      selectedProductVariants = [];
-    }
-
-    try{
-  const allReviews = await fetchJson(`${API_BASE}/reviews`);
-
-  productFeedbacks = allReviews.filter(r =>
-    r.orderItem?.variant?.product?.productId === productId
+  selectedQty = Math.max(
+    1,
+    Math.min(max, Math.floor(Number(value) || 1))
   );
-  }catch(e){
-    productFeedbacks = [];
-  }
 
-      selectedSize = "";
-      selectedColor = "";
-      selectedQty = 1;
+  const input = document.getElementById("detailQty");
 
-      renderApp(detailPage());
-
-    }catch(err){
-      console.error(err);
-      renderApp(header()+`<main class="wrap py-20">Không tải được sản phẩm.</main>`+footer());
-    }
-  }
-
-function selectSize(size){
-  selectedSize = size;
-  selectedColor = "";
-  selectedQty = 1;
-
-  renderApp(detailPage());
+  if (input) input.value = selectedQty;
 }
 
-function selectColor(color){
-  selectedColor = color;
-  selectedQty = 1;
-
-  renderApp(detailPage());
-}
-
-function changeQty(value){
-  selectedQty = Number(value);
-}
-
-function getSelectedVariant(){
+function getSelectedVariant() {
   return selectedProductVariants.find(v =>
     v.status === "ACTIVE" &&
     v.size === selectedSize &&
@@ -230,324 +93,1169 @@ function getSelectedVariant(){
   );
 }
 
-async function addToCart(){
+/* =========================================
+   RELATED PRODUCTS
+   Gợi ý theo sản phẩm đang xem
+========================================= */
 
-    const user = JSON.parse(
-        localStorage.getItem("ha_user") || "null"
+async function loadDetailRelatedProducts(productId) {
+  detailRelatedProducts = [];
+
+  try {
+    const catalog = await fetchJson(`${API_BASE}/products`);
+
+    allProducts = catalog.filter(p => p.status === "ACTIVE");
+    products = allProducts;
+
+    const currentId = Number(productId);
+
+    // Danh mục của sản phẩm đang xem
+    const currentCategoryId = Number(
+      selectedProduct.category?.categoryId ??
+      selectedProduct.categoryId
     );
 
-    if(!user){
+    // Thương hiệu của sản phẩm đang xem
+    const currentBrandId = Number(
+      selectedProduct.brand?.brandId ??
+      selectedProduct.brandId
+    );
 
-        showToast(
-        "Chưa đăng nhập",
-        "Vui lòng đăng nhập để tiếp tục",
-        "error"
-        );
+    // Không lấy chính sản phẩm đang xem
+    const otherProducts = allProducts.filter(p =>
+      Number(p.productId) !== currentId
+    );
 
-        setTimeout(()=>{
-        location.href = "/auth";
-        },1000);
+    // 1. Sản phẩm cùng danh mục
+    const sameCategory = otherProducts.filter(p => {
+      const categoryId = Number(
+        p.category?.categoryId ?? p.categoryId
+      );
 
-        return false;
-    }
+      return (
+        Number.isFinite(currentCategoryId) &&
+        currentCategoryId > 0 &&
+        categoryId === currentCategoryId
+      );
+    });
 
-    const variant = getSelectedVariant();
+    // 2. Sản phẩm cùng thương hiệu
+    const sameBrand = otherProducts.filter(p => {
+      const brandId = Number(
+        p.brand?.brandId ?? p.brandId
+      );
 
-    if(!variant){
+      return (
+        Number.isFinite(currentBrandId) &&
+        currentBrandId > 0 &&
+        brandId === currentBrandId
+      );
+    });
 
-        showToast(
-        "Thiếu thông tin",
-        "Vui lòng chọn size và màu sắc",
-        "error"
-        );
+    // Ưu tiên cùng danh mục, sau đó cùng thương hiệu.
+    // Không bổ sung sản phẩm không liên quan chỉ để đủ 10 ô.
+    const candidates = [
+      ...sameCategory,
+      ...sameBrand
+    ];
 
-        return false;
-    }
+    // Loại sản phẩm trùng nhau
+    const uniqueProducts = new Map();
 
-    if(variant.stock <= 0){
+    candidates.forEach(p => {
+      if (
+        p &&
+        p.status === "ACTIVE" &&
+        Number(p.productId) !== currentId
+      ) {
+        uniqueProducts.set(Number(p.productId), p);
+      }
+    });
 
-        showToast(
-        "Hết hàng",
-        "Sản phẩm hiện đã hết hàng",
-        "error"
-        );
+    // Tối đa 10 sản phẩm
+    detailRelatedProducts = [
+      ...uniqueProducts.values()
+    ].slice(0, 10);
 
-        return false;
-    }
+    // Tải số lượng đã bán cho các thẻ sản phẩm
+    window.soldCounts ||= {};
 
-    if(selectedQty < 1 || selectedQty > variant.stock){
+    await Promise.all(
+      [selectedProduct, ...detailRelatedProducts].map(async p => {
+        try {
+          const count = await fetchJson(
+            `${API_BASE}/products/${p.productId}/sold-count`
+          );
 
-        showToast(
-        "Không hợp lệ",
-        "Số lượng vượt quá tồn kho",
-        "error"
-        );
+          window.soldCounts[p.productId] = Number(count || 0);
 
-        return false;
-    }
-
-    try{
-
-        const res = await fetch(`${API_BASE}/cart/add`, {
-        method: "POST",
-        headers: {
-            "Content-Type":"application/json",
-            "Authorization":"Bearer " + user.token
-        },
-        body: JSON.stringify({
-            userId: user.userId,
-            variantId: variant.variantId,
-            quantity: selectedQty
-        })
-        });
-
-        if(!res.ok){
-
-        let msg = "Thêm giỏ hàng thất bại";
-
-        try{
-            const data = await res.json();
-            msg = data.message || msg;
-        }catch(e){}
-
-        showToast(
-            "Không thể thêm",
-            msg,
-            "error"
-        );
-
-        return false;
+        } catch (error) {
+          window.soldCounts[p.productId] ||= 0;
         }
+      })
+    );
 
-        showToast(
-          "Thành công",
-          "Sản phẩm đã được thêm vào giỏ hàng",
-          "success"
-        );
+  } catch (error) {
+    console.warn(
+      "Không tải được sản phẩm liên quan:",
+      error
+    );
 
-        await updateCartCount();
-
-        return true;
-
-    }catch(err){
-
-        console.error(err);
-
-        showToast(
-        "Lỗi kết nối",
-        "Không kết nối được backend",
-        "error"
-        );
-
-        return false;
-    }
-    }
-
-async function buyNow(){
-  const ok = await addToCart();
-
-  if(ok){
-    window.location.href = "/cart";
+    detailRelatedProducts = [];
   }
 }
 
-function feedbackSection(){
+function detailRelatedSection() {
+  if (!detailRelatedProducts.length) return "";
+
   return `
-    <section class="wrap pb-14">
-      <div class="bg-white border rounded-3xl p-8 shadow-sm">
-        <div class="flex items-end justify-between mb-6">
-          <div>
-            <p class="text-red-800 uppercase tracking-widest font-bold">
-              Feedback
-            </p>
-            <h2 class="serif text-4xl mt-2">
-              Đánh giá từ đơn hàng hoàn thành
-            </h2>
-          </div>
+    <section class="detail-related">
 
-          <b class="text-neutral-500">
-            ${productFeedbacks.length} đánh giá
-          </b>
-        </div>
-
-        ${
-          productFeedbacks.length
-          ? productFeedbacks.map(f => `
-            <div class="border-t py-5">
-              <div class="flex justify-between gap-4">
-                <div>
-                  <b>${f.user?.fullname || f.user?.email || "Khách hàng"}</b>
-                  <p class="text-sm text-neutral-500">
-                    ${f.createdAt ? new Date(f.createdAt).toLocaleDateString("vi-VN") : ""}
-                  </p>
-                </div>
-
-                <div class="text-yellow-500 font-bold">
-                  ${"★".repeat(f.rating)}
-                </div>
-              </div>
-
-              <p class="mt-3 text-neutral-700">
-                ${f.comment}
-              </p>
-
-              ${f.imageUrl ? `
-                <div class="mt-4">
-                  <img
-                    src="${f.imageUrl}"
-                    alt="Ảnh đánh giá"
-                    onclick="window.open('${f.imageUrl}', '_blank')"
-                    class="
-                      w-28 h-28
-                      object-cover
-                      rounded-2xl
-                      border
-                      cursor-pointer
-                      hover:opacity-90
-                      transition
-                    "
-                  >
-                </div>
-              ` : ""}
-
-              <p class="text-sm text-neutral-500 mt-2">
-                Phân loại:
-                Size ${f.orderItem?.variant?.size || "-"}
-                ·
-                Màu ${f.orderItem?.variant?.color || "-"}
-              </p>
-            </div>
-          `).join("")
-          : `<p class="text-neutral-500">Chưa có feedback từ đơn hàng hoàn thành.</p>`
-        }
+      <div class="detail-section-heading">
+        <h2>CÓ THỂ BẠN CŨNG THÍCH</h2>
       </div>
+
+      ${productGrid(detailRelatedProducts)}
+
+      <div class="detail-related-more">
+        <a href="/products">Xem thêm</a>
+      </div>
+
     </section>
   `;
 }
+/* =========================================
+   PRODUCT DETAIL PAGE
+========================================= */
 
-function reviewFormSection(){
-  if(!showReviewForm || !selectedProduct) return "";
+function detailPage() {
+  const p = selectedProduct;
 
-  return `
-    <section class="wrap pb-10">
-      <div class="bg-white border rounded-3xl p-8 shadow-sm">
+  if (!p) {
+    return header() + `
+      <main class="wrap py-20">
+        Không tìm thấy sản phẩm.
+      </main>
+    ` + footer();
+  }
 
-        <h2 class="serif text-4xl mb-6">
-          Đánh giá sản phẩm
-        </h2>
+  const images = detailImages(p);
 
-        <div class="grid md:grid-cols-[120px_1fr] gap-6">
+  detailImageIndex = Math.min(
+    detailImageIndex,
+    images.length - 1
+  );
 
-          <img
-            src="${getProductImg(selectedProduct,0)}"
-            class="w-28 h-36 object-cover rounded-2xl border"
-          >
+  const activeVariants = selectedProductVariants.filter(
+    v => v.status === "ACTIVE"
+  );
 
-          <div>
+  const sizes = [
+    ...new Set(
+      activeVariants.map(v => v.size).filter(Boolean)
+    )
+  ];
 
-            <b class="text-xl">
-              ${selectedProduct.productName}
-            </b>
+  const colors = selectedSize
+    ? [
+        ...new Set(
+          activeVariants
+            .filter(v => v.size === selectedSize)
+            .map(v => v.color)
+            .filter(Boolean)
+        )
+      ]
+    : [];
 
-            <div class="mt-5">
-              <label class="font-bold">
-                Số sao
-              </label>
+  const variant = getSelectedVariant();
 
-              <input
-                id="reviewRating"
-                type="number"
-                min="1"
-                max="5"
-                value="5"
-                class="block mt-2 border rounded-xl px-4 py-3 w-32"
+  const price = variant?.price ?? p.basePrice;
+  const stock = Number(variant?.stock || 0);
+
+  const averageRating = productFeedbacks.length
+    ? (
+        productFeedbacks.reduce(
+          (sum, review) =>
+            sum + Number(review.rating || 0),
+          0
+        ) / productFeedbacks.length
+      ).toFixed(1)
+    : null;
+
+  const categoryName = p.category?.categoryName || "";
+
+  const categoryId =
+    p.category?.categoryId ?? p.categoryId;
+
+  return header() + `
+
+    <main class="wrap detail-page">
+
+      <!-- BREADCRUMB -->
+
+      <nav class="detail-breadcrumb" aria-label="Đường dẫn">
+
+        <a href="/">Trang chủ</a>
+        <span>›</span>
+
+        <a href="/products">Sản phẩm</a>
+
+        ${categoryName && categoryId ? `
+          <span>›</span>
+
+          <a href="/products?categoryId=${encodeURIComponent(categoryId)}">
+            ${detailEscape(categoryName)}
+          </a>
+        ` : ""}
+
+        <span>›</span>
+
+        <strong>${detailEscape(p.productName)}</strong>
+
+      </nav>
+
+      <!-- MAIN PRODUCT -->
+
+      <div class="detail-main">
+
+        <!-- GALLERY -->
+
+        <div class="detail-gallery">
+
+          <div class="detail-thumbnails">
+
+            ${images.map((url, index) => `
+              <button
+                type="button"
+                class="detail-thumb ${index === detailImageIndex ? "active" : ""}"
+                onclick="detailChangeImage(${index})"
+                aria-label="Xem ảnh ${index + 1}"
               >
+                <img
+                  src="${detailEscape(url)}"
+                  alt="Ảnh sản phẩm ${index + 1}"
+                  onerror="this.onerror=null;this.src='/images/no-image.png';"
+                >
+              </button>
+            `).join("")}
+
+          </div>
+
+          <div class="detail-main-image">
+
+            <img
+              id="detailMainImage"
+              src="${detailEscape(images[detailImageIndex])}"
+              alt="${detailEscape(p.productName)}"
+              onerror="this.onerror=null;this.src='/images/no-image.png';"
+            >
+
+            ${images.length > 1 ? `
+
+              <button
+                type="button"
+                class="detail-gallery-arrow prev"
+                onclick="detailChangeImage(detailImageIndex - 1)"
+                aria-label="Ảnh trước"
+              >‹</button>
+
+              <button
+                type="button"
+                class="detail-gallery-arrow next"
+                onclick="detailChangeImage(detailImageIndex + 1)"
+                aria-label="Ảnh tiếp theo"
+              >›</button>
+
+            ` : ""}
+
+          </div>
+
+        </div>
+
+        <!-- PURCHASE INFORMATION -->
+
+        <div class="detail-purchase">
+
+          <p class="detail-brand">
+            ${detailEscape(getBrandName(p))}
+          </p>
+
+          <h1>${detailEscape(p.productName)}</h1>
+
+          <div class="detail-rating">
+
+            ${averageRating ? `
+              <span class="detail-stars">★★★★★</span>
+
+              <span>
+                ${averageRating}
+                (${productFeedbacks.length} đánh giá)
+              </span>
+            ` : `
+              <span>Chưa có đánh giá</span>
+            `}
+
+            <span class="detail-rating-separator">|</span>
+
+            <span>
+              ${getSoldCount(p.productId)} đã bán
+            </span>
+
+          </div>
+
+          <div class="detail-price">
+            ${formatPrice(price)}
+          </div>
+
+          <div class="detail-options">
+
+            <!-- SIZE -->
+
+            <h3>Kích thước</h3>
+
+            <div class="detail-option-row">
+
+              ${sizes.length
+                ? sizes.map(size => `
+                    <button
+                      type="button"
+                      class="${selectedSize === size ? "active" : ""}"
+                      onclick="selectSize(decodeURIComponent('${encodeURIComponent(size)}'))"
+                    >
+                      ${detailEscape(size)}
+                    </button>
+                  `).join("")
+                : `
+                    <span class="detail-option-hint">
+                      Chưa có biến thể size
+                    </span>
+                  `
+              }
+
             </div>
 
-            <div class="mt-5">
-              <label class="font-bold">
-                Comment đánh giá
-              </label>
+            <!-- COLOR AS TEXT -->
 
-              <textarea
-                id="reviewComment"
-                class="w-full mt-2 border rounded-2xl px-5 py-4 h-32"
-                placeholder="Nhập cảm nhận của bạn về sản phẩm..."
-              ></textarea>
+            <h3>Màu sắc</h3>
+
+            <div class="detail-option-row">
+
+              ${selectedSize
+                ? colors.length
+                  ? colors.map(color => `
+                      <button
+                        type="button"
+                        class="${selectedColor === color ? "active" : ""}"
+                        onclick="selectColor(decodeURIComponent('${encodeURIComponent(color)}'))"
+                      >
+                        ${detailEscape(color)}
+                      </button>
+                    `).join("")
+                  : `
+                      <span class="detail-option-hint">
+                        Không có màu khả dụng
+                      </span>
+                    `
+                : `
+                    <span class="detail-option-hint">
+                      Vui lòng chọn kích thước trước
+                    </span>
+                  `
+              }
+
             </div>
 
-            <div class="mt-5">
+            <!-- QUANTITY -->
 
-              <label class="font-bold">
-                Hình ảnh sản phẩm
-              </label>
+            <div class="detail-qty-row">
 
-              <p class="text-sm text-neutral-500 mt-1">
-                Không bắt buộc · JPG, PNG, WEBP · tối đa 5MB
-              </p>
+              <strong>Số lượng</strong>
 
-              <input
-                id="reviewImage"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onchange="selectReviewImage(event)"
-                class="hidden"
-              >
+              <div class="detail-qty">
 
-              <label
-                for="reviewImage"
-                class="
-                  mt-3
-                  border-2 border-dashed
-                  rounded-2xl
-                  p-6
-                  flex flex-col
-                  items-center
-                  justify-center
-                  cursor-pointer
-                  hover:border-red-800
-                  transition
-                "
-              >
-                ${icon("image-plus", "w-8 h-8")}
+                <button
+                  type="button"
+                  onclick="detailChangeQty(-1)"
+                >−</button>
 
-                <span class="mt-2 font-semibold">
-                  Thêm hình ảnh
-                </span>
+                <input
+                  id="detailQty"
+                  type="number"
+                  min="1"
+                  max="${stock || 1}"
+                  value="${selectedQty}"
+                  onchange="changeQty(this.value)"
+                >
 
-                <span class="text-sm text-neutral-500">
-                  Chọn ảnh thực tế của sản phẩm
-                </span>
-              </label>
+                <button
+                  type="button"
+                  onclick="detailChangeQty(1)"
+                >+</button>
 
-              <div
-                id="reviewImagePreview"
-                class="mt-4">
               </div>
 
             </div>
 
+            <p class="detail-stock">
+
+              ${variant
+                ? stock > 0
+                  ? `Còn ${stock} sản phẩm`
+                  : "Hết hàng"
+                : "Chọn size và màu để xem tồn kho"
+              }
+
+            </p>
+
+          </div>
+
+          <!-- PURCHASE ACTIONS -->
+          <div class="detail-purchase-actions">
+
             <button
-              id="submitReviewBtn"
-              onclick="submitReview()"
-              class="mt-5 bg-red-800 text-white rounded-full px-8 py-3 font-bold"
+              type="button"
+              class="detail-add-cart"
+              onclick="addToCart()"
             >
-              Gửi đánh giá
+              ${icon("shopping-cart", "w-5 h-5")}
+              Thêm vào giỏ hàng
+            </button>
+
+            <button
+              type="button"
+              class="detail-buy-now"
+              onclick="buyNow()"
+            >
+              ${icon("zap", "w-5 h-5")}
+              Mua ngay
             </button>
 
           </div>
+
+          <!-- STORE POLICIES -->
+
+          <div class="detail-promises">
+
+            <div>
+              ${icon("truck", "w-5 h-5")}
+
+              <span>
+                <b>Miễn phí vận chuyển</b>
+                <small>Đơn từ 999.000đ</small>
+              </span>
+            </div>
+
+            <div>
+              ${icon("refresh-cw", "w-5 h-5")}
+
+              <span>
+                <b>Đổi trả 7 ngày</b>
+                <small>Theo chính sách cửa hàng</small>
+              </span>
+            </div>
+
+            <div>
+              ${icon("shield-check", "w-5 h-5")}
+
+              <span>
+                <b>Cam kết chính hãng</b>
+                <small>Thông tin minh bạch</small>
+              </span>
+            </div>
+
+          </div>
+
         </div>
+
       </div>
+
+      <!-- DESCRIPTION -->
+
+      <section class="detail-description">
+
+        <h2>Mô tả sản phẩm</h2>
+
+        <div class="detail-description-content">
+          ${detailEscape(
+            p.description || "Sản phẩm chưa có mô tả."
+          ).replace(/\n/g, "<br>")}
+        </div>
+
+      </section>
+
+      <!-- REVIEW FORM -->
+
+      ${reviewFormSection()}
+
+      <!-- CUSTOMER REVIEWS -->
+
+      <div id="detailFeedbackMount">
+        ${feedbackSection()}
+      </div>
+
+      <!-- RELATED PRODUCTS -->
+
+      ${detailRelatedSection()}
+
+    </main>
+
+  ` + footer();
+}
+
+/* =========================================
+   LOAD PRODUCT DETAIL
+========================================= */
+
+async function loadDetailPage() {
+  const params = new URLSearchParams(location.search);
+
+  const productId = params.get("productId")
+    ? Number(params.get("productId"))
+    : null;
+
+  showReviewForm = params.get("review") === "1";
+
+  if (!productId) {
+    renderApp(
+      header() +
+      `<main class="wrap py-20">Không tìm thấy sản phẩm.</main>` +
+      footer()
+    );
+    return;
+  }
+
+  try {
+
+    // PRODUCT
+
+    try {
+      selectedProduct = await fetchJson(
+        `${API_BASE}/products/${productId}`
+      );
+    } catch (error) {
+      const all = await fetchJson(`${API_BASE}/products`);
+
+      selectedProduct = all.find(
+        p => Number(p.productId) === productId
+      );
+    }
+
+    if (!selectedProduct) {
+      renderApp(
+        header() +
+        `<main class="wrap py-20">Không tìm thấy sản phẩm.</main>` +
+        footer()
+      );
+      return;
+    }
+
+    // VARIANTS
+
+    try {
+      selectedProductVariants = await fetchJson(
+        `${API_BASE}/variants/product/${productId}`
+      );
+    } catch (error) {
+      selectedProductVariants = [];
+    }
+
+    // REVIEWS
+
+    try {
+      const allReviews = await fetchJson(
+        `${API_BASE}/reviews`
+      );
+
+      productFeedbacks = allReviews.filter(review =>
+        Number(
+          review.orderItem?.variant?.product?.productId
+        ) === productId
+      );
+
+    } catch (error) {
+      productFeedbacks = [];
+    }
+
+    // RESET SELECTION
+
+    selectedSize = "";
+    selectedColor = "";
+    selectedQty = 1;
+
+    detailImageIndex = 0;
+    detailReviewPage = 1;
+
+    // RELATED PRODUCTS
+
+    await loadDetailRelatedProducts(productId);
+
+    renderApp(detailPage());
+
+  } catch (error) {
+    console.error("LOAD DETAIL ERROR:", error);
+
+    renderApp(
+      header() +
+      `<main class="wrap py-20">Không tải được sản phẩm.</main>` +
+      footer()
+    );
+  }
+}
+
+/* =========================================
+   SELECT VARIANT
+========================================= */
+
+function selectSize(size) {
+  selectedSize = size;
+  selectedColor = "";
+  selectedQty = 1;
+
+  renderApp(detailPage());
+}
+
+function selectColor(color) {
+  selectedColor = color;
+  selectedQty = 1;
+
+  renderApp(detailPage());
+}
+
+/* =========================================
+   ADD TO CART
+========================================= */
+
+async function addToCart() {
+  const user = getUser();
+
+  if (!user?.token) {
+    showToast(
+      "Chưa đăng nhập",
+      "Vui lòng đăng nhập để tiếp tục",
+      "error"
+    );
+
+    setTimeout(() => {
+      location.href = "/auth";
+    }, 1000);
+
+    return false;
+  }
+
+  const variant = getSelectedVariant();
+
+  if (!variant) {
+    showToast(
+      "Thiếu thông tin",
+      "Vui lòng chọn size và màu sắc",
+      "error"
+    );
+    return false;
+  }
+
+  if (Number(variant.stock) <= 0) {
+    showToast(
+      "Hết hàng",
+      "Sản phẩm hiện đã hết hàng",
+      "error"
+    );
+    return false;
+  }
+
+  if (
+    !Number.isInteger(selectedQty) ||
+    selectedQty < 1 ||
+    selectedQty > Number(variant.stock)
+  ) {
+    showToast(
+      "Không hợp lệ",
+      "Số lượng vượt quá tồn kho",
+      "error"
+    );
+    return false;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/cart/add`, {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + user.token
+      },
+
+      body: JSON.stringify({
+        userId: user.userId,
+        variantId: variant.variantId,
+        quantity: selectedQty
+      })
+    });
+
+    if (!response.ok) {
+      let message = "Thêm giỏ hàng thất bại";
+
+      try {
+        const data = await response.json();
+        message = data.message || message;
+      } catch (error) {}
+
+      showToast("Không thể thêm", message, "error");
+      return false;
+    }
+
+    showToast(
+      "Thành công",
+      "Sản phẩm đã được thêm vào giỏ hàng",
+      "success"
+    );
+
+    await updateCartCount();
+
+    return true;
+
+  } catch (error) {
+    console.error(error);
+
+    showToast(
+      "Lỗi kết nối",
+      "Không kết nối được backend",
+      "error"
+    );
+
+    return false;
+  }
+}
+
+/* =========================================
+   BUY NOW
+========================================= */
+async function buyNow() {
+  const success = await addToCart();
+
+  if (success) {
+    location.href = "/cart";
+  }
+}
+
+/* =========================================
+   REVIEW PAGINATION
+========================================= */
+
+function detailReviewPagination(page) {
+  const totalPages = Math.ceil(
+    productFeedbacks.length / DETAIL_REVIEWS_PER_PAGE
+  );
+
+  if (page < 1 || page > totalPages) return;
+
+  detailReviewPage = page;
+
+  const mount = document.getElementById(
+    "detailFeedbackMount"
+  );
+
+  if (mount) {
+    mount.innerHTML = feedbackSection();
+  }
+}
+
+/* =========================================
+   CUSTOMER REVIEWS
+========================================= */
+
+
+function feedbackSection() {
+  const totalReviews = productFeedbacks.length;
+
+  const totalPages = Math.ceil(
+    totalReviews / DETAIL_REVIEWS_PER_PAGE
+  );
+
+  const start =
+    (detailReviewPage - 1) * DETAIL_REVIEWS_PER_PAGE;
+
+  const visibleReviews = productFeedbacks.slice(
+    start,
+    start + DETAIL_REVIEWS_PER_PAGE
+  );
+
+  const averageRating = totalReviews
+    ? (
+        productFeedbacks.reduce(
+          (sum, review) => sum + Number(review.rating || 0),
+          0
+        ) / totalReviews
+      ).toFixed(1)
+    : "0.0";
+
+  const renderStars = rating => {
+    const count = Math.max(
+      0,
+      Math.min(5, Math.round(Number(rating) || 0))
+    );
+
+    return `
+      <span class="detail-review-stars">
+        ${"★".repeat(count)}
+        <span>${"★".repeat(5 - count)}</span>
+      </span>
+    `;
+  };
+
+  return `
+    <section class="detail-feedback">
+
+      <div class="detail-section-heading">
+        <h2>ĐÁNH GIÁ SẢN PHẨM</h2>
+        <span>${totalReviews} đánh giá</span>
+      </div>
+
+      ${totalReviews ? `
+
+        <div class="detail-review-summary">
+
+          <div class="detail-review-score">
+            <div>
+              <strong>${averageRating}</strong>
+              <span>trên 5</span>
+            </div>
+
+            ${renderStars(averageRating)}
+          </div>
+
+          <div class="detail-review-filters">
+
+            <span class="detail-review-filter active">
+              Tất cả (${totalReviews})
+            </span>
+
+            ${[5, 4, 3, 2, 1].map(star => {
+              const count = productFeedbacks.filter(
+                review => Number(review.rating) === star
+              ).length;
+
+              return `
+                <button
+                  type="button"
+                  class="detail-review-filter"
+                  onclick="detailFilterReviews(${star})"
+                >
+                  ${star} Sao (${count})
+                </button>
+              `;
+            }).join("")}
+
+          </div>
+
+        </div>
+
+      ` : ""}
+
+      <div class="detail-review-list">
+
+        ${visibleReviews.length
+          ? visibleReviews.map(review => {
+
+              const customerName =
+                review.user?.fullname ||
+                review.user?.fullName ||
+                review.user?.email ||
+                "Khách hàng";
+
+              const reviewDate = review.createdAt
+                ? new Date(review.createdAt)
+                    .toLocaleDateString("vi-VN")
+                : "";
+
+              const reviewImages = [
+                ...(Array.isArray(review.images)
+                  ? review.images.map(image =>
+                      typeof image === "string"
+                        ? image
+                        : image.imageUrl
+                    )
+                  : []),
+                review.imageUrl
+              ].filter(Boolean);
+
+              const uniqueImages = [...new Set(reviewImages)];
+
+              return `
+                <article class="detail-review-item">
+
+                  <div class="detail-review-avatar">
+                    ${detailEscape(
+                      customerName.charAt(0).toUpperCase()
+                    )}
+                  </div>
+
+                  <div class="detail-review-body">
+
+                    <div class="detail-review-name">
+                      ${detailEscape(customerName)}
+                    </div>
+
+                    ${renderStars(review.rating)}
+
+                    <div class="detail-review-date">
+                      ${detailEscape(reviewDate)}
+                    </div>
+
+                    <p class="detail-review-comment">
+                      ${detailEscape(review.comment || "")}
+                    </p>
+
+                    <div class="detail-review-photos">
+
+                      ${uniqueImages.map(url => `
+                        <a
+                          href="${detailEscape(url)}"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Xem ảnh đánh giá"
+                        >
+                          <img
+                            src="${detailEscape(url)}"
+                            alt="Ảnh đánh giá sản phẩm"
+                            loading="lazy"
+                            onerror="this.parentElement.style.display='none'"
+                          >
+                        </a>
+                      `).join("")}
+
+                    </div>
+
+                    <div class="detail-review-variant">
+                      Phân loại:
+                      Size ${detailEscape(
+                        review.orderItem?.variant?.size || "-"
+                      )}
+                      · Màu ${detailEscape(
+                        review.orderItem?.variant?.color || "-"
+                      )}
+                    </div>
+
+                  </div>
+
+                </article>
+              `;
+
+            }).join("")
+
+          : `
+            <p class="detail-review-empty">
+              Chưa có đánh giá từ đơn hàng hoàn thành.
+            </p>
+          `
+        }
+
+      </div>
+
+      ${totalPages > 1 ? `
+
+        <nav
+          class="detail-review-pages"
+          aria-label="Phân trang đánh giá"
+        >
+
+          <button
+            type="button"
+            onclick="detailReviewPagination(${detailReviewPage - 1})"
+            ${detailReviewPage === 1 ? "disabled" : ""}
+          >‹</button>
+
+          ${Array.from(
+            { length: totalPages },
+            (_, index) => index + 1
+          ).map(page => `
+
+            <button
+              type="button"
+              class="${page === detailReviewPage ? "active" : ""}"
+              onclick="detailReviewPagination(${page})"
+            >
+              ${page}
+            </button>
+
+          `).join("")}
+
+          <button
+            type="button"
+            onclick="detailReviewPagination(${detailReviewPage + 1})"
+            ${detailReviewPage === totalPages ? "disabled" : ""}
+          >›</button>
+
+        </nav>
+
+      ` : ""}
+
     </section>
   `;
 }
 
-function selectReviewImage(event){
+function detailFilterReviews(star) {
+  const buttons = document.querySelectorAll(
+    ".detail-review-filter"
+  );
 
+  buttons.forEach(button => {
+    button.classList.remove("active");
+  });
+
+  const selectedButton = [...buttons].find(
+    button => button.textContent.trim().startsWith(`${star} Sao`)
+  );
+
+  if (selectedButton) {
+    selectedButton.classList.add("active");
+  }
+
+  const reviews = document.querySelectorAll(
+    ".detail-review-item"
+  );
+
+  const start =
+    (detailReviewPage - 1) * DETAIL_REVIEWS_PER_PAGE;
+
+  const visibleReviews = productFeedbacks.slice(
+    start,
+    start + DETAIL_REVIEWS_PER_PAGE
+  );
+
+  reviews.forEach((element, index) => {
+    element.style.display =
+      Number(visibleReviews[index]?.rating) === star
+        ? ""
+        : "none";
+  });
+}
+
+
+/* =========================================
+   REVIEW FORM
+========================================= */
+
+function reviewFormSection() {
+  if (!showReviewForm || !selectedProduct) return "";
+
+  return `
+    <section class="detail-description">
+
+      <h2>Đánh giá sản phẩm</h2>
+
+      <div class="grid md:grid-cols-[120px_1fr] gap-6">
+
+        <img
+          src="${detailEscape(getProductImg(selectedProduct, 0))}"
+          alt="${detailEscape(selectedProduct.productName)}"
+          class="w-28 h-36 object-cover rounded-2xl border"
+        >
+
+        <div>
+
+          <b class="text-xl">
+            ${detailEscape(selectedProduct.productName)}
+          </b>
+
+          <div class="mt-5">
+
+            <label for="reviewRating" class="font-bold">
+              Số sao
+            </label>
+
+            <input
+              id="reviewRating"
+              type="number"
+              min="1"
+              max="5"
+              value="5"
+              class="block mt-2 border rounded-xl px-4 py-3 w-32"
+            >
+
+          </div>
+
+          <div class="mt-5">
+
+            <label for="reviewComment" class="font-bold">
+              Nội dung đánh giá
+            </label>
+
+            <textarea
+              id="reviewComment"
+              class="w-full mt-2 border rounded-2xl px-5 py-4 h-32"
+              placeholder="Nhập cảm nhận của bạn về sản phẩm..."
+            ></textarea>
+
+          </div>
+
+          <div class="mt-5">
+
+            <label class="font-bold">
+              Hình ảnh sản phẩm
+            </label>
+
+            <p class="text-sm text-neutral-500 mt-1">
+              Không bắt buộc · JPG, PNG, WEBP · tối đa 5MB
+            </p>
+
+            <input
+              id="reviewImage"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onchange="selectReviewImage(event)"
+              class="hidden"
+            >
+
+            <label
+              for="reviewImage"
+              class="mt-3 border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-red-800 transition"
+            >
+
+              ${icon("image-plus", "w-8 h-8")}
+
+              <span class="mt-2 font-semibold">
+                Thêm hình ảnh
+              </span>
+
+              <span class="text-sm text-neutral-500">
+                Chọn ảnh thực tế của sản phẩm
+              </span>
+
+            </label>
+
+            <div
+              id="reviewImagePreview"
+              class="mt-4"
+            ></div>
+
+          </div>
+
+          <button
+            id="submitReviewBtn"
+            type="button"
+            onclick="submitReview()"
+            class="mt-5 bg-red-800 text-white rounded-full px-8 py-3 font-bold"
+          >
+            Gửi đánh giá
+          </button>
+
+        </div>
+
+      </div>
+
+    </section>
+  `;
+}
+
+/* =========================================
+   REVIEW IMAGE
+========================================= */
+
+function selectReviewImage(event) {
   const file = event.target.files?.[0];
 
-  if(!file){
-    reviewImageFile = null;
+  if (!file) {
+    removeReviewImage();
     return;
   }
 
@@ -557,7 +1265,7 @@ function selectReviewImage(event){
     "image/webp"
   ];
 
-  if(!allowedTypes.includes(file.type)){
+  if (!allowedTypes.includes(file.type)) {
     showToast(
       "Ảnh không hợp lệ",
       "Chỉ chấp nhận JPG, PNG hoặc WEBP",
@@ -569,7 +1277,7 @@ function selectReviewImage(event){
     return;
   }
 
-  if(file.size > 5 * 1024 * 1024){
+  if (file.size > 5 * 1024 * 1024) {
     showToast(
       "Ảnh quá lớn",
       "Ảnh không được vượt quá 5MB",
@@ -583,82 +1291,67 @@ function selectReviewImage(event){
 
   reviewImageFile = file;
 
-  if(reviewImagePreviewUrl){
+  if (reviewImagePreviewUrl) {
     URL.revokeObjectURL(reviewImagePreviewUrl);
   }
 
-  reviewImagePreviewUrl =
-    URL.createObjectURL(file);
+  reviewImagePreviewUrl = URL.createObjectURL(file);
 
-  const preview =
-    document.getElementById("reviewImagePreview");
+  const preview = document.getElementById(
+    "reviewImagePreview"
+  );
+
+  if (!preview) return;
 
   preview.innerHTML = `
     <div class="relative w-32">
 
       <img
         src="${reviewImagePreviewUrl}"
-        class="
-          w-32 h-32
-          object-cover
-          rounded-2xl
-          border
-        "
+        alt="Ảnh xem trước"
+        class="w-32 h-32 object-cover rounded-2xl border"
       >
 
       <button
         type="button"
         onclick="removeReviewImage()"
-        class="
-          absolute
-          -top-2 -right-2
-          w-7 h-7
-          rounded-full
-          bg-black text-white
-          font-bold
-          flex items-center justify-center
-        "
+        class="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-black text-white font-bold flex items-center justify-center"
+        aria-label="Xóa ảnh"
       >
         ×
       </button>
 
     </div>
   `;
-
-  if(window.lucide){
-    lucide.createIcons();
-  }
 }
 
-function removeReviewImage(){
-
+function removeReviewImage() {
   reviewImageFile = null;
 
-  if(reviewImagePreviewUrl){
+  if (reviewImagePreviewUrl) {
     URL.revokeObjectURL(reviewImagePreviewUrl);
     reviewImagePreviewUrl = null;
   }
 
-  const input =
-    document.getElementById("reviewImage");
+  const input = document.getElementById("reviewImage");
 
-  if(input){
-    input.value = "";
-  }
+  if (input) input.value = "";
 
-  const preview =
-    document.getElementById("reviewImagePreview");
+  const preview = document.getElementById(
+    "reviewImagePreview"
+  );
 
-  if(preview){
-    preview.innerHTML = "";
-  }
+  if (preview) preview.innerHTML = "";
 }
 
-async function submitReview(){
+/* =========================================
+   SUBMIT REVIEW
+========================================= */
 
+async function submitReview() {
   const user = getUser();
 
-  if(!user?.token){
+  if (!user?.token) {
     showToast(
       "Chưa đăng nhập",
       "Vui lòng đăng nhập để đánh giá",
@@ -667,18 +1360,19 @@ async function submitReview(){
     return;
   }
 
-  const rating =
-    Number(
-      document.getElementById("reviewRating").value
-    );
+  const rating = Number(
+    document.getElementById("reviewRating")?.value
+  );
 
-  const comment =
-    document
-      .getElementById("reviewComment")
-      .value
-      .trim();
+  const comment = document
+    .getElementById("reviewComment")
+    ?.value.trim() || "";
 
-  if(rating < 1 || rating > 5){
+  if (
+    !Number.isInteger(rating) ||
+    rating < 1 ||
+    rating > 5
+  ) {
     showToast(
       "Lỗi",
       "Số sao phải từ 1 đến 5",
@@ -687,22 +1381,19 @@ async function submitReview(){
     return;
   }
 
-  if(!comment){
+  if (!comment) {
     showToast(
       "Lỗi",
-      "Vui lòng nhập comment đánh giá",
+      "Vui lòng nhập nội dung đánh giá",
       "error"
     );
     return;
   }
 
-  const params =
-    new URLSearchParams(location.search);
+  const params = new URLSearchParams(location.search);
+  const orderItemId = params.get("orderItemId");
 
-  const orderItemId =
-    params.get("orderItemId");
-
-  if(!orderItemId){
+  if (!orderItemId) {
     showToast(
       "Lỗi",
       "Không xác định được sản phẩm trong đơn hàng",
@@ -711,86 +1402,75 @@ async function submitReview(){
     return;
   }
 
-  const button =
-    document.getElementById("submitReviewBtn");
+  const button = document.getElementById(
+    "submitReviewBtn"
+  );
 
-  try{
-
-    if(button){
+  try {
+    if (button) {
       button.disabled = true;
       button.innerText = "Đang gửi...";
       button.classList.add("opacity-60");
     }
 
-    // 1. Upload ảnh trước nếu khách có chọn ảnh
-    const imageUrl =
-      await uploadReviewImage();
+    const imageUrl = await uploadReviewImage();
 
-    // 2. Sau đó mới tạo review
-    const res = await fetch(
+    const response = await fetch(
       `${API_BASE}/reviews`,
       {
         method: "POST",
 
         headers: {
           "Content-Type": "application/json",
-          "Authorization":
-            "Bearer " + user.token
+          "Authorization": "Bearer " + user.token
         },
 
         body: JSON.stringify({
           orderItemId: Number(orderItemId),
-          rating: rating,
-          comment: comment,
-          imageUrl: imageUrl
+          rating,
+          comment,
+          imageUrl
         })
       }
     );
 
-    if(!res.ok){
+    if (!response.ok) {
+      let message = "Không thể gửi đánh giá";
 
-      let message =
-        "Không thể gửi đánh giá";
+      try {
+        const data = await response.json();
 
-      try{
-        const data = await res.json();
         message =
           data.message ||
           data.error ||
           message;
-      }catch(e){
-
-        try{
-          message = await res.text();
-        }catch(ignore){}
-      }
+      } catch (error) {}
 
       throw new Error(message);
     }
 
     showToast(
       "Thành công",
-      "Đã gửi đánh giá sản phẩm"
+      "Đã gửi đánh giá sản phẩm",
+      "success"
     );
 
-    setTimeout(()=>{
+    setTimeout(() => {
       location.href =
         `/detail?productId=${selectedProduct.productId}`;
-    },1000);
+    }, 1000);
 
-  }catch(err){
-
-    console.error(err);
+  } catch (error) {
+    console.error(error);
 
     showToast(
       "Lỗi",
-      err.message || "Không thể gửi đánh giá",
+      error.message || "Không thể gửi đánh giá",
       "error"
     );
 
-  }finally{
-
-    if(button){
+  } finally {
+    if (button) {
       button.disabled = false;
       button.innerText = "Gửi đánh giá";
       button.classList.remove("opacity-60");
@@ -798,45 +1478,50 @@ async function submitReview(){
   }
 }
 
-async function uploadReviewImage(){
+/* =========================================
+   UPLOAD REVIEW IMAGE
+========================================= */
 
-  if(!reviewImageFile){
-    return null;
-  }
+async function uploadReviewImage() {
+  if (!reviewImageFile) return null;
 
   const user = getUser();
 
-  if(!user?.token){
+  if (!user?.token) {
     throw new Error("Bạn chưa đăng nhập");
   }
 
   const formData = new FormData();
+
   formData.append("file", reviewImageFile);
 
-  const res = await fetch(
+  const response = await fetch(
     `${API_BASE}/upload/image`,
     {
       method: "POST",
+
       headers: {
         "Authorization": "Bearer " + user.token
       },
+
       body: formData
     }
   );
 
-  const text = await res.text();
+  const text = await response.text();
 
-  console.log("UPLOAD STATUS:", res.status);
-  console.log("UPLOAD RESPONSE:", text);
-
-  if(!res.ok){
+  if (!response.ok) {
     let message = "Upload ảnh thất bại";
 
-    if(text){
-      try{
+    if (text) {
+      try {
         const data = JSON.parse(text);
-        message = data.message || data.error || message;
-      }catch(e){
+
+        message =
+          data.message ||
+          data.error ||
+          message;
+      } catch (error) {
         message = text;
       }
     }
@@ -844,24 +1529,33 @@ async function uploadReviewImage(){
     throw new Error(message);
   }
 
-  if(!text){
-    throw new Error("Backend upload ảnh không trả dữ liệu");
+  if (!text) {
+    throw new Error(
+      "Backend upload ảnh không trả dữ liệu"
+    );
   }
 
   let data;
 
-  try{
+  try {
     data = JSON.parse(text);
-  }catch(e){
-    console.error("Upload response không phải JSON:", text);
-    throw new Error("Dữ liệu trả về từ upload ảnh không hợp lệ");
+  } catch (error) {
+    throw new Error(
+      "Dữ liệu trả về từ upload ảnh không hợp lệ"
+    );
   }
 
-  if(!data.imageUrl){
-    throw new Error("Backend không trả về imageUrl");
+  if (!data.imageUrl) {
+    throw new Error(
+      "Backend không trả về imageUrl"
+    );
   }
 
   return data.imageUrl;
 }
+
+/* =========================================
+   INITIALIZE
+========================================= */
 
 loadDetailPage();
