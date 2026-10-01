@@ -726,9 +726,17 @@ function selectColor(color) {
 ========================================= */
 
 async function addToCart() {
+
   const user = getUser();
 
-  if (!user?.token) {
+
+  /*
+   * =========================================================
+   * CHECK LOGIN
+   * =========================================================
+   */
+  if (!user || !user.token) {
+
     showToast(
       "Chưa đăng nhập",
       "Vui lòng đăng nhập để tiếp tục",
@@ -742,85 +750,322 @@ async function addToCart() {
     return false;
   }
 
+
+  /*
+   * =========================================================
+   * GET SELECTED VARIANT
+   * =========================================================
+   */
   const variant = getSelectedVariant();
 
+
   if (!variant) {
+
     showToast(
       "Thiếu thông tin",
-      "Vui lòng chọn size và màu sắc",
+      "Vui lòng chọn đầy đủ kích thước và màu sắc",
       "error"
     );
+
     return false;
   }
 
-  if (Number(variant.stock) <= 0) {
+
+  /*
+   * Variant phải có ID.
+   */
+  const variantId = Number(
+    variant.variantId
+  );
+
+
+  if (
+    !Number.isInteger(variantId) ||
+    variantId <= 0
+  ) {
+
+    console.error(
+      "Variant không hợp lệ:",
+      variant
+    );
+
+    showToast(
+      "Không thể thêm",
+      "Không xác định được biến thể sản phẩm",
+      "error"
+    );
+
+    return false;
+  }
+
+
+  /*
+   * =========================================================
+   * STOCK
+   * =========================================================
+   */
+  const stock = Number(
+    variant.stock || 0
+  );
+
+
+  if (stock <= 0) {
+
     showToast(
       "Hết hàng",
       "Sản phẩm hiện đã hết hàng",
       "error"
     );
+
     return false;
   }
+
+
+  /*
+   * =========================================================
+   * QUANTITY
+   * =========================================================
+   */
+  const quantity = Number(
+    selectedQty
+  );
+
 
   if (
-    !Number.isInteger(selectedQty) ||
-    selectedQty < 1 ||
-    selectedQty > Number(variant.stock)
+    !Number.isInteger(quantity) ||
+    quantity < 1
   ) {
+
     showToast(
-      "Không hợp lệ",
-      "Số lượng vượt quá tồn kho",
+      "Số lượng không hợp lệ",
+      "Số lượng phải lớn hơn 0",
       "error"
     );
+
     return false;
   }
 
+
+  if (quantity > stock) {
+
+    showToast(
+      "Không đủ hàng",
+      `Sản phẩm chỉ còn ${stock} sản phẩm`,
+      "error"
+    );
+
+    return false;
+  }
+
+
+  /*
+   * =========================================================
+   * REQUEST BODY
+   * =========================================================
+   */
+  const payload = {
+
+    /*
+     * Backend sẽ lấy userId từ JWT.
+     *
+     * Vẫn gửi userId để tương thích code cũ,
+     * nhưng backend không tin giá trị này.
+     */
+    userId: user.userId,
+
+    variantId: variantId,
+
+    quantity: quantity
+  };
+
+
+  console.log(
+    "ADD CART PAYLOAD:",
+    payload
+  );
+
+
   try {
-    const response = await fetch(`${API_BASE}/cart/add`, {
-      method: "POST",
 
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + user.token
-      },
+    /*
+     * =========================================================
+     * CALL API
+     * =========================================================
+     */
+    const response = await fetch(
+      `${API_BASE}/cart/add`,
+      {
 
-      body: JSON.stringify({
-        userId: user.userId,
-        variantId: variant.variantId,
-        quantity: selectedQty
-      })
-    });
+        method: "POST",
 
-    if (!response.ok) {
-      let message = "Thêm giỏ hàng thất bại";
+        headers: {
+
+          "Content-Type":
+            "application/json",
+
+          "Accept":
+            "application/json",
+
+          "Authorization":
+            "Bearer " + user.token
+        },
+
+        body: JSON.stringify(
+          payload
+        )
+      }
+    );
+
+
+    /*
+     * =========================================================
+     * READ RESPONSE SAFELY
+     * =========================================================
+     *
+     * Không gọi response.json() trực tiếp.
+     *
+     * Vì nếu backend trả body rỗng:
+     *
+     * Unexpected end of JSON input
+     */
+    const rawText =
+      await response.text();
+
+
+    let data = null;
+
+
+    if (
+      rawText &&
+      rawText.trim() !== ""
+    ) {
 
       try {
-        const data = await response.json();
-        message = data.message || message;
-      } catch (error) {}
 
-      showToast("Không thể thêm", message, "error");
+        data =
+          JSON.parse(rawText);
+
+      } catch (parseError) {
+
+        console.error(
+          "Response không phải JSON:",
+          rawText
+        );
+
+        data = {
+          message: rawText
+        };
+      }
+    }
+
+
+    console.log(
+      "ADD CART STATUS:",
+      response.status
+    );
+
+    console.log(
+      "ADD CART RESPONSE:",
+      data
+    );
+
+
+    /*
+     * =========================================================
+     * HTTP ERROR
+     * =========================================================
+     */
+    if (!response.ok) {
+
+      let message =
+        data?.message ||
+        "Thêm giỏ hàng thất bại";
+
+
+      /*
+       * Token hết hạn.
+       */
+      if (response.status === 401) {
+
+        message =
+          "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
+      }
+
+
+      /*
+       * Không có quyền.
+       */
+      if (response.status === 403) {
+
+        message =
+          data?.message ||
+          "Tài khoản không có quyền thêm giỏ hàng.";
+      }
+
+
+      /*
+       * Hiện lỗi thật ra màn hình.
+       */
+      showToast(
+        "Không thể thêm",
+        message,
+        "error"
+      );
+
+
       return false;
     }
 
+
+    /*
+     * =========================================================
+     * SUCCESS
+     * =========================================================
+     */
     showToast(
       "Thành công",
       "Sản phẩm đã được thêm vào giỏ hàng",
       "success"
     );
 
-    await updateCartCount();
+
+    /*
+     * Cập nhật icon số lượng cart.
+     *
+     * Không để lỗi updateCartCount làm
+     * addToCart bị coi là thất bại.
+     */
+    try {
+
+      await updateCartCount();
+
+    } catch (countError) {
+
+      console.warn(
+        "Không cập nhật được cart count:",
+        countError
+      );
+    }
+
 
     return true;
 
+
   } catch (error) {
-    console.error(error);
+
+    console.error(
+      "ADD TO CART ERROR:",
+      error
+    );
+
 
     showToast(
       "Lỗi kết nối",
+      error?.message ||
       "Không kết nối được backend",
       "error"
     );
+
 
     return false;
   }

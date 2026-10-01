@@ -20,50 +20,282 @@ function productImg(item){
 
 let cart = null;
 
-async function fetchCart(){
+async function fetchCart() {
   const user = getUser();
 
-  if(!user){
+  if (!user || !user.token || !user.userId) {
     document.getElementById("app").innerHTML =
-      header() + `
+      header() +
+      `
       <main class="wrap py-16">
         <div class="soft-card p-10 text-center max-w-xl mx-auto">
-          <h1 class="serif text-4xl">Bạn chưa đăng nhập</h1>
-          <p class="mt-4 text-neutral-600">Vui lòng đăng nhập để xem giỏ hàng.</p>
-          <a href="/auth" class="inline-block mt-7 bg-red-800 text-white rounded-full px-8 py-3 font-bold">
+
+          <h1 class="serif text-4xl">
+            Bạn chưa đăng nhập
+          </h1>
+
+          <p class="mt-4 text-neutral-600">
+            Vui lòng đăng nhập để xem giỏ hàng.
+          </p>
+
+          <a
+            href="/auth"
+            class="
+              inline-block
+              mt-7
+              bg-red-800
+              text-white
+              rounded-full
+              px-8
+              py-3
+              font-bold
+            "
+          >
             Đăng nhập
           </a>
-        </div>
-      </main>` + footer();
 
-    lucide.createIcons();
+        </div>
+      </main>
+      ` +
+      footer();
+
+    if (window.lucide) {
+      lucide.createIcons();
+    }
+
     return;
   }
 
-  try{
-    const res = await fetch(`${API_BASE}/cart/${user.userId}`, {
-      headers: userAuthHeaders()
-    });
-    cart = await res.json();
+  try {
 
-    if(!res.ok){
-      throw new Error(cart.message || "Không tải được giỏ hàng");
+    const res = await fetch(
+      `${API_BASE}/cart/${user.userId}`,
+      {
+        method: "GET",
+
+        headers: {
+          "Authorization": "Bearer " + user.token,
+          "Accept": "application/json"
+        }
+      }
+    );
+
+
+    /*
+     * QUAN TRỌNG:
+     *
+     * Không dùng:
+     *
+     * await res.json()
+     *
+     * trực tiếp nữa.
+     *
+     * Nếu backend trả body rỗng,
+     * res.json() sẽ gây:
+     *
+     * Unexpected end of JSON input
+     */
+    const rawText = await res.text();
+
+    let data = null;
+
+
+    /*
+     * Chỉ parse JSON khi response thật sự có dữ liệu.
+     */
+    if (rawText && rawText.trim() !== "") {
+
+      try {
+
+        data = JSON.parse(rawText);
+
+      } catch (parseError) {
+
+        console.error(
+          "Response cart không phải JSON:",
+          rawText
+        );
+
+        throw new Error(
+          "Backend trả dữ liệu giỏ hàng không hợp lệ"
+        );
+      }
     }
+
+
+    /*
+     * Nếu HTTP lỗi.
+     */
+    if (!res.ok) {
+
+      let message =
+        data?.message ||
+        `Không tải được giỏ hàng (HTTP ${res.status})`;
+
+
+      /*
+       * JWT hết hạn / không hợp lệ.
+       */
+      if (res.status === 401) {
+
+        message =
+          "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
+      }
+
+
+      if (res.status === 403) {
+
+        message =
+          data?.message ||
+          "Bạn không có quyền truy cập giỏ hàng này.";
+      }
+
+
+      throw new Error(message);
+    }
+
+
+    /*
+     * HTTP 200 nhưng backend không trả body.
+     */
+    if (!data) {
+
+      console.warn(
+        "API cart trả response rỗng"
+      );
+
+      cart = {
+        cartId: null,
+        user: user,
+        items: []
+      };
+
+    } else {
+
+      cart = data;
+    }
+
+
+    /*
+     * Đảm bảo items luôn là array.
+     */
+    if (!Array.isArray(cart.items)) {
+
+      cart.items = [];
+    }
+
 
     renderCart();
 
-  }catch(e){
-    document.getElementById("app").innerHTML =
-      header() + `
-      <main class="wrap py-16">
-        <div class="soft-card p-10 text-center">
-          <h1 class="text-3xl font-bold text-red-800">Không tải được giỏ hàng</h1>
-          <p class="mt-3 text-neutral-600">${e.message}</p>
-        </div>
-      </main>` + footer();
 
-    lucide.createIcons();
+  } catch (error) {
+
+    console.error(
+      "FETCH CART ERROR:",
+      error
+    );
+
+
+    document.getElementById("app").innerHTML =
+      header() +
+      `
+      <main class="wrap py-16">
+
+        <div class="
+          soft-card
+          p-10
+          text-center
+          max-w-3xl
+          mx-auto
+        ">
+
+          <h1 class="
+            text-3xl
+            font-bold
+            text-red-800
+          ">
+            Không tải được giỏ hàng
+          </h1>
+
+          <p class="
+            mt-3
+            text-neutral-600
+          ">
+            ${escapeCartHtml(
+              error.message ||
+              "Có lỗi xảy ra khi tải giỏ hàng"
+            )}
+          </p>
+
+          <div class="
+            mt-7
+            flex
+            justify-center
+            gap-3
+            flex-wrap
+          ">
+
+            <button
+              onclick="fetchCart()"
+              class="
+                bg-red-800
+                text-white
+                rounded-full
+                px-7
+                py-3
+                font-bold
+              "
+            >
+              Thử lại
+            </button>
+
+            <a
+              href="/products"
+              class="
+                border
+                rounded-full
+                px-7
+                py-3
+                font-bold
+              "
+            >
+              Xem sản phẩm
+            </a>
+
+          </div>
+
+        </div>
+
+      </main>
+      ` +
+      footer();
+
+
+    if (window.lucide) {
+
+      lucide.createIcons();
+
+    }
   }
+}
+
+
+/*
+ * =========================================================
+ * ESCAPE HTML
+ * =========================================================
+ *
+ * Tránh đưa trực tiếp error message
+ * từ backend vào HTML.
+ */
+function escapeCartHtml(value) {
+
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function calcSubtotal(){
