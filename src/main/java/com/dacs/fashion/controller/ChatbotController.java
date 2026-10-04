@@ -16,7 +16,7 @@ public class ChatbotController {
 
     private final ChatbotService chatbotService;
 
-    public record ChatRequest(String message) {}
+    public record ChatRequest(String message, String conversationId) {}
 
     public record ChatProduct(
             Long productId,
@@ -35,9 +35,7 @@ public class ChatbotController {
 
     @PostMapping("/message")
     public ChatResponse message(@RequestBody ChatRequest request) {
-        if (request == null
-                || request.message() == null
-                || request.message().isBlank()) {
+        if (request == null || request.message() == null || request.message().isBlank()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Vui lòng nhập nội dung tin nhắn"
@@ -51,6 +49,14 @@ public class ChatbotController {
             );
         }
 
-        return chatbotService.reply(request.message().trim());
+        String conversationId = request.conversationId();
+        if (conversationId == null || conversationId.isBlank() || conversationId.length() > 100) {
+            conversationId = "anonymous";
+        }
+
+        return chatbotService.reply(
+                request.message().trim(),
+                conversationId.trim()
+        );
     }
 }
