@@ -8,19 +8,19 @@ let recommendProducts = [];
 function hero() {
   const slides = [
     {
-      image: "https://images.unsplash.com/photo-1496747611176-843222e1e57c?q=80&w=1600&auto=format&fit=crop",
-      title: "Summer Collection 2026",
-      desc: "Đầm, blazer và áo sơ mi thanh lịch cho mùa mới."
+      image: "https://res.cloudinary.com/t4cvynrt/image/upload/f_auto/q_auto/banner1.png",
+      title: "20/10 – Special For Her",
+      desc: "Tôn vinh vẻ đẹp của những người phụ nữ tuyệt vời."
     },
     {
-      image: "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?q=80&w=1600&auto=format&fit=crop",
-      title: "Luxury Fashion Week",
-      desc: "Thiết kế sang trọng dành cho phong cách hiện đại."
+      image: "https://res.cloudinary.com/t4cvynrt/image/upload/f_auto/q_auto/banner2.png",
+      title: "Autumn Collection 2026",
+      desc: "Thu đến, lên đồ thật chất."
     },
     {
-      image: "https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=1600&auto=format&fit=crop",
-      title: "Elegant New Arrival",
-      desc: "Khám phá bộ sưu tập thời trang nữ cao cấp mới nhất."
+      image: "https://res.cloudinary.com/t4cvynrt/image/upload/f_auto/q_auto/banner3.png",
+      title: "Winter Collection 2026",
+      desc: "Đông về – Mặc ấm, vẫn thật chất."
     }
   ];
 

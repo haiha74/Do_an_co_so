@@ -89,14 +89,22 @@ function accountPage() {
                                 </label>
 
                                 <label class="account-field">
-                                    <span>Số điện thoại</span>
-                                    <input
-                                        id="accountPhone"
-                                        type="tel"
-                                        inputmode="numeric"
-                                        maxlength="10"
-                                        pattern="0[0-9]{9}"
-                                        placeholder="Nhập số điện thoại">
+                                    <span>Số điện thoại <b>*</b></span>
+                                <input
+                                    id="accountPhone"
+                                    type="tel"
+                                    inputmode="numeric"
+                                    autocomplete="tel"
+                                    maxlength="10"
+                                    pattern="0[0-9]{9}"
+                                    required
+                                    placeholder="VD: 0976814999"
+                                    oninput="
+                                    jodokCleanPhone(this);
+                                    jodokValidatePhoneInput(this);
+                                    "
+                                    onblur="jodokValidatePhoneInput(this)"
+                                >
                                 </label>
 
                                 <label class="account-field account-field-full">
@@ -119,17 +127,7 @@ function accountPage() {
 
                             <div class="account-form-grid">
 
-                                <label class="account-field account-field-full">
-                                    <span>Địa chỉ nhận hàng</span>
-                                    <textarea
-                                        id="accountAddress"
-                                        maxlength="255"
-                                        rows="4"
-                                        placeholder="Số nhà, tên đường, phường/xã, tỉnh/thành phố..."></textarea>
-                                    <small>
-                                        Địa chỉ này được lưu trong hồ sơ để bạn sử dụng khi đặt hàng.
-                                    </small>
-                                </label>
+                                ${jodokAddressFields('account', 'account')}
 
                             </div>
 
@@ -183,8 +181,7 @@ function fillAccountForm() {
     document.getElementById("accountEmail").value =
         accountUser.email || "";
 
-    document.getElementById("accountAddress").value =
-        accountUser.address || "";
+    jodokInitAddress("account", accountUser.address || "");
 
     const message = document.getElementById("accountMessage");
     message.textContent = "";
@@ -243,11 +240,37 @@ async function saveAccount(event) {
         return;
     }
 
+    const phone = document.getElementById("accountPhone").value.trim();    
+    if (!jodokPhoneValid(phone)) {
+        const message = jodokPhoneError(phone);
+
+        jodokValidatePhoneInput(
+            document.getElementById("accountPhone")
+        );
+
+        accountMessage(message, true);
+        return;
+    }
+
+    let address;
+
+    try {
+        address = jodokGetAddress("account");
+    } catch (e) {
+        accountMessage(e.message, true);
+        return;
+    }
+
     const body = {
         fullname: document.getElementById("accountFullname").value.trim(),
-        phone: document.getElementById("accountPhone").value.trim(),
-        address: document.getElementById("accountAddress").value.trim()
+        phone,
+        address
     };
+
+    if (!body.fullname) {
+        accountMessage("Vui lòng nhập họ và tên.", true);
+        return;
+    }
 
     const button = document.getElementById("accountSaveBtn");
 

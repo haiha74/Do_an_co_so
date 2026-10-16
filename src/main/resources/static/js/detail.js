@@ -28,13 +28,47 @@ function detailEscape(value) {
 }
 
 function detailImages(p) {
-  const images = [...(p.images || [])]
-    .sort((a, b) => Number(a.imageId || 0) - Number(b.imageId || 0))
-    .map(img => img.imageUrl)
-    .filter(Boolean);
+  const all = [...(p.images || [])]
+    .filter(img => img && img.imageUrl)
+    .sort(
+      (a, b) =>
+        Number(a.imageId || 0) -
+        Number(b.imageId || 0)
+    );
 
-  return images.length
-    ? images
+  // Chuẩn hóa tên màu
+  const normalize = value =>
+    String(value || "")
+      .trim()
+      .toLocaleLowerCase("vi-VN");
+
+  const chosen = normalize(selectedColor);
+
+  // Ảnh thuộc màu khách đang chọn
+  const matching = chosen
+    ? all.filter(
+        img => normalize(img.color) === chosen
+      )
+    : [];
+
+  // Ảnh không gắn màu: ảnh mặc định
+  const defaults = all.filter(
+    img => !normalize(img.color)
+  );
+
+  // Ưu tiên ảnh đúng màu
+  const displayed = matching.length
+    ? matching
+    : defaults.length
+      ? defaults
+      : all;
+
+  const urls = displayed.map(
+    img => img.imageUrl
+  );
+
+  return urls.length
+    ? urls
     : [getProductImg(p, 0)];
 }
 
@@ -716,8 +750,14 @@ function selectSize(size) {
 
 function selectColor(color) {
   selectedColor = color;
+
+  // Khi đổi màu, trở về ảnh đầu tiên
+  detailImageIndex = 0;
+
+  // Reset số lượng
   selectedQty = 1;
 
+  // Render lại trang chi tiết
   renderApp(detailPage());
 }
 

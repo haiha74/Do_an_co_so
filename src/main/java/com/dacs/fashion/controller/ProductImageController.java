@@ -19,19 +19,42 @@ public class ProductImageController {
     private final ProductRepository productRepository;
 
     @GetMapping("/product/{productId}")
-    public List<ProductImage> getByProduct(@PathVariable Long productId) {
-        return productImageRepository.findByProduct_ProductId(productId);
+    public List<ProductImage> getByProduct(
+            @PathVariable Long productId
+    ) {
+        return productImageRepository
+                .findByProduct_ProductId(productId);
     }
 
     @PostMapping
-    public ProductImage create(@RequestBody ProductImageDTO dto) {
-        Product product = productRepository.findById(dto.getProductId())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
+    public ProductImage create(
+            @RequestBody ProductImageDTO dto
+    ) {
+        Product product = productRepository
+                .findById(dto.getProductId())
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Không tìm thấy sản phẩm"
+                        )
+                );
 
         ProductImage image = new ProductImage();
+
         image.setProduct(product);
         image.setImageUrl(dto.getImageUrl());
-        image.setIsMain(dto.getIsMain() != null ? dto.getIsMain() : true);
+
+        image.setColor(
+                dto.getColor() == null ||
+                dto.getColor().isBlank()
+                        ? null
+                        : dto.getColor().trim()
+        );
+
+        image.setIsMain(
+                dto.getIsMain() != null
+                        ? dto.getIsMain()
+                        : true
+        );
 
         return productImageRepository.save(image);
     }
