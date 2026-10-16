@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -23,8 +24,10 @@ public class AuthController {
             User user = authService.register(dto);
             user.setPassword(null);
             return ResponseEntity.ok(user);
-        } catch (RuntimeException e) {
+        } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (DataIntegrityViolationException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Email đã được sử dụng"));
         }
     }
 
@@ -32,7 +35,7 @@ public class AuthController {
     public ResponseEntity<?> login(@RequestBody LoginDTO dto) {
         try {
             return ResponseEntity.ok(authService.login(dto));
-        } catch (RuntimeException e) {
+        } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }

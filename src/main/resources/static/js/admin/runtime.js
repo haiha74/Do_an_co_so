@@ -1197,6 +1197,9 @@ function setTab(tab) {
 
   try {
     render();
+    if (tab === "products") {
+      refreshProductFilterOptions().catch(error => console.warn("Refresh product filters failed:", error));
+    }
   } catch (error) {
     console.error("SET TAB ERROR:", error);
 

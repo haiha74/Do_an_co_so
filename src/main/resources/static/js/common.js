@@ -9,7 +9,7 @@ const fallbackImages = [
   "https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=900&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1543076447-215ad9ba6923?q=80&w=900&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1584917865442-de89df76afd3?q=80&w=900&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?q=80&w=900&auto=format&fit=crop"
+  "https://github.com/eniuu127/Jodok-Images/blob/1749ee22e2ed86071bac1621900d8c90d4f2eff3/banners/banner1.png"
 ];
 
 let products = [];
@@ -109,33 +109,105 @@ function escapeProductHtml(value) {
    PRODUCT IMAGE
 ========================================= */
 
+
 function getProductImg(p, index = 0) {
-  if (p.imageUrl) {
-    return p.imageUrl + "?v=" + Date.now();
+  if (!p) return "";
+
+  const validUrl = (url) => {
+    if (typeof url !== "string") return false;
+
+    const value = url.trim();
+
+    return (
+      value !== "" &&
+      value.toLowerCase() !== "null" &&
+      value.toLowerCase() !== "undefined"
+    );
+  };
+
+  // Ưu tiên ảnh chính của sản phẩm
+  if (validUrl(p.imageUrl)) {
+    return p.imageUrl.trim();
   }
 
-  if (p.images && p.images.length > 0) {
-    const sorted = [...p.images].sort((a, b) =>
-      Number(b.imageId || b.image_id || 0) -
-      Number(a.imageId || a.image_id || 0)
+  // Kiểm tra danh sách ảnh sản phẩm
+  if (Array.isArray(p.images)) {
+    const images = p.images
+      .filter(img => validUrl(img?.imageUrl))
+      .sort((a, b) =>
+        Number(b.imageId || b.image_id || 0) -
+        Number(a.imageId || a.image_id || 0)
+      );
+
+    const mainImg = images.find(img =>
+      img.isMain === true ||
+      img.isMain === 1 ||
+      img.is_main === true ||
+      img.is_main === 1
     );
 
-    const mainImg = sorted.find(img =>
-      img.isMain == true ||
-      img.isMain == 1 ||
-      img.is_main == true ||
-      img.is_main == 1
-    );
+    const selected = mainImg || images[0];
 
-    const img = mainImg || sorted[0];
-
-    if (img?.imageUrl) {
-      return img.imageUrl + "?v=" + Date.now();
+    if (selected) {
+      return selected.imageUrl.trim();
     }
   }
 
-  return fallbackImages[index % fallbackImages.length];
+  // Không có ảnh thì không lấy ảnh mẫu
+  return "";
 }
+
+// Khi ảnh không tải được
+function handleProductImageError(img) {
+  if (!img) return;
+
+  img.onerror = null;
+  img.style.display = "none";
+
+  const parent = img.parentElement;
+  if (!parent) return;
+
+  if (parent.querySelector(".jodok-no-image")) return;
+
+  const placeholder = document.createElement("div");
+
+  placeholder.className = "jodok-no-image";
+  placeholder.style.cssText = `
+    width: 100%;
+    height: 100%;
+    min-height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 10px;
+    background: #f5f5f5;
+    color: #999;
+    font-size: 13px;
+    text-align: center;
+    padding: 15px;
+    box-sizing: border-box;
+  `;
+
+  placeholder.innerHTML = `
+    <svg width="34" height="34"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2"/>
+      <circle cx="8.5" cy="8.5" r="1.5"/>
+      <path d="m21 15-5-5L5 21"/>
+      <path d="M3 3l18 18"/>
+    </svg>
+    <span>Chưa có ảnh sản phẩm</span>
+  `;
+
+  img.insertAdjacentElement("afterend", placeholder);
+}
+
 
 /* =========================================
    BRAND
@@ -182,11 +254,22 @@ async function fetchJson(url) {
 
 function getUser() {
   try {
-    return JSON.parse(
-      localStorage.getItem("ha_user") || "null"
-    );
-  } catch (e) {
-    console.error("Dữ liệu người dùng không hợp lệ:", e);
+    const raw = localStorage.getItem('ha_user');
+    if (!raw) return null;
+    const user = JSON.parse(raw);
+    if (!user || !user.token || !user.userId || user.role !== 'USER') {
+      localStorage.removeItem('ha_user');
+      return null;
+    }
+    // JWT expiry is a fast client check; backend remains the authority.
+    const payload = JSON.parse(atob(user.token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    if (!payload.exp || payload.exp * 1000 <= Date.now()) {
+      localStorage.removeItem('ha_user');
+      return null;
+    }
+    return user;
+  } catch (error) {
+    localStorage.removeItem('ha_user');
     return null;
   }
 }
@@ -775,12 +858,37 @@ function card(p, index) {
         style="cursor:pointer"
       >
 
-        <img
-          src="${imageUrl}"
-          alt="${productName}"
-          loading="lazy"
-          onerror="this.onerror=null;this.src='/images/no-image.png';"
-        >
+      ${
+        imageUrl
+          ? `
+            <img
+              src="${imageUrl}"
+              alt="${productName}"
+              loading="lazy"
+              onerror="handleProductImageError(this)"
+            >
+          `
+          : `
+            <div class="jodok-no-image"
+              style="
+                width:100%;
+                height:100%;
+                min-height:180px;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                flex-direction:column;
+                gap:10px;
+                background:#f5f5f5;
+                color:#999;
+                font-size:13px;
+                text-align:center;
+              ">
+              <span style="font-size:30px">▧</span>
+              <span>Chưa có ảnh sản phẩm</span>
+            </div>
+          `
+      }
 
         ${
           p.status === "ACTIVE"

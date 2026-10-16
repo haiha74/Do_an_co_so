@@ -7,7 +7,9 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProductImageDTO {
+
     private Long productId;
     private String imageUrl;
     private Boolean isMain;
+    private String color;
 }
