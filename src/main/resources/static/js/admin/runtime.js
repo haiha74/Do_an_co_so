@@ -972,6 +972,7 @@ function sidebar() {
     ["users", "Quản lý người dùng", "users"],
     ["reviews", "Quản lý đánh giá", "message-square"],
     ["promo", "Voucher", "badge-percent"],
+    ["events", "Sự kiện bán hàng", "calendar-days"],
     ["payos", "Lịch sử PayOS", "wallet"],
     ["reports", "Báo cáo thống kê", "bar-chart-3"]
   ];
@@ -1026,6 +1027,7 @@ function content() {
   if (currentTab === "users") return userTable();
   if (currentTab === "reviews") return reviewPanel();
   if (currentTab === "promo") return voucherPanel();
+  if (currentTab === "events") { setTimeout(loadSaleEvents, 0); return eventPanel(); }
   if (currentTab === "payos") return payosPanel();
   if (currentTab === "reports") return reportPanel();
 
@@ -1055,6 +1057,7 @@ function adminPage() {
     users: "Quản lý người dùng",
     reviews: "Quản lý đánh giá",
     promo: "Voucher",
+    events: "Sự kiện bán hàng",
     payos: "Lịch sử PayOS",
     reports: "Báo cáo thống kê"
   };

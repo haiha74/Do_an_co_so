@@ -1,4 +1,3 @@
-
 let cart = null;
 let appliedVoucher = null;
 let discountAmount = 0;
@@ -51,7 +50,7 @@ function getPaymentSubtotal() {
     const product = variant.product;
 
     const price = Number(
-      variant.price || product.basePrice || 0
+      jodokSalePrice(product?.productId, variant.price ?? product.basePrice ?? 0)
     );
 
     return sum + price * Number(item.quantity || 0);
@@ -132,6 +131,7 @@ async function loadCart() {
       return;
     }
 
+    await loadJodokSalePrices();
     await loadAvailableVouchers();
 
     // Chỉ render một lần khi trang được tải
@@ -227,7 +227,7 @@ function renderPayment() {
     const p = v.product;
 
     const price = Number(
-      v.price || p.basePrice || 0
+      jodokSalePrice(p?.productId, v.price ?? p.basePrice ?? 0)
     );
 
     const line = price * item.quantity;

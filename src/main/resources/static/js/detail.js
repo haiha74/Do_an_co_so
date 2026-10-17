@@ -1,4 +1,3 @@
-
 /* =========================================
    JODOK - PRODUCT DETAIL
 ========================================= */
@@ -303,7 +302,8 @@ function detailPage() {
 
   const variant = getSelectedVariant();
 
-  const price = variant?.price ?? p.basePrice;
+  const originalPrice = variant?.price ?? p.basePrice;
+  const price = jodokSalePrice(p.productId, originalPrice);
   const stock = Number(variant?.stock || 0);
 
   const averageRating = productFeedbacks.length
@@ -438,7 +438,7 @@ function detailPage() {
           </div>
 
           <div class="detail-price">
-            ${formatPrice(price)}
+            ${jodokSalePriceMarkup(p.productId, originalPrice)}
           </div>
 
           <div class="detail-options">
@@ -659,6 +659,8 @@ async function loadDetailPage() {
   }
 
   try {
+
+    await loadJodokSalePrices();
 
     // PRODUCT
 

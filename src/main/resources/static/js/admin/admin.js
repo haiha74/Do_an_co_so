@@ -11,6 +11,7 @@ const scripts = [
   "./brand.js",
   "./order.js",
   "./voucher.js",
+  "./events.js",
   "./user.js",
   "./review.js",
   "./report.js",

@@ -1,5 +1,121 @@
-
 let recommendProducts = [];
+let homeSaleEvents = [];
+
+const homeEventEscape = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+}[char]));
+
+function homeCollectionSection() {
+  // Backend hiện tại chỉ có SaleEvent, chưa có bảng BST độc lập.
+  // Tạm hiển thị tối đa 3 sự kiện đang diễn ra dưới dạng collection card.
+  const items = homeSaleEvents.slice(0, 3);
+  if (!items.length) return "";
+  return `
+    <section class="wrap py-10" id="home-collections">
+      <div class="flex items-end justify-between gap-3 mb-6">
+        <div>
+          <h2 class="serif text-3xl md:text-4xl font-bold text-red-800">Bộ sưu tập nổi bật</h2>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 ${items.length === 1 ? 'md:grid-cols-1' : 'md:grid-cols-2'} ${items.length === 3 ? 'lg:grid-cols-3' : ''} gap-5">
+        ${items.map(e => `
+          <a href="/events/${encodeURIComponent(e.slug)}" class="block overflow-hidden rounded-2xl border bg-white hover:shadow-lg transition group">
+            ${e.bannerUrl ? `<img src="${homeEventEscape(e.bannerUrl)}" alt="${homeEventEscape(e.name)}" class="w-full h-52 md:h-64 object-cover group-hover:scale-[1.02] transition" loading="lazy" onerror="this.onerror=null;this.src='/images/no-image.png'">` : `<div class="h-52 md:h-64 bg-gradient-to-br from-stone-700 to-red-900 text-white flex items-center justify-center text-2xl font-semibold">JODOK COLLECTION</div>`}
+            <div class="p-5">
+              <h3 class="font-semibold text-xl">${homeEventEscape(e.name)}</h3>
+              <p class="mt-2 text-sm text-neutral-500 line-clamp-2">${homeEventEscape(e.description || 'Khám phá bộ sưu tập mới tại JODOK.')}</p>
+              <span class="inline-block mt-4 text-red-800 text-sm font-semibold">Khám phá BST →</span>
+            </div>
+          </a>
+        `).join("")}
+      </div>
+    </section>`;
+}
+
+let homeFeaturedTab = 'best';
+let homeIsLoggedIn = false;
+
+function homeFeaturedItems() {
+  const list = [...products];
+  if (homeFeaturedTab === 'best') {
+    return list.sort((a, b) => getSoldCount(b.productId) - getSoldCount(a.productId)).slice(0, 8);
+  }
+  if (homeFeaturedTab === 'new') {
+    return list.sort((a, b) => (Number(b.productId) || 0) - (Number(a.productId) || 0)).slice(0, 8);
+  }
+  const ids = new Set(homeSaleEvents.flatMap(e =>
+    Array.isArray(e.productIds) ? e.productIds.map(Number) : []
+  ));
+  return list.filter(p => ids.has(Number(p.productId))).slice(0, 8);
+}
+
+function homeFeaturedSection() {
+  // Dạng tab ngang lấy cảm hứng từ cách duyệt sản phẩm của Coolmate.
+  // Chỉ thay giao diện tab, vẫn dùng productGrid() và dữ liệu JODOK hiện tại.
+  const tabs = [
+    { key: 'best', title: 'Bán chạy', icon: 'flame' },
+    { key: 'new', title: 'Mới nhất', icon: 'sparkles' },
+    { key: 'sale', title: 'Đang giảm giá', icon: 'badge-percent' }
+  ];
+  const featured = homeFeaturedItems();
+  return `<section class="wrap py-10 md:py-14" id="home-featured">
+    <div class="flex flex-wrap items-end justify-between gap-3 mb-5">
+      <div>
+        <h2 class="serif text-3xl md:text-4xl font-bold text-red-800">Sản phẩm nổi bật</h2>
+      </div>
+      <a href="/products" class="hidden md:inline-flex items-center gap-1 text-sm font-semibold text-red-800 hover:underline">Xem tất cả <span aria-hidden="true">↗</span></a>
+    </div>
+
+    <div class="border-b border-neutral-200 mb-6 overflow-x-auto" style="scrollbar-width:thin">
+      <div class="flex items-stretch gap-6 md:gap-10 min-w-max" role="tablist" aria-label="Nhóm sản phẩm nổi bật">
+        ${tabs.map(t => {
+          const active = homeFeaturedTab === t.key;
+          return `<button type="button" role="tab" aria-selected="${active}" onclick="switchHomeFeatured('${t.key}')"
+            class="group relative flex items-center gap-2 pb-4 pt-2 whitespace-nowrap text-sm md:text-base font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-red-800 ${active ? 'text-red-800' : 'text-neutral-500 hover:text-red-800'}">
+            <i data-lucide="${t.icon}" class="w-4 h-4 md:w-[18px] md:h-[18px]"></i>
+            ${t.title}
+            <span class="absolute bottom-0 left-0 right-0 h-[3px] rounded-t-full transition-transform duration-200 origin-left ${active ? 'bg-red-800 scale-x-100' : 'bg-red-800 scale-x-0 group-hover:scale-x-100'}"></span>
+          </button>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div id="home-featured-products" role="tabpanel" aria-live="polite">
+      ${featured.length
+        ? productGrid(featured)
+        : '<div class="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 px-6 py-12 text-center text-neutral-500">Chưa có sản phẩm trong mục này. Hãy xem các mục khác nhé!</div>'}
+    </div>
+    <div class="flex justify-center mt-8 md:hidden">
+      <a href="/products" class="inline-flex items-center gap-2 rounded-full border border-red-800 text-red-800 px-7 py-3 text-sm font-semibold hover:bg-red-800 hover:text-white transition">Xem tất cả sản phẩm →</a>
+    </div>
+  </section>`;
+}
+
+function switchHomeFeatured(tab) {
+  if (!['best', 'new', 'sale'].includes(tab)) return;
+  homeFeaturedTab = tab;
+  const section = document.getElementById('home-featured');
+  if (!section) return;
+  const next = document.createElement('div');
+  next.innerHTML = homeFeaturedSection();
+  section.replaceWith(next.firstElementChild);
+  if (window.lucide) lucide.createIcons();
+}
+
+function homeOfferSection() {
+  // Chỉ hiện khi có chiến dịch đang diễn ra; không lặp thêm hàng loạt banner.
+  const e = homeSaleEvents[0];
+  if (!e) return '';
+  const value = Number(e.discountValue || 0).toLocaleString('vi-VN');
+  const offer = e.discountType === 'PERCENT' ? `Giảm ${value}%` : `Giảm ${value}đ`;
+  return `<section class="wrap py-8" id="home-offer">
+    <a href="/events/${encodeURIComponent(e.slug)}" class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-red-900 text-white rounded-2xl px-6 md:px-10 py-7">
+      <div><h2 class="serif text-2xl md:text-3xl font-bold">${homeEventEscape(e.name)}</h2>
+      <p class="text-sm mt-2 text-white/85">${offer} · Khám phá sản phẩm trong chương trình</p></div>
+      <span class="shrink-0 bg-white text-red-900 font-bold px-5 py-3 rounded-full text-sm text-center">Xem ưu đãi →</span>
+    </a>
+  </section>`;
+}
 
 /* =========================================
    HERO SLIDER
@@ -24,8 +140,18 @@ function hero() {
     }
   ];
 
+  // Banner sự kiện do Admin tạo được bổ sung động, không thay 3 banner mặc định.
+  const eventSlides = homeSaleEvents.filter(event => event.bannerUrl).map(event => ({
+    image: event.bannerUrl,
+    title: event.name,
+    desc: event.description || 'Ưu đãi thời trang đang diễn ra tại JODOK',
+    slug: event.slug
+  }));
+  slides.unshift(...eventSlides.slice(0, 1));
+  slides.splice(3);
+
   return `
-    <section class="relative h-[560px] overflow-hidden bg-black">
+    <section class="relative h-[360px] md:h-[520px] overflow-hidden bg-black">
 
       <div id="heroSlides" class="relative w-full h-full">
 
@@ -34,8 +160,8 @@ function hero() {
 
             <img
               class="absolute inset-0 w-full h-full object-cover"
-              src="${slide.image}"
-              alt="${slide.title}"
+              src="${homeEventEscape(slide.image)}"
+              alt="${homeEventEscape(slide.title)}"
             >
 
             <div class="absolute inset-0 bg-gradient-to-r from-black/80 via-black/30 to-transparent"></div>
@@ -43,20 +169,16 @@ function hero() {
             <div class="wrap relative h-full flex items-center text-white">
               <div class="max-w-2xl">
 
-                <p class="uppercase tracking-[.35em] text-red-200 font-semibold">
-                  JODOK
-                </p>
-
-                <h1 class="serif text-7xl leading-tight mt-4">
-                  ${slide.title}
+                <h1 class="serif text-4xl md:text-6xl leading-tight mt-4">
+                  ${homeEventEscape(slide.title)}
                 </h1>
 
-                <p class="text-xl mt-5 text-white/85">
-                  ${slide.desc}
+                <p class="text-sm md:text-xl mt-5 text-white/85">
+                  ${homeEventEscape(slide.desc)}
                 </p>
 
                 <button
-                  onclick="go('shop')"
+                  onclick="${slide.slug ? `window.location.href='/events/${encodeURIComponent(slide.slug)}'` : "go('shop')"}"
                   class="mt-8 rounded-full bg-white text-black px-8 py-4 font-bold hover:bg-red-800 hover:text-white transition"
                 >
                   Khám phá ngay
@@ -198,11 +320,11 @@ function categoryGrid() {
 
       <div class="w-full bg-white border rounded-3xl overflow-hidden shadow-sm">
 
-        <h2 class="px-6 py-4 border-b text-lg font-bold uppercase text-neutral-700">
+        <h2 class="px-6 py-4 border-b text-xl md:text-2xl font-bold text-red-800">
           Danh mục nổi bật
         </h2>
 
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7">
 
           ${parentCategories.map((c, i) => `
 
@@ -242,40 +364,30 @@ function categoryGrid() {
    PERSONALIZED RECOMMENDATIONS
 ========================================= */
 function recommendSection() {
-  if (!recommendProducts || recommendProducts.length === 0) {
-    return "";
-  }
+  if (!homeIsLoggedIn) return '';
+
+  const recommendations = Array.isArray(recommendProducts)
+    ? recommendProducts.filter(p => p && p.status !== 'INACTIVE')
+    : [];
 
   return `
-    <section class="wrap py-10">
-
-      <div class="mb-7">
-        <p class="text-red-800 tracking-widest uppercase font-bold">
+    <section class="wrap py-10 md:py-14" id="home-recommendations">
+      <div class="mb-6">
+        <h2 class="serif text-3xl md:text-4xl font-bold text-red-800">
           Gợi ý cá nhân hóa
-        </p>
-
-        <h2 class="serif text-5xl">
-          Dành riêng cho bạn
         </h2>
-
-        <p class="mt-3 text-neutral-500">
-          Dựa trên sản phẩm bạn đã xem trước đó.
+        <p class="mt-2 text-sm text-neutral-500">
+          Những sản phẩm phù hợp với sở thích của bạn.
         </p>
       </div>
 
-      ${productGrid(recommendProducts.slice(0, 10))}
-
-      <div class="flex justify-center mt-8">
-        <a href="/products"
-           class="inline-flex items-center justify-center
-                  border border-neutral-200 rounded-full
-                  px-10 py-3 bg-white font-semibold
-                  hover:bg-red-800 hover:text-white
-                  hover:border-red-800 transition">
-          Xem thêm
-        </a>
-      </div>
-
+      ${recommendations.length
+        ? productGrid(recommendations.slice(0, 8))
+        : `<div class="rounded-xl border border-dashed border-neutral-300
+                       bg-white px-6 py-9 text-center text-neutral-500">
+             Chưa có gợi ý dành riêng cho bạn. Hãy khám phá các sản phẩm
+             để JODOK hiểu sở thích của bạn hơn.
+           </div>`}
     </section>
   `;
 }
@@ -313,7 +425,7 @@ function serviceBenefits() {
         
         <div class="text-left mb-5">
 
-          <h2 class="serif text-2xl md:text-3xl font-bold text-neutral-900 mb-2">
+          <h2 class="serif text-2xl md:text-3xl font-bold text-red-800 mb-2">
             Mua sắm an tâm, trải nghiệm trọn vẹn
           </h2>
 
@@ -354,54 +466,15 @@ function serviceBenefits() {
 ========================================= */
 
 function home() {
+  // 6 khu vực: hero, danh mục, BST, sản phẩm (tabs), ưu đãi (nếu có), cam kết.
   return header()
-
     + hero()
-
     + categoryGrid()
-
+    + homeCollectionSection()
     + recommendSection()
-
-    + `
-
-      <!-- BEST SELLERS -->
-    <section class="wrap py-10">
-
-      <div class="mb-7">
-        <p class="text-red-800 tracking-widest uppercase font-bold">
-          Sản phẩm nổi bật
-        </p>
-
-        <h2 class="serif text-5xl">
-          Best Sellers
-        </h2>
-      </div>
-
-      ${productGrid(
-        [...products]
-          .sort((a, b) =>
-            getSoldCount(b.productId) - getSoldCount(a.productId)
-          )
-          .slice(0, 10)
-      )}
-
-      <div class="flex justify-center mt-8">
-        <a href="/products"
-          class="inline-flex items-center justify-center
-                  border border-neutral-200 rounded-full
-                  px-10 py-3 bg-white font-semibold
-                  hover:bg-red-800 hover:text-white
-                  hover:border-red-800 transition">
-          Xem thêm
-        </a>
-      </div>
-
-    </section>
-    `
-
-    /* Khối 4 cam kết nằm trước footer */
+    + homeFeaturedSection()
+    + homeOfferSection()
     + serviceBenefits()
-
     + footer();
 }
 
@@ -422,6 +495,8 @@ async function loadHomePage() {
       fetchJson(`${API_BASE}/brands`).catch(() => []),
       fetchJson(`${API_BASE}/orders`).catch(() => [])
     ]);
+
+    await loadJodokSalePrices();
 
     /* PRODUCTS */
     allProducts = productData.filter(
@@ -458,17 +533,43 @@ async function loadHomePage() {
 
     /* PERSONALIZED RECOMMENDATIONS */
     const user = getUser();
+    homeIsLoggedIn = Boolean(user?.userId);
 
     recommendProducts = [];
 
     if (user?.userId) {
       try {
-        recommendProducts = await fetchJson(
+        const suggested = await fetchJson(
           `${API_BASE}/recommendations/${user.userId}`
         );
+        recommendProducts = Array.isArray(suggested) ? suggested : [];
       } catch (e) {
         recommendProducts = [];
       }
+    }
+
+    /* ACTIVE SALE EVENTS: chỉ lấy sự kiện đang chạy, lỗi API không chặn trang chủ */
+    try {
+      const events = await fetchJson(`${API_BASE}/events`);
+      homeSaleEvents = Array.isArray(events) ? events.filter(e => e && e.enabled && e.slug) : [];
+    } catch (error) {
+      console.warn('Không tải được sự kiện đang diễn ra:', error);
+      homeSaleEvents = [];
+    }
+
+    /* ACTIVE EVENTS: sự kiện ngoài thời gian chạy không được đưa vào trang chủ */
+    try {
+      const result = await fetchJson(`${API_BASE}/events`);
+      const now = Date.now();
+      homeSaleEvents = Array.isArray(result) ? result.filter(e => {
+        if (!e || !e.slug || !e.enabled || !e.startAt || !e.endAt) return false;
+        const start = new Date(e.startAt).getTime();
+        const end = new Date(e.endAt).getTime();
+        return Number.isFinite(start) && Number.isFinite(end) && start <= now && now < end;
+      }) : [];
+    } catch (error) {
+      console.warn('Không tải được sự kiện JODOK:', error);
+      homeSaleEvents = [];
     }
 
     /* RENDER HOME */

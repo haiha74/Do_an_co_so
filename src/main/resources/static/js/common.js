@@ -1,4 +1,3 @@
-
 const API_BASE = "http://localhost:8080/api";
 
 const fallbackImages = [
@@ -246,6 +245,66 @@ async function fetchJson(url) {
   }
 
   return res.json();
+}
+
+/* Giá sự kiện dùng chung cho trang chủ, tìm kiếm, chi tiết và giỏ hàng.
+   Giá cuối cùng của đơn vẫn phải do OrderService kiểm tra lại. */
+let jodokLiveEvents = [];
+async function loadJodokSalePrices() {
+  try {
+    const response = await fetch(`${API_BASE}/events`, {cache: 'no-store'});
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const events = await response.json();
+    const now = Date.now();
+    jodokLiveEvents = (Array.isArray(events) ? events : []).filter(e =>
+      e.enabled && Date.parse(e.startAt) <= now && now < Date.parse(e.endAt)
+    );
+  } catch (error) {
+    console.warn('Không lấy được giá sự kiện:', error);
+    jodokLiveEvents = [];
+  }
+}
+function jodokSalePrice(productId, originalPrice) {
+  const original = Number(originalPrice);
+  if (originalPrice == null || !Number.isFinite(original)) return originalPrice;
+  const now = Date.now();
+  let best = original;
+  for (const e of jodokLiveEvents) {
+    if (!e.enabled || Date.parse(e.startAt) > now || Date.parse(e.endAt) <= now) continue;
+    if (!(e.productIds || []).some(id => Number(id) === Number(productId))) continue;
+    const amount = Number(e.discountValue);
+    if (!Number.isFinite(amount) || amount < 0) continue;
+    const value = e.discountType === 'PERCENT'
+      ? original * (1 - amount / 100)
+      : original - amount;
+    best = Math.min(best, Math.max(0, Math.round(value)));
+  }
+  return best;
+}
+function jodokSalePriceMarkup(productId, original) {
+  const finalPrice = jodokSalePrice(productId, original);
+  const base = Number(original);
+
+  if (original == null || !Number.isFinite(base)) {
+    return 'Liên hệ';
+  }
+
+  const discounted = Number(finalPrice) < base;
+
+  // Giá gốc nằm trên giá hiện tại. Giữ số đã bán ở bên phải.
+  return `
+    <span class="jodok-price-stack"
+          style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0;white-space:nowrap">
+      ${discounted ? `
+        <del style="color:#9ca3af;font-size:11px;font-weight:400;line-height:16px">
+          ${formatPrice(base)}
+        </del>
+      ` : ''}
+      <strong style="color:#991b1b;font-weight:700;line-height:22px">
+        ${formatPrice(finalPrice)}
+      </strong>
+    </span>
+  `;
 }
 
 /* =========================================
@@ -542,6 +601,13 @@ function header() {
           >
             Sản phẩm
           </button>
+
+          <a
+            href="/events"
+            class="text-base font-medium hover:text-red-800 transition-colors"
+          >
+            Bộ sưu tập
+          </a>
 
           <button
             onclick="go('promo')"
@@ -840,9 +906,14 @@ function card(p, index) {
     p.productName || "Sản phẩm JODOK"
   );
 
-  const price = escapeProductHtml(
-    formatPrice(p.basePrice)
-  );
+  const price = jodokSalePriceMarkup(p.productId, p.basePrice);
+  const originalPrice = Number(p.basePrice);
+  const salePrice = Number(jodokSalePrice(p.productId, p.basePrice));
+  const isOnSale = p.basePrice != null && Number.isFinite(originalPrice) &&
+    originalPrice > 0 && Number.isFinite(salePrice) && salePrice < originalPrice;
+  const salePercent = isOnSale
+    ? Math.round((originalPrice - salePrice) * 100 / originalPrice)
+    : 0;
 
   const soldCount = formatSoldCount(
     getSoldCount(productId)
@@ -890,14 +961,9 @@ function card(p, index) {
           `
       }
 
-        ${
-          p.status === "ACTIVE"
-            ? `
-              <span class="jodok-product-badge">
-                NEW
-              </span>
-            `
-            : ""
+        ${isOnSale
+          ? `<span class="jodok-product-badge" style="top:12px;left:12px;border-radius:4px;background:#922a35;color:#fff;padding:4px 10px;font-size:12px;font-weight:700;line-height:18px">-${salePercent}%</span>`
+          : ""
         }
 
         <!-- HOVER ACTIONS -->
@@ -954,13 +1020,13 @@ function card(p, index) {
         </h3>
 
         <!-- PRICE LEFT / SOLD RIGHT -->
-        <div class="jodok-product-bottom">
+        <div class="jodok-product-bottom" style="display:flex;flex-wrap:nowrap;align-items:flex-end;justify-content:space-between;gap:4px;min-width:0">
 
-          <div class="jodok-product-price">
+          <div class="jodok-product-price" style="flex:0 1 auto;min-width:0;white-space:normal;line-height:1.5">
             ${price}
           </div>
 
-          <span class="jodok-product-sold">
+          <span class="jodok-product-sold" style="flex:0 0 auto;white-space:nowrap;margin-left:auto;align-self:flex-end;text-align:right">
             ${soldCount}
           </span>
 

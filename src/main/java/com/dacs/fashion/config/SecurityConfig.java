@@ -1,6 +1,9 @@
+
 package com.dacs.fashion.config;
 
 import lombok.RequiredArgsConstructor;
+
+import jakarta.servlet.DispatcherType;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -36,7 +39,6 @@ public class SecurityConfig {
                         csrf.disable()
                 )
 
-
                 // =====================================================
                 // SESSION
                 // =====================================================
@@ -47,13 +49,17 @@ public class SecurityConfig {
                         )
                 )
 
-
                 // =====================================================
                 // AUTHORIZATION
                 // =====================================================
 
                 .authorizeHttpRequests(auth -> auth
 
+                        // Cho phép Spring Boot xử lý lỗi
+                        .dispatcherTypeMatchers(
+                                DispatcherType.ERROR
+                        )
+                        .permitAll()
 
                         // =================================================
                         // PUBLIC PAGES
@@ -61,6 +67,7 @@ public class SecurityConfig {
 
                         .requestMatchers(
                                 "/",
+                                "/error",
                                 "/products",
                                 "/detail/**",
                                 "/auth",
@@ -68,6 +75,11 @@ public class SecurityConfig {
                                 "/cart",
                                 "/payment",
                                 "/promo",
+
+                                // Trang tổng hợp và chi tiết BST
+                                "/events",
+                                "/events/**",
+
                                 "/store",
                                 "/orders",
                                 "/admin",
@@ -85,7 +97,6 @@ public class SecurityConfig {
                                 "/api/auth/**"
                         )
                         .permitAll()
-
 
                         // =================================================
                         // PUBLIC PRODUCT API
@@ -109,6 +120,25 @@ public class SecurityConfig {
                         )
                         .permitAll()
 
+                        // =================================================
+                        // EVENT ADMIN
+                        // =================================================
+
+                        // Chỉ ADMIN được quản lý sự kiện
+                        .requestMatchers(
+                                "/api/events/admin",
+                                "/api/events/admin/**"
+                        )
+                        .hasRole("ADMIN")
+
+                        // Khách hàng được xem sự kiện
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/events",
+                                "/api/events/*",
+                                "/api/events/prices"
+                        )
+                        .permitAll()
 
                         // =================================================
                         // CHATBOT
@@ -120,7 +150,6 @@ public class SecurityConfig {
                         )
                         .permitAll()
 
-
                         // =================================================
                         // PRODUCT - ADMIN
                         // =================================================
@@ -131,20 +160,17 @@ public class SecurityConfig {
                         )
                         .hasRole("ADMIN")
 
-
                         .requestMatchers(
                                 HttpMethod.PUT,
                                 "/api/products/**"
                         )
                         .hasRole("ADMIN")
 
-
                         .requestMatchers(
                                 HttpMethod.DELETE,
                                 "/api/products/**"
                         )
                         .hasRole("ADMIN")
-
 
                         // =================================================
                         // CATEGORY / BRAND / VOUCHER / PRODUCT IMAGE
@@ -160,7 +186,6 @@ public class SecurityConfig {
                         )
                         .hasRole("ADMIN")
 
-
                         .requestMatchers(
                                 HttpMethod.PUT,
 
@@ -171,7 +196,6 @@ public class SecurityConfig {
                         )
                         .hasRole("ADMIN")
 
-
                         .requestMatchers(
                                 HttpMethod.DELETE,
 
@@ -181,7 +205,6 @@ public class SecurityConfig {
                                 "/api/product-images/**"
                         )
                         .hasRole("ADMIN")
-
 
                         // =================================================
                         // UPLOAD IMAGE
@@ -197,7 +220,6 @@ public class SecurityConfig {
                                 "STAFF"
                         )
 
-
                         // =================================================
                         // ACCOUNT
                         // =================================================
@@ -210,7 +232,6 @@ public class SecurityConfig {
                                 "ADMIN",
                                 "STAFF"
                         )
-
 
                         // =================================================
                         // USER ORDER
@@ -227,7 +248,6 @@ public class SecurityConfig {
                                 "STAFF"
                         )
 
-
                         .requestMatchers(
                                 HttpMethod.PUT,
                                 "/api/orders/*/paid"
@@ -237,7 +257,6 @@ public class SecurityConfig {
                                 "ADMIN",
                                 "STAFF"
                         )
-
 
                         // =================================================
                         // CART + PAYOS CREATE
@@ -253,7 +272,6 @@ public class SecurityConfig {
                                 "STAFF"
                         )
 
-
                         // =================================================
                         // ORDER + SHIPMENT
                         // =================================================
@@ -266,7 +284,6 @@ public class SecurityConfig {
                                 "ADMIN",
                                 "STAFF"
                         )
-
 
                         // =================================================
                         // VARIANT GET
@@ -281,12 +298,8 @@ public class SecurityConfig {
                                 "STAFF"
                         )
 
-
                         // =================================================
                         // VARIANT POST
-                        //
-                        // QUAN TRỌNG:
-                        // SecurityConfig ban đầu thiếu rule này.
                         // =================================================
 
                         .requestMatchers(
@@ -297,7 +310,6 @@ public class SecurityConfig {
                                 "ADMIN",
                                 "STAFF"
                         )
-
 
                         // =================================================
                         // VARIANT PUT
@@ -312,11 +324,8 @@ public class SecurityConfig {
                                 "STAFF"
                         )
 
-
                         // =================================================
                         // VARIANT DELETE
-                        //
-                        // Giữ logic ADMIN mới được xóa
                         // =================================================
 
                         .requestMatchers(
@@ -324,7 +333,6 @@ public class SecurityConfig {
                                 "/api/variants/**"
                         )
                         .hasRole("ADMIN")
-
 
                         // =================================================
                         // REVIEW
@@ -342,13 +350,11 @@ public class SecurityConfig {
                                 "STAFF"
                         )
 
-
                         .requestMatchers(
                                 HttpMethod.DELETE,
                                 "/api/reviews/**"
                         )
                         .hasRole("ADMIN")
-
 
                         // =================================================
                         // ADMIN ONLY
@@ -362,7 +368,6 @@ public class SecurityConfig {
                         )
                         .hasRole("ADMIN")
 
-
                         // =================================================
                         // OTHER
                         // =================================================
@@ -370,7 +375,6 @@ public class SecurityConfig {
                         .anyRequest()
                         .authenticated()
                 )
-
 
                 // =====================================================
                 // DISABLE FORM LOGIN
@@ -380,7 +384,6 @@ public class SecurityConfig {
                         form.disable()
                 )
 
-
                 // =====================================================
                 // DISABLE HTTP BASIC
                 // =====================================================
@@ -388,7 +391,6 @@ public class SecurityConfig {
                 .httpBasic(basic ->
                         basic.disable()
                 )
-
 
                 // =====================================================
                 // JWT FILTER
@@ -399,10 +401,8 @@ public class SecurityConfig {
                         UsernamePasswordAuthenticationFilter.class
                 );
 
-
         return http.build();
     }
-
 
     // =========================================================
     // PASSWORD ENCODER
@@ -410,7 +410,6 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-
         return new BCryptPasswordEncoder();
     }
 }

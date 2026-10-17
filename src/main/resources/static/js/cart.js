@@ -185,6 +185,7 @@ async function fetchCart() {
     }
 
 
+    await loadJodokSalePrices();
     renderCart();
 
 
@@ -302,7 +303,7 @@ function calcSubtotal(){
   if(!cart?.items) return 0;
 
   return cart.items.reduce((sum,item)=>{
-    const price = Number(item.variant?.price || 0);
+    const price = Number(jodokSalePrice(item.variant?.product?.productId, item.variant?.price ?? 0));
     const qty = Number(item.quantity || 0);
     return sum + price * qty;
   },0);
@@ -351,7 +352,7 @@ function renderCart(){
                 ${items.map(item => {
                   const p = item.variant?.product;
                   const v = item.variant;
-                  const price = Number(v?.price || 0);
+                  const price = Number(jodokSalePrice(p?.productId, v?.price ?? 0));
                   const qty = Number(item.quantity || 0);
                   const stock = Number(v?.stock || 0);
 

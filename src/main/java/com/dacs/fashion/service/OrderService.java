@@ -25,6 +25,7 @@ public class OrderService {
     private final ProductVariantRepository variantRepository;
     private final PaymentRepository paymentRepository;
     private final VoucherService voucherService;
+    private final SaleEventService saleEventService;
     
 
     public List<Order> getAll() {
@@ -98,7 +99,7 @@ public class OrderService {
                 throw new RuntimeException("Không đủ tồn kho: " + variant.getSku());
             }
 
-            BigDecimal price = variant.getPrice();
+            BigDecimal price = saleEventService.price(variant.getProduct().getProductId(), variant.getPrice());
             BigDecimal lineTotal = price.multiply(BigDecimal.valueOf(quantity));
             total = total.add(lineTotal);
 

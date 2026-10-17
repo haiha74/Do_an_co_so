@@ -21,6 +21,16 @@ public class PageController {
         return "detail";
     }
 
+    @GetMapping("/events")
+    public String eventCollections() {
+        return "events";
+    }
+
+    @GetMapping("/events/{slug}")
+    public String events() { 
+        return "events"; 
+    }
+
     @GetMapping("/promo")
     public String promo() {
         return "promo";

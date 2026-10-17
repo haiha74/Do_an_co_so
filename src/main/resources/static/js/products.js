@@ -1,4 +1,3 @@
-
 /* =========================================
    JODOK - PRODUCTS PAGE
 ========================================= */
@@ -48,7 +47,7 @@ function shopCategoryIds(id) {
 }
 
 function shopPrice(p) {
-  const n = Number(p.basePrice);
+  const n = Number(jodokSalePrice(p.productId, p.basePrice));
   return Number.isFinite(n) ? n : 0;
 }
 
@@ -664,6 +663,8 @@ async function loadProductsPage() {
         .catch(() => [])
 
     ]);
+
+    await loadJodokSalePrices();
 
     allProducts = productData.filter(
       p => p.status === "ACTIVE"
