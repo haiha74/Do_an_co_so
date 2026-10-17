@@ -13,6 +13,9 @@ import com.dacs.fashion.entity.Category;
 import com.dacs.fashion.entity.Product;
 
 import com.dacs.fashion.entity.ProductVariant;
+import com.dacs.fashion.entity.Cart;
+import com.dacs.fashion.entity.CartItem;
+import com.dacs.fashion.dto.CartItemDTO;
 
 import com.dacs.fashion.repository.ProductRepository;
 
@@ -22,7 +25,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import lombok.RequiredArgsConstructor;
 
 import org.springframework.beans.factory.annotation.Value;
 
@@ -54,8 +56,6 @@ import java.util.regex.Pattern;
 
 @Service
 
-@RequiredArgsConstructor
-
 public class ChatbotService {
 
 
@@ -65,6 +65,23 @@ public class ChatbotService {
     private final ProductVariantRepository variantRepository;
 
     private final ObjectMapper objectMapper;
+    private final CartService cartService;
+
+    /*
+     * V9.0.1: constructor viết tường minh để tránh class lỗi do incremental
+     * compilation/Lombok constructor generation trong VS Code.
+     */
+    public ChatbotService(
+            ProductRepository productRepository,
+            ProductVariantRepository variantRepository,
+            ObjectMapper objectMapper,
+            CartService cartService
+    ) {
+        this.productRepository = productRepository;
+        this.variantRepository = variantRepository;
+        this.objectMapper = objectMapper;
+        this.cartService = cartService;
+    }
 
 
 
@@ -219,6 +236,14 @@ public class ChatbotService {
 
 
     public ChatResponse reply(String message, String conversationId) {
+        return reply(message, conversationId, null);
+    }
+
+    /*
+     * V9: userId chỉ được truyền từ ChatbotController sau khi đọc Spring Security
+     * Authentication. AI không bao giờ được quyền tự chọn userId.
+     */
+    public ChatResponse reply(String message, String conversationId, Long authenticatedUserId) {
 
         if (message == null || message.isBlank()) {
             return new ChatResponse(
@@ -263,7 +288,7 @@ public class ChatbotService {
         }
 
         try {
-            ChatResponse response = answerNaturallyWithGroq(message, catalog, context);
+            ChatResponse response = answerNaturallyWithGroq(message, catalog, context, authenticatedUserId);
 
             if (response == null) {
                 return new ChatResponse(
@@ -301,7 +326,7 @@ public class ChatbotService {
 
 
     /*
-     * V8.1 - MEMORY + VARIANT CHECK + COMPARE
+     * V9.0.2 - CART TOOL + LAMBDA FINAL FIX
      *
      * Lượt 1: Groq chỉ hiểu ý định và tạo SearchPlan có cấu trúc.
      * Java Product Tool dùng SearchPlan để truy vấn/lọc dữ liệu công khai thật.
@@ -313,7 +338,8 @@ public class ChatbotService {
     private ChatResponse answerNaturallyWithGroq(
             String message,
             Catalog catalog,
-            ChatContext context
+            ChatContext context,
+            Long authenticatedUserId
     ) throws Exception {
 
         String history = context.recentTurns.isEmpty()
@@ -356,7 +382,13 @@ public class ChatbotService {
             return answerRememberedComparison(message, plan, catalog, context, history);
         }
 
-        List<PublicItem> candidates = runProductTool(plan, catalog.items());
+        if (Set.of("CART_ADD", "CART_VIEW", "CART_UPDATE", "CART_REMOVE", "CART_CLEAR").contains(action)) {
+            return executeCartTool(message, plan, catalog, context, authenticatedUserId, history);
+        }
+
+        List<PublicItem> candidates = "OUTFIT".equalsIgnoreCase(plan.mode())
+                ? runOutfitCandidateTool(plan, catalog.items())
+                : runProductTool(plan, catalog.items());
 
         if (candidates.isEmpty()) {
             String reply = blankToDefault(
@@ -385,12 +417,12 @@ public class ChatbotService {
                 candidates
         );
 
-        String reply = blankToDefault(
+        String reply = sanitizeCustomerReply(blankToDefault(
                 selection.reply(),
                 verified.isEmpty()
                         ? "Mình chưa tìm thấy lựa chọn đủ phù hợp trong các sản phẩm đang còn hàng."
                         : "Mình tìm được một số lựa chọn phù hợp từ sản phẩm hiện có của JODOK."
-        );
+        ));
 
         if (!verified.isEmpty()) {
             context.lastProductIds.clear();
@@ -401,7 +433,7 @@ public class ChatbotService {
         context.updatedAt = System.currentTimeMillis();
 
         System.out.println(
-                "[CHATBOT][V8.1][PRODUCT_TOOL] mode=" + upper(plan.mode(), "SEARCH")
+                "[CHATBOT][V8.2.1][PRODUCT_TOOL] mode=" + upper(plan.mode(), "SEARCH")
                         + ", candidates=" + candidates.size()
                         + ", selected=" + verified.size()
         );
@@ -425,7 +457,8 @@ public class ChatbotService {
             String occasion,
             String style,
             Integer candidateLimit,
-            List<Integer> referenceIndexes
+            List<Integer> referenceIndexes,
+            Integer quantity
     ) {}
 
     private record AiSelection(
@@ -456,6 +489,11 @@ public class ChatbotService {
                 - OUTFIT: khách muốn mặc gì/phối đồ/set đồ cho một dịp hoặc phong cách.
                 - VARIANT_CHECK: khách hỏi tiếp một mẫu vừa hiển thị còn size/màu/hàng/giá nào.
                 - COMPARE: khách muốn so sánh 2-3 mẫu vừa hiển thị.
+                - CART_ADD: thêm sản phẩm/biến thể vào giỏ.
+                - CART_VIEW: xem/tóm tắt giỏ hàng.
+                - CART_UPDATE: đổi số lượng một món trong giỏ.
+                - CART_REMOVE: xóa một món khỏi giỏ.
+                - CART_CLEAR: xóa toàn bộ giỏ.
                 - CHAT: chào hỏi, hỏi danh mục/thương hiệu hoặc câu không cần tìm sản phẩm.
                 - ASK_CLARIFICATION: chỉ khi thiếu thông tin thực sự bắt buộc.
 
@@ -465,6 +503,11 @@ public class ChatbotService {
                   Ví dụ "Tôi là nam, đi sinh nhật, 500k, thích màu tối" đã có audience=nam,
                   occasion=sinh nhật, totalBudget=500000 và color/preference=màu tối.
                 - "Áo nam khoảng 200k" là SEARCH, không hỏi khách mặc dịp nào.
+                - Khi khách nêu loại sản phẩm + một mức giá mà KHÔNG có từ chỉ giới hạn
+                  như "dưới", "không quá", "tối đa", hãy hiểu là giá XẤP XỈ mức đó.
+                  Ví dụ "áo 100k", "áo tầm 100k", "áo khoảng 100k":
+                  productType="áo", minPrice=80000, maxPrice=120000.
+                - "áo dưới 100k", "áo không quá 100k": maxPrice=100000, minPrice=null.
                 - "Có áo polo dưới 250k không?" là SEARCH.
                 - "Tôi là nam, cuối tuần đi sinh nhật, 500k, thích màu tối" là OUTFIT,
                   không hỏi lại nam/nữ.
@@ -474,6 +517,14 @@ public class ChatbotService {
                   có thể kế thừa nhu cầu ngay trước đó.
                 - "mẫu 1 còn size L không?", "mẫu 2 có màu đen không?" => VARIANT_CHECK.
                 - "so sánh mẫu 1 và mẫu 2", "mẫu nào rẻ hơn?" => COMPARE.
+                - "thêm mẫu 1 size L màu đen vào giỏ" => CART_ADD.
+                - "xem giỏ hàng", "giỏ của tôi có gì" => CART_VIEW.
+                - "đổi mẫu này thành 2 cái" => CART_UPDATE với quantity=2.
+                - "xóa mẫu này khỏi giỏ" => CART_REMOVE.
+                - "xóa hết giỏ hàng" => CART_CLEAR.
+                - quantity mặc định 1 cho CART_ADD nếu khách không nói số lượng.
+                - Với thao tác giỏ hàng, AI CHỈ hiểu ý định. Java mới được kiểm tra đăng nhập,
+                  variant, tồn kho, quyền sở hữu và gọi CartService.
                 - referenceIndexes dùng số thứ tự mẫu khách nhắc tới, bắt đầu từ 1.
                 - Nếu khách nói "mẫu này"/"mẫu đó" và chỉ có một mẫu đang được tập trung,
                   có thể dùng referenceIndexes=[1] khi ngữ cảnh đủ rõ.
@@ -491,7 +542,7 @@ public class ChatbotService {
 
                 Trả DUY NHẤT JSON:
                 {
-                  "action":"SEARCH|OUTFIT|VARIANT_CHECK|COMPARE|CHAT|ASK_CLARIFICATION",
+                  "action":"SEARCH|OUTFIT|VARIANT_CHECK|COMPARE|CART_ADD|CART_VIEW|CART_UPDATE|CART_REMOVE|CART_CLEAR|CHAT|ASK_CLARIFICATION",
                   "mode":"SEARCH|OUTFIT|CHAT",
                   "reply":"",
                   "semanticQuery":"...",
@@ -506,7 +557,8 @@ public class ChatbotService {
                   "occasion":null,
                   "style":null,
                   "candidateLimit":12,
-                  "referenceIndexes":[]
+                  "referenceIndexes":[],
+                  "quantity":null
                 }
 
                 LỊCH SỬ:
@@ -543,7 +595,10 @@ public class ChatbotService {
                 node.path("candidateLimit").canConvertToInt()
                         ? Math.max(5, Math.min(20, node.path("candidateLimit").asInt(12)))
                         : 12,
-                readReferenceIndexes(node.path("referenceIndexes"))
+                readReferenceIndexes(node.path("referenceIndexes")),
+                node.path("quantity").canConvertToInt()
+                        ? Math.max(1, Math.min(99, node.path("quantity").asInt(1)))
+                        : null
         );
     }
 
@@ -658,6 +713,7 @@ public class ChatbotService {
                   gần nhất còn hàng trong cùng sản phẩm.
                 - Nếu không có size/màu đó trong dữ liệu, nói rõ shop chưa có biến thể đó.
                 - selectedItems tối đa 2, chỉ dùng ID có trong VARIANTS.
+                - Không được viết productId/variantId hoặc ID kỹ thuật vào reply.
 
                 Trả DUY NHẤT JSON:
                 {
@@ -684,10 +740,10 @@ public class ChatbotService {
         context.focusedProductId = productId;
         context.updatedAt = System.currentTimeMillis();
 
-        String reply = blankToDefault(
+        String reply = sanitizeCustomerReply(blankToDefault(
                 cleanNullable(node.path("reply").asText(null)),
                 "Mình đã kiểm tra các biến thể hiện có của mẫu này."
-        );
+        ));
 
         return new ChatResponse(reply, toChatProducts(verified));
     }
@@ -788,6 +844,7 @@ public class ChatbotService {
                 - Nếu khách hỏi "mẫu nào hợp hơn" nhưng dữ liệu không đủ để kết luận,
                   hãy nói rõ tiêu chí nào xác định được và tiêu chí nào chưa đủ dữ liệu.
                 - Nêu kết luận ngắn gọn, dễ chọn.
+                - Không được viết productId/variantId hoặc ID kỹ thuật vào reply.
                 - Tối đa khoảng 150 từ.
 
                 Trả DUY NHẤT JSON:
@@ -815,10 +872,10 @@ public class ChatbotService {
         context.focusedProductId = null;
         context.updatedAt = System.currentTimeMillis();
 
-        String reply = blankToDefault(
+        String reply = sanitizeCustomerReply(blankToDefault(
                 cleanNullable(node.path("reply").asText(null)),
                 "Mình đã đối chiếu các mẫu theo giá và biến thể đang còn hàng."
-        );
+        ));
 
         return new ChatResponse(reply, toChatProducts(cards));
     }
@@ -841,6 +898,466 @@ public class ChatbotService {
         return result;
     }
 
+
+    /*
+     * =========================================================
+     * V9 CART TOOL
+     * Port kiến trúc shopping-agent public: AI lập action có cấu trúc,
+     * Java thực thi tool thật. Không cho model ghi DB trực tiếp.
+     * =========================================================
+     */
+    private ChatResponse executeCartTool(
+            String message,
+            AiSearchPlan plan,
+            Catalog catalog,
+            ChatContext context,
+            Long userId,
+            String history
+    ) throws Exception {
+
+        if (userId == null) {
+            return new ChatResponse(
+                    "Bạn cần đăng nhập để mình có thể xem hoặc thay đổi giỏ hàng nhé.",
+                    List.of()
+            );
+        }
+
+        String action = upper(plan.action(), "");
+
+        if ("CART_VIEW".equals(action)) {
+            return cartView(userId, catalog, context);
+        }
+
+        if ("CART_CLEAR".equals(action)) {
+            cartService.clearCart(userId);
+            clearProductContext(context);
+            return new ChatResponse("Mình đã xóa toàn bộ sản phẩm trong giỏ hàng của bạn.", List.of());
+        }
+
+        if ("CART_ADD".equals(action)) {
+            return cartAdd(plan, catalog, context, userId);
+        }
+
+        if ("CART_UPDATE".equals(action) || "CART_REMOVE".equals(action)) {
+            return cartUpdateOrRemove(message, plan, catalog, context, userId, action);
+        }
+
+        return new ChatResponse("Mình chưa xác định được thao tác giỏ hàng cần thực hiện.", List.of());
+    }
+
+    private ChatResponse cartAdd(
+            AiSearchPlan plan,
+            Catalog catalog,
+            ChatContext context,
+            Long userId
+    ) {
+        List<Long> remembered = resolveRememberedProductIds(plan, context, 1);
+
+        if (remembered.isEmpty()) {
+            return new ChatResponse(
+                    "Bạn hãy chọn một mẫu mình vừa gợi ý, ví dụ “thêm mẫu 1 size L vào giỏ”.",
+                    List.of()
+            );
+        }
+
+        Long productId = remembered.get(0);
+
+        List<PublicItem> variants = catalog.items().stream()
+                .filter(i -> Objects.equals(i.productId(), productId))
+                .filter(i -> i.stock() > 0)
+                .filter(i -> plan.size() == null || normalize(i.size()).equals(normalize(plan.size())))
+                .filter(i -> plan.color() == null || normalize(i.color()).equals(normalize(plan.color())))
+                .toList();
+
+        if (variants.isEmpty()) {
+            return new ChatResponse(
+                    "Mẫu này chưa có biến thể còn hàng đúng size/màu bạn yêu cầu.",
+                    List.of()
+            );
+        }
+
+        /*
+         * Nếu khách chưa chỉ rõ đủ biến thể và còn nhiều lựa chọn khác nhau,
+         * không tự đoán variant để tránh thêm nhầm hàng.
+         */
+        Set<String> variantKeys = variants.stream()
+                .map(i -> normalize(i.size()) + "|" + normalize(i.color()))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        if (variantKeys.size() > 1 && (plan.size() == null || plan.color() == null)) {
+            String available = variants.stream()
+                    .limit(8)
+                    .map(i -> "size " + safe(i.size()) + " - màu " + safe(i.color()))
+                    .distinct()
+                    .collect(Collectors.joining(", "));
+
+            return new ChatResponse(
+                    "Mẫu này có nhiều biến thể. Bạn chọn rõ size và màu giúp mình nhé: " + available + ".",
+                    toChatProducts(variants.stream().limit(4).toList())
+            );
+        }
+
+        PublicItem chosen = variants.get(0);
+        int quantity = plan.quantity() == null ? 1 : Math.max(1, plan.quantity());
+
+        if (quantity > chosen.stock()) {
+            return new ChatResponse(
+                    "Biến thể này chỉ còn " + chosen.stock() + " sản phẩm, chưa đủ số lượng bạn muốn.",
+                    toChatProducts(List.of(chosen))
+            );
+        }
+
+        CartItemDTO dto = new CartItemDTO();
+        dto.setUserId(userId);
+        dto.setVariantId(chosen.variantId());
+        dto.setQuantity(quantity);
+
+        cartService.addToCart(dto);
+
+        syncDisplayedProducts(context, List.of(chosen));
+        context.focusedProductId = chosen.productId();
+
+        return new ChatResponse(
+                sanitizeCustomerReply(
+                        "Đã thêm " + quantity + " " + chosen.name()
+                                + " - size " + safe(chosen.size())
+                                + " - màu " + safe(chosen.color())
+                                + " vào giỏ hàng."
+                ),
+                toChatProducts(List.of(chosen))
+        );
+    }
+
+    private ChatResponse cartView(Long userId, Catalog catalog, ChatContext context) {
+        Cart cart = cartService.getCart(userId);
+        List<CartItem> items = cart.getItems() == null ? List.of() : cart.getItems();
+
+        if (items.isEmpty()) {
+            clearProductContext(context);
+            return new ChatResponse("Giỏ hàng của bạn hiện đang trống.", List.of());
+        }
+
+        Map<Long, PublicItem> byVariant = catalog.items().stream()
+                .collect(Collectors.toMap(
+                        PublicItem::variantId,
+                        i -> i,
+                        (a, b) -> a,
+                        LinkedHashMap::new
+                ));
+
+        List<PublicItem> cards = new ArrayList<>();
+        BigDecimal total = BigDecimal.ZERO;
+        int totalQty = 0;
+        List<String> lines = new ArrayList<>();
+
+        for (CartItem item : items) {
+            if (item == null || item.getVariant() == null) continue;
+
+            Long variantId = item.getVariant().getVariantId();
+            PublicItem publicItem = byVariant.get(variantId);
+            if (publicItem == null) continue;
+
+            int qty = item.getQuantity() == null ? 0 : item.getQuantity();
+            totalQty += qty;
+            total = total.add(publicItem.price().multiply(BigDecimal.valueOf(qty)));
+
+            lines.add(publicItem.name()
+                    + " (" + safe(publicItem.size())
+                    + ", " + safe(publicItem.color())
+                    + ") × " + qty);
+
+            if (cards.size() < MAX_CARDS) cards.add(publicItem);
+        }
+
+        String reply = "Giỏ hàng của bạn có " + totalQty + " sản phẩm: "
+                + String.join("; ", lines)
+                + ". Tạm tính " + formatMoney(total) + ".";
+
+        // V9.1: card nào vừa hiển thị thì "mẫu 1, mẫu 2..." phải trỏ đúng card đó.
+        syncDisplayedProducts(context, cards);
+
+        return new ChatResponse(sanitizeCustomerReply(reply), toChatProducts(cards));
+    }
+
+    private ChatResponse cartUpdateOrRemove(
+            String message,
+            AiSearchPlan plan,
+            Catalog catalog,
+            ChatContext context,
+            Long userId,
+            String action
+    ) throws Exception {
+
+        Cart cart = cartService.getCart(userId);
+        List<CartItem> cartItems = cart.getItems() == null ? List.of() : cart.getItems();
+
+        if (cartItems.isEmpty()) {
+            return new ChatResponse("Giỏ hàng của bạn hiện đang trống.", List.of());
+        }
+
+        Long rememberedProductId = resolveRememberedProductIds(plan, context, 1)
+                .stream().findFirst().orElse(null);
+
+        CartItem target = null;
+
+        if (rememberedProductId != null) {
+            List<CartItem> matched = cartItems.stream()
+                    .filter(ci -> ci != null
+                            && ci.getVariant() != null
+                            && ci.getVariant().getProduct() != null
+                            && Objects.equals(
+                                    ci.getVariant().getProduct().getProductId(),
+                                    rememberedProductId
+                            ))
+                    .toList();
+
+            if (matched.size() == 1) {
+                target = matched.get(0);
+            } else if (!matched.isEmpty()) {
+                target = chooseCartItemWithGroq(message, matched, catalog);
+            }
+        }
+
+        if (target == null) {
+            target = chooseCartItemWithGroq(message, cartItems, catalog);
+        }
+
+        if (target == null) {
+            return new ChatResponse(
+                    "Mình chưa xác định chắc chắn món nào trong giỏ bạn muốn thay đổi. Bạn nói rõ tên/mẫu giúp mình nhé.",
+                    List.of()
+            );
+        }
+
+        if (!cartService.isItemOwner(target.getCartItemId(), userId)) {
+            return new ChatResponse("Bạn không có quyền thay đổi sản phẩm này.", List.of());
+        }
+
+        /*
+         * target được gán ở nhiều nhánh phía trên nên không phải effectively final.
+         * Chốt variantId thành biến final trước khi dùng trong lambda.
+         */
+        final Long targetVariantId =
+                target.getVariant() == null
+                        ? null
+                        : target.getVariant().getVariantId();
+
+        PublicItem card = catalog.items().stream()
+                .filter(i -> targetVariantId != null
+                        && Objects.equals(i.variantId(), targetVariantId))
+                .findFirst()
+                .orElse(null);
+
+        if ("CART_REMOVE".equals(action)) {
+            cartService.removeItem(target.getCartItemId());
+            String name = card == null ? "sản phẩm" : card.name();
+
+            // V9.1: không hiển thị lại món vừa xóa. Refresh giỏ để thứ tự mẫu được đánh lại.
+            ChatResponse refreshed = cartView(userId, catalog, context);
+            if (refreshed.products() == null || refreshed.products().isEmpty()) {
+                return new ChatResponse(
+                        "Đã xóa " + name + " khỏi giỏ hàng. Giỏ hàng của bạn hiện đang trống.",
+                        List.of()
+                );
+            }
+            return new ChatResponse(
+                    "Đã xóa " + name + " khỏi giỏ hàng. " + refreshed.reply(),
+                    refreshed.products()
+            );
+        }
+
+        int quantity = plan.quantity() == null ? 1 : Math.max(1, plan.quantity());
+        cartService.updateQuantity(target.getCartItemId(), quantity);
+
+        String name = card == null ? "sản phẩm" : card.name();
+        ChatResponse refreshed = cartView(userId, catalog, context);
+        return new ChatResponse(
+                "Đã cập nhật " + name + " thành " + quantity + " sản phẩm trong giỏ. " + refreshed.reply(),
+                refreshed.products()
+        );
+    }
+
+    /*
+     * AI chỉ chọn cartItemId từ danh sách Java cung cấp.
+     * Java vẫn kiểm tra owner trước khi update/remove.
+     */
+    private CartItem chooseCartItemWithGroq(
+            String message,
+            List<CartItem> cartItems,
+            Catalog catalog
+    ) throws Exception {
+
+        Map<Long, PublicItem> byVariant = catalog.items().stream()
+                .collect(Collectors.toMap(
+                        PublicItem::variantId,
+                        i -> i,
+                        (a, b) -> a,
+                        LinkedHashMap::new
+                ));
+
+        List<Map<String, Object>> rows = new ArrayList<>();
+
+        for (CartItem ci : cartItems) {
+            if (ci == null || ci.getVariant() == null) continue;
+            PublicItem i = byVariant.get(ci.getVariant().getVariantId());
+            if (i == null) continue;
+
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("cartItemId", ci.getCartItemId());
+            row.put("name", i.name());
+            row.put("size", i.size());
+            row.put("color", i.color());
+            row.put("price", i.price());
+            row.put("quantity", ci.getQuantity());
+            rows.add(row);
+        }
+
+        if (rows.isEmpty()) return null;
+
+        String prompt = """
+                Bạn là Cart Target Resolver của JODOK.
+                Chọn CHÍNH XÁC một cartItemId mà khách đang nhắc tới.
+                Chỉ được dùng ID có trong CART_ITEMS.
+                Không đoán nếu yêu cầu mơ hồ giữa nhiều món.
+
+                Trả duy nhất JSON:
+                {"cartItemId":null}
+
+                CÂU KHÁCH:
+                %s
+
+                CART_ITEMS:
+                %s
+                """.formatted(message, objectMapper.writeValueAsString(rows));
+
+        JsonNode node = callGroqJson(prompt);
+        if (node == null || !node.path("cartItemId").canConvertToLong()) return null;
+
+        long selectedId = node.path("cartItemId").asLong();
+
+        return cartItems.stream()
+                .filter(ci -> ci != null && Objects.equals(ci.getCartItemId(), selectedId))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private String formatMoney(BigDecimal value) {
+        if (value == null) return "0đ";
+        return String.format(Locale.US, "%,.0fđ", value).replace(",", ".");
+    }
+
+    /*
+     * V8.2 OUTFIT CANDIDATE TOOL
+     *
+     * Không dùng productToolScore() để quyết định "món nào hợp đi sinh nhật/đi biển/...".
+     * Java chỉ áp dụng hard constraints an toàn:
+     *   - sản phẩm/variant còn hàng
+     *   - giá một món không vượt tổng ngân sách
+     *   - size/brand chính xác nếu khách đã yêu cầu
+     *
+     * Sau đó lấy một pool đa dạng sản phẩm thật cho Groq semantic rerank.
+     * Nhờ vậy một màu/keyword có điểm cao sẽ không đẩy toàn bộ áo/quần phù hợp ra khỏi candidates.
+     */
+    private List<PublicItem> runOutfitCandidateTool(
+            AiSearchPlan plan,
+            List<PublicItem> allItems
+    ) {
+        if (plan == null || allItems == null || allItems.isEmpty()) return List.of();
+
+        BigDecimal budget = plan.totalBudget();
+
+        List<PublicItem> eligible = allItems.stream()
+                .filter(i -> i.stock() > 0)
+                .filter(i -> budget == null || i.price().compareTo(budget) <= 0)
+                .filter(i -> plan.size() == null || normalize(i.size()).equals(normalize(plan.size())))
+                .filter(i -> plan.brand() == null || normalize(i.brand()).equals(normalize(plan.brand())))
+                /*
+                 * productType đã được AI planner hiểu theo ngữ nghĩa.
+                 * Java chỉ thực thi constraint có cấu trúc, không parse raw message.
+                 * Vì vậy khi planner nói khách cần "áo", các loại tất/giày/quần...
+                 * không được lọt vào candidate chỉ vì còn hàng hoặc giá phù hợp.
+                 */
+                .filter(i -> plan.productType() == null || matchesPlannedProductType(i, plan.productType()))
+                .toList();
+
+        if (eligible.isEmpty()) return List.of();
+
+        // Giữ nhiều variant màu khác nhau của cùng product, nhưng không để một product
+        // chiếm toàn bộ context. Tối đa 3 variant/product.
+        Map<Long, List<PublicItem>> byProduct = eligible.stream()
+                .collect(Collectors.groupingBy(
+                        PublicItem::productId,
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+
+        List<PublicItem> pool = new ArrayList<>();
+
+        for (List<PublicItem> variants : byProduct.values()) {
+            variants.stream()
+                    .sorted(Comparator
+                            .comparingInt((PublicItem i) -> outfitMechanicalScore(i, plan))
+                            .reversed()
+                            .thenComparing(PublicItem::price))
+                    .limit(3)
+                    .forEach(pool::add);
+        }
+
+        /*
+         * Pool outfit cố ý rộng hơn SEARCH. Đây vẫn là dữ liệu DB thật và chỉ là
+         * pre-selection cơ học. Groq ở bước sau mới quyết định semantic suitability.
+         */
+        return pool.stream()
+                .sorted(Comparator
+                        .comparingInt((PublicItem i) -> outfitMechanicalScore(i, plan))
+                        .reversed()
+                        .thenComparing(PublicItem::price))
+                .limit(20)
+                .toList();
+    }
+
+    /*
+     * Chỉ ưu tiên các constraint trực tiếp, không encode quy tắc kiểu
+     * "sinh nhật => polo", "đi biển => short"... trong Java.
+     */
+    private int outfitMechanicalScore(PublicItem item, AiSearchPlan plan) {
+        int score = 0;
+
+        if (plan.color() != null) {
+            score += semanticFieldScore(
+                    normalize(safe(item.color()) + " " + safe(item.name()) + " " + safe(item.description())),
+                    plan.color(),
+                    10
+            );
+        }
+
+        if (plan.audience() != null) {
+            score += semanticFieldScore(
+                    normalize(safe(item.category()) + " " + safe(item.name()) + " " + safe(item.description())),
+                    plan.audience(),
+                    8
+            );
+        }
+
+        if (plan.productType() != null) {
+            score += semanticFieldScore(
+                    normalize(safe(item.category()) + " " + safe(item.name())),
+                    plan.productType(),
+                    6
+            );
+        }
+
+        if (plan.brand() != null && normalize(item.brand()).equals(normalize(plan.brand()))) {
+            score += 6;
+        }
+
+        if (plan.size() != null && normalize(item.size()).equals(normalize(plan.size()))) {
+            score += 5;
+        }
+
+        return score;
+    }
+
     private List<PublicItem> runProductTool(
             AiSearchPlan plan,
             List<PublicItem> allItems
@@ -860,6 +1377,7 @@ public class ChatbotService {
                 .filter(i -> maxAllowed == null || i.price().compareTo(maxAllowed) <= 0)
                 .filter(i -> plan.size() == null || normalize(i.size()).equals(normalize(plan.size())))
                 .filter(i -> plan.brand() == null || normalize(i.brand()).equals(normalize(plan.brand())))
+                .filter(i -> plan.productType() == null || matchesPlannedProductType(i, plan.productType()))
                 .toList();
 
         if (hardFiltered.isEmpty()) return List.of();
@@ -896,6 +1414,38 @@ public class ChatbotService {
                         .thenComparing(PublicItem::price))
                 .limit(limit)
                 .toList();
+    }
+
+    /*
+     * Đối chiếu productType CÓ CẤU TRÚC do AI planner trả về với metadata DB.
+     * Hàm này không đọc câu khách.
+     */
+    private boolean matchesPlannedProductType(PublicItem item, String productType) {
+        if (productType == null || productType.isBlank()) return true;
+
+        String wanted = normalize(productType);
+        String name = normalize(item.name());
+        String category = normalize(item.category());
+
+        if (wanted.isBlank()) return true;
+
+        // Exact phrase trên tên hoặc category là tín hiệu mạnh nhất.
+        if (containsPhrase(name, wanted) || containsPhrase(category, wanted)) {
+            return true;
+        }
+
+        /*
+         * Planner đôi khi trả loại tổng quát ("áo") trong khi DB lưu
+         * "áo thun", "áo ba lỗ", "áo chống nắng"... Phrase "ao" vẫn match.
+         * Với cụm nhiều từ, yêu cầu toàn bộ token của productType xuất hiện
+         * trong name/category để tránh kéo sản phẩm khác loại vào.
+         */
+        String haystack = " " + name + " " + category + " ";
+        for (String token : wanted.split(" ")) {
+            if (token.length() < 2) continue;
+            if (!haystack.contains(" " + token + " ")) return false;
+        }
+        return true;
     }
 
     /*
@@ -982,7 +1532,7 @@ public class ChatbotService {
                         "name", safe(i.name()),
                         "category", safe(i.category()),
                         "brand", safe(i.brand()),
-                        "description", shortenForAi(i.description(), 180),
+                        "description", shortenForAi(i.description(), 80),
                         "price", i.price(),
                         "size", safe(i.size()),
                         "color", safe(i.color()),
@@ -1001,10 +1551,25 @@ public class ChatbotService {
                 - Chỉ dùng productId + variantId có trong CANDIDATES.
                 - Không bịa giá, tồn kho, size, màu, thương hiệu, chất liệu.
                 - Nếu yêu cầu là SEARCH: chọn tối đa 8 kết quả sát yêu cầu nhất.
-                - Nếu yêu cầu là OUTFIT: chọn 1-3 món BỔ TRỢ NHAU.
-                - Outfit không được gồm nhiều món cạnh tranh cùng vai trò chỉ để đủ số lượng.
+                - Khi viết reply, phải mô tả ĐÚNG constraint trong SEARCH PLAN:
+                  nếu có cả minPrice và maxPrice thì nói "khoảng/tầm ...", KHÔNG được nói "dưới".
+                  Chỉ nói "dưới/không quá" khi minPrice=null và có maxPrice.
+                - Nếu plan.productType khác null, tuyệt đối không chọn sản phẩm khác loại.
+                - Nếu yêu cầu là OUTFIT: đây là bước SEMANTIC RERANK quan trọng.
+                  Hãy đánh giá từng candidate theo đối tượng, dịp, phong cách, màu và khả năng phối cùng nhau.
+                - OUTFIT phải là một bộ hợp lý, không phải các món có keyword giống câu khách.
+                - Với outfit dùng áo + quần/váy rời: tối đa 1 món thân trên + 1 món thân dưới
+                  + 1 giày/dép/phụ kiện phù hợp.
+                - Với váy/đầm liền thân: tối đa 1 váy/đầm chính + giày/dép/phụ kiện; không thêm
+                  váy/đầm thứ hai vào cùng bộ.
+                - Không chọn nhiều món cạnh tranh cùng vai trò chỉ để đủ số lượng.
+                - Không chọn món rõ ràng lệch dịp chỉ vì đúng màu hoặc rẻ.
+                  Ví dụ dịp sinh nhật/tiệc thông thường không nên ưu tiên quần đùi gió,
+                  dép chống trượt hoặc đồ tập nếu catalog còn lựa chọn lịch sự/phù hợp hơn.
+                - Màu là một tiêu chí, KHÔNG được lấn át occasion/audience.
                 - Tổng giá outfit phải <= totalBudget nếu plan có totalBudget.
-                - Xét audience, occasion, style, màu và tính hợp lý của cả bộ.
+                - Ưu tiên 2-3 món phối được với nhau; nếu chỉ có 1-2 món thật sự hợp thì chỉ chọn
+                  1-2 món và nói rõ shop còn thiếu món nào.
                 - Nếu dữ liệu không đủ để tạo outfit hợp lý, chọn phần phù hợp thật sự và
                   nói rõ shop còn thiếu món nào. Không lấp bằng sản phẩm vô lý.
                 - Thông tin khách đã nói trong CÂU HIỆN TẠI không được hỏi lại.
@@ -1012,6 +1577,8 @@ public class ChatbotService {
                   bắt buộc phải đúng một tên màu duy nhất.
                 - Có thể trả selectedItems=[] nếu không candidate nào thực sự phù hợp.
                 - reply bằng tiếng Việt tự nhiên, tối đa khoảng 120 từ.
+                - TUYỆT ĐỐI không viết productId, variantId, ID nội bộ, tên field kỹ thuật
+                  hoặc JSON kỹ thuật vào reply cho khách.
 
                 Trả DUY NHẤT JSON:
                 {
@@ -1033,6 +1600,11 @@ public class ChatbotService {
                 CANDIDATES TỪ PRODUCT TOOL:
                 %s
                 """.formatted(planJson, history, message, candidateJson);
+
+        System.out.println("[CHATBOT][V8.2.1][SELECTOR] mode="
+                + upper(plan.mode(), "SEARCH")
+                + ", candidates=" + candidates.size()
+                + ", candidateJsonChars=" + candidateJson.length());
 
         JsonNode node = callGroqJson(prompt);
         if (node == null || !node.isObject()) return null;
@@ -1061,6 +1633,25 @@ public class ChatbotService {
                 cleanNullable(node.path("reply").asText(null)),
                 selected
         );
+    }
+
+    /*
+     * Lớp bảo vệ cuối: kể cả model lỡ đưa ID kỹ thuật vào câu trả lời,
+     * backend sẽ xóa trước khi gửi ra UI khách hàng.
+     */
+    private String sanitizeCustomerReply(String value) {
+        if (value == null) return "";
+
+        String cleaned = value
+                .replaceAll("(?i)\\s*\\(?\\s*productId\\s*[:=#]?\\s*\\d+\\s*,?\\s*variantId\\s*[:=#]?\\s*\\d+\\s*\\)?", "")
+                .replaceAll("(?i)\\s*\\(?\\s*variantId\\s*[:=#]?\\s*\\d+\\s*,?\\s*productId\\s*[:=#]?\\s*\\d+\\s*\\)?", "")
+                .replaceAll("(?i)\\bproductId\\s*[:=#]?\\s*\\d+\\b", "")
+                .replaceAll("(?i)\\bvariantId\\s*[:=#]?\\s*\\d+\\b", "")
+                .replaceAll("\\s+([,.;:!?])", "$1")
+                .replaceAll("[ \\t]{2,}", " ")
+                .trim();
+
+        return cleaned;
     }
 
     private String upper(String value, String fallback) {
@@ -1939,11 +2530,11 @@ public class ChatbotService {
                 )
         ));
         body.put("temperature", 0.1);
-        body.put("max_completion_tokens", 500);
+        body.put("max_completion_tokens", 700);
         body.put("reasoning_effort", "low");
         body.put("response_format", Map.of("type", "json_object"));
 
-        System.out.println("[CHATBOT][V8.1][GROQ] promptChars=" + prompt.length());
+        System.out.println("[CHATBOT][V8.2.1][GROQ] promptChars=" + prompt.length());
 
         String response = restClient.post()
                 .uri("https://api.groq.com/openai/v1/chat/completions")
@@ -2142,7 +2733,20 @@ public class ChatbotService {
             return;
         }
 
-        System.err.println("[CHATBOT][GROQ_HTTP] status=" + status);
+        String groqErrorBody = "";
+        try {
+            groqErrorBody = ex.getResponseBodyAsString();
+        } catch (Exception ignored) {
+        }
+
+        if (groqErrorBody != null && groqErrorBody.length() > 1200) {
+            groqErrorBody = groqErrorBody.substring(0, 1200) + "...";
+        }
+
+        System.err.println("[CHATBOT][GROQ_HTTP] status=" + status
+                + (groqErrorBody == null || groqErrorBody.isBlank()
+                ? ""
+                : " body=" + groqErrorBody));
     }
 
     private Catalog loadPublicCatalog() {
@@ -3346,16 +3950,35 @@ public class ChatbotService {
 
 
 
-    private void updateProductContext(ChatContext context, List<PublicItem> items) {
-
+    // V9.1 - mọi danh sách card gửi ra UI phải trở thành reference memory mới.
+    private void syncDisplayedProducts(ChatContext context, List<PublicItem> items) {
         context.lastProductIds.clear();
-
-        items.forEach(i -> context.lastProductIds.add(i.productId()));
-
-        context.focusedProductId = null;
-
+        if (items != null) {
+            for (PublicItem item : items) {
+                if (item == null || item.productId() == null) continue;
+                if (!context.lastProductIds.contains(item.productId())) {
+                    context.lastProductIds.add(item.productId());
+                }
+                if (context.lastProductIds.size() >= MAX_CARDS) break;
+            }
+        }
+        context.focusedProductId = context.lastProductIds.size() == 1
+                ? context.lastProductIds.get(0)
+                : null;
         context.updatedAt = System.currentTimeMillis();
+    }
 
+    private void clearProductContext(ChatContext context) {
+        context.lastProductIds.clear();
+        context.lastOutfitProductIds.clear();
+        context.focusedProductId = null;
+        context.updatedAt = System.currentTimeMillis();
+    }
+
+    private void updateProductContext(ChatContext context, List<PublicItem> items) {
+        syncDisplayedProducts(context, items);
+        // Search/compare nhiều card không tự focus một sản phẩm.
+        if (items != null && items.size() != 1) context.focusedProductId = null;
     }
 
 

@@ -9,6 +9,7 @@ import com.dacs.fashion.repository.CartItemRepository;
 import com.dacs.fashion.repository.CartRepository;
 import com.dacs.fashion.repository.ProductVariantRepository;
 import com.dacs.fashion.repository.UserRepository;
+import java.util.Objects;
 
 import jakarta.transaction.Transactional;
 
@@ -398,9 +399,28 @@ public class CartService {
                         )
                 );
 
-        cartItemRepository.delete(item);
+        Cart cart = item.getCart();
 
-        cartItemRepository.flush();
+        if (cart == null || cart.getItems() == null) {
+            throw new RuntimeException(
+                    "Giỏ hàng không hợp lệ"
+            );
+        }
+
+        boolean removed = cart.getItems().removeIf(
+                cartItem -> Objects.equals(
+                        cartItem.getCartItemId(),
+                        itemId
+                )
+        );
+
+        if (!removed) {
+            throw new RuntimeException(
+                    "Không tìm thấy sản phẩm trong giỏ"
+            );
+        }
+
+        cartRepository.saveAndFlush(cart);
     }
 
 

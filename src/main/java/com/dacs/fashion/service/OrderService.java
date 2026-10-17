@@ -40,6 +40,23 @@ public class OrderService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng"));
     }
 
+    /** Shared authoritative pricing for checkout and chatbot previews. */
+    public record Pricing(BigDecimal subtotal, BigDecimal shipping, BigDecimal discount,
+                          BigDecimal total, Voucher voucher) {}
+
+    public Pricing calculatePricing(BigDecimal subtotal, String voucherCode) {
+        BigDecimal shipping = subtotal.compareTo(BigDecimal.valueOf(999000)) >= 0
+                ? BigDecimal.ZERO : BigDecimal.valueOf(30000);
+        Voucher voucher = null;
+        BigDecimal discount = BigDecimal.ZERO;
+        if (voucherCode != null && !voucherCode.isBlank()) {
+            voucher = voucherService.validateVoucher(voucherCode, subtotal);
+            discount = voucherService.calculateDiscount(voucher, subtotal);
+        }
+        return new Pricing(subtotal, shipping, discount,
+                subtotal.add(shipping).subtract(discount).max(BigDecimal.ZERO), voucher);
+    }
+
     @Transactional
     public Order createFromCart(CreateOrderDTO dto) {
         User user = userRepository.findById(dto.getUserId())
@@ -97,28 +114,12 @@ public class OrderService {
             orderItems.add(orderItem);
         }
 
-        BigDecimal shipping = total.compareTo(BigDecimal.valueOf(999000)) >= 0
-                ? BigDecimal.ZERO
-                : BigDecimal.valueOf(30000);
-
-        BigDecimal discount = BigDecimal.ZERO;
-        Voucher voucher = null;
-
-        if (dto.getVoucherCode() != null && !dto.getVoucherCode().isBlank()) {
-            voucher = voucherService.validateVoucher(dto.getVoucherCode(), total);
-            discount = voucherService.calculateDiscount(voucher, total);
-        }
-
-        BigDecimal finalAmount = total.add(shipping).subtract(discount);
-
-        if (finalAmount.compareTo(BigDecimal.ZERO) < 0) {
-            finalAmount = BigDecimal.ZERO;
-        }
+        Pricing pricing = calculatePricing(total, dto.getVoucherCode());
 
         order.setTotalAmount(total);
-        order.setDiscountAmount(discount);
-        order.setFinalAmount(finalAmount);
-        order.setVoucher(voucher);
+        order.setDiscountAmount(pricing.discount());
+        order.setFinalAmount(pricing.total());
+        order.setVoucher(pricing.voucher());
         order.setItems(orderItems);
 
         Order savedOrder = orderRepository.save(order);
@@ -153,6 +154,7 @@ public class OrderService {
         payment.setPaidAt(null);
 
         paymentRepository.save(payment);
+        order.setPayment(payment);
 
         return order;
     }
