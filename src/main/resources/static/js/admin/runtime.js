@@ -1179,71 +1179,34 @@ function logoutAdmin(){
 }
 
 function setTab(tab) {
-  console.log("CHANGE TAB:", tab);
-
-  // đóng các modal đang mở trước khi chuyển trang
-  document
-    .querySelectorAll(
-      "#variantModal, #productModal, #orderModal, #userModal"
-    )
-    .forEach(modal => {
-      modal.classList.add("hidden");
-      modal.classList.remove("flex");
-    });
-
+  document.querySelectorAll(
+    "#variantModal, #productModal, #orderModal, #userModal"
+  ).forEach(modal => {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  });
   currentTab = tab;
+  if (tab === 'products') productPage = 1;
 
-  // reset riêng dữ liệu phân trang khi vào sản phẩm
-  if (tab === "products") {
-    productPage = 1;
+  // Display page shell immediately, then load large table only on demand.
+  if (['variants', 'reviews', 'orders', 'vouchers', 'promo'].includes(tab) &&
+      !adminLoaded.has(tab === 'promo' ? 'vouchers' : tab)) {
+    const app = document.getElementById('app');
+    if (app) app.innerHTML = '<div class="p-10 text-center text-neutral-500">Đang tải dữ liệu ' +
+      escapeHtml(tab) + '...</div>';
+    loadAdminSection(tab).then(() => {
+      if (currentTab === tab) render();
+    }).catch(error => {
+      console.error('ADMIN SECTION LOAD ERROR:', error);
+      if (currentTab === tab) showToast('Lỗi', 'Không thể tải dữ liệu: ' + error.message, 'error');
+    });
+    return;
   }
 
-  try {
-    render();
-    if (tab === "products") {
-      refreshProductFilterOptions().catch(error => console.warn("Refresh product filters failed:", error));
-    }
-  } catch (error) {
-    console.error("SET TAB ERROR:", error);
-
-    const app = document.getElementById("app");
-
-    if (app) {
-      app.innerHTML = `
-        <div style="
-          padding:40px;
-          font-family:Arial,sans-serif;
-        ">
-          <h2 style="color:#991b1b;">
-            Lỗi khi mở trang ${tab}
-          </h2>
-
-          <pre style="
-            margin-top:20px;
-            padding:20px;
-            background:#f5f5f5;
-            border-radius:12px;
-            white-space:pre-wrap;
-          ">${escapeHtml(error?.stack || error?.message || String(error))}</pre>
-
-          <button
-            type="button"
-            onclick="currentTab='overview'; render();"
-            style="
-              margin-top:20px;
-              padding:10px 18px;
-              border:0;
-              border-radius:8px;
-              background:#991b1b;
-              color:white;
-              cursor:pointer;
-            "
-          >
-            Quay lại Tổng quan
-          </button>
-        </div>
-      `;
-    }
+  render();
+  if (tab === 'products') {
+    refreshProductFilterOptions().catch(error =>
+      console.warn('Refresh product filters failed:', error));
   }
 }
 
@@ -1272,15 +1235,14 @@ function render() {
 
 async function init() {
   try {
+    // Show dashboard shell while independent KPI requests finish.
+    render();
     await loadData();
     render();
   } catch (error) {
     console.error("INIT ERROR:", error);
 
-    showToast?.(
-      "Lỗi",
-      "Không thể tải dữ liệu quản trị.",
-      "error"
-    );
+    render();
+    showToast?.("Lỗi", "Một số dữ liệu quản trị chưa tải được. Kiểm tra quyền đăng nhập và Console.", "error");
   }
 }

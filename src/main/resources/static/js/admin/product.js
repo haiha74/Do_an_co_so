@@ -509,19 +509,14 @@ function productTable() {
                                 `
                             }
 
-                            ${
-                              !productHasOrders(p.productId)
-                                ? `
-                                  <button
-                                    type="button"
-                                    onclick="deleteProduct(${p.productId})"
-                                    title="Xóa"
-                                    class="product-action delete">
-                                    ${icon("trash-2", "w-4 h-4")}
-                                  </button>
-                                `
-                                : ""
-                            }
+                            <button
+                              type="button"
+                              onclick="deleteProduct(${p.productId})"
+                              title="Xóa sản phẩm"
+                              aria-label="Xóa sản phẩm"
+                              class="product-action delete">
+                              ${icon("trash-2", "w-4 h-4")}
+                            </button>
 
                           </div>
                         </td>
@@ -1108,9 +1103,10 @@ async function openProductForm(id = null) {
   // Tải ảnh đã lưu
   try {
     const response = await fetch(
-      `${API_BASE}/product-images/product/${id}`,
+      `${API_BASE}/product-images/product/${id}?t=${Date.now()}`,
       {
-        headers: adminAuthHeaders()
+        headers: adminAuthHeaders(),
+        cache: "no-store"
       }
     );
 
@@ -1127,9 +1123,10 @@ async function openProductForm(id = null) {
   } catch (error) {
     console.warn("Lỗi tải ảnh:", error);
 
-    window.jodokSavedProductImages = (
-      Array.isArray(p.images) ? p.images : []
-    ).filter(image => image?.imageUrl);
+    // Không dùng p.images làm fallback: dữ liệu này có thể cũ
+    // sau khi xóa ảnh; thay vào đó thông báo để tránh hiện ảnh đã xóa.
+    window.jodokSavedProductImages = [];
+    showToast("Không tải được ảnh", "Vui lòng mở lại sản phẩm sau khi kiểm tra kết nối.", "error");
   }
 
   if (get("productId")?.value !== String(id)) {
@@ -1271,12 +1268,12 @@ function renderProductImagePreviews() {
 
     picture.appendChild(img);
 
-    if (!saved) {
+    if (removeCallback) {
       const remove = document.createElement("button");
 
       remove.type = "button";
       remove.textContent = "×";
-      remove.title = "Bỏ ảnh mới";
+      remove.title = saved ? "Xóa ảnh đã lưu" : "Bỏ ảnh mới";
 
       remove.style.cssText = `
         position:absolute;
@@ -1349,7 +1346,7 @@ function renderProductImagePreviews() {
         image.imageUrl,
         image.color,
         true,
-        null
+        () => deleteSavedProductImage(image)
       );
     });
 
@@ -1373,6 +1370,84 @@ function renderProductImagePreviews() {
     img.onload = () => URL.revokeObjectURL(url);
     img.onerror = () => URL.revokeObjectURL(url);
   });
+}
+
+// Xóa ảnh đã lưu trực tiếp qua API; không xóa toàn bộ sản phẩm.
+// Đồng bộ thao tác xóa với kết quả thật của backend, không chỉ ẩn ảnh trên form.
+window.jodokDeletingImageIds = window.jodokDeletingImageIds || new Set();
+
+async function deleteSavedProductImage(image) {
+  const productId = document.getElementById("productId")?.value;
+  const imageId = Number(image?.imageId ?? image?.id);
+  if (!productId || !Number.isSafeInteger(imageId) || imageId <= 0) {
+    showToast("Không thể xóa ảnh", "Ảnh không có imageId hợp lệ.", "error");
+    console.error("PRODUCT IMAGE MISSING ID:", image);
+    return;
+  }
+
+  const saved = window.jodokSavedProductImages || [];
+  if (saved.length + selectedFiles.length <= 1) {
+    showToast("Cần ít nhất một ảnh", "Hãy lưu ảnh thay thế trước khi xóa ảnh cuối cùng.", "error");
+    return;
+  }
+  if (window.jodokDeletingImageIds.has(imageId)) return;
+  if (!window.confirm("Bạn có chắc muốn xóa vĩnh viễn ảnh này khỏi sản phẩm?")) return;
+
+  window.jodokDeletingImageIds.add(imageId);
+  try {
+    const response = await fetch(`${API_BASE}/product-images/${imageId}`, {
+      method: "DELETE",
+      headers: adminAuthHeaders(),
+      cache: "no-store"
+    });
+    if (!response.ok) {
+      throw new Error(`DELETE HTTP ${response.status}: ${await jodokProductReadError(response)}`);
+    }
+
+    // Cache-buster giúp không đọc nhầm phản hồi GET cũ từ proxy/browser.
+    const verifyUrl = `${API_BASE}/product-images/product/${encodeURIComponent(productId)}` +
+      `?verify=${Date.now()}`;
+    const verify = await fetch(verifyUrl, {
+      method: "GET",
+      headers: { ...adminAuthHeaders(), "Cache-Control": "no-cache" },
+      cache: "no-store"
+    });
+    if (!verify.ok) {
+      throw new Error(`DELETE đã thành công nhưng GET kiểm tra thất bại (HTTP ${verify.status}).`);
+    }
+    const fresh = await verify.json();
+    if (!Array.isArray(fresh)) {
+      throw new Error("API danh sách ảnh không trả về mảng dữ liệu.");
+    }
+    const stillExists = fresh.some(item =>
+      Number(item?.imageId ?? item?.id) === imageId
+    );
+    if (stillExists) {
+      console.error("IMAGE STILL IN DATABASE RESPONSE", {
+        productId, imageId, deleteStatus: response.status, images: fresh
+      });
+      throw new Error(
+        `API DELETE trả HTTP ${response.status} nhưng API GET vẫn còn imageId=${imageId}. ` +
+        "Lỗi nằm ở backend hoặc dữ liệu database; cần kiểm tra controller, transaction và log SQL."
+      );
+    }
+
+    // Chỉ thay đổi state khi server xác nhận ảnh thực sự biến mất.
+    if (typeof products !== "undefined" && Array.isArray(products)) {
+      const product = products.find(p => Number(p.productId) === Number(productId));
+      if (product) product.images = fresh;
+    }
+    if (document.getElementById("productId")?.value === String(productId)) {
+      window.jodokSavedProductImages = fresh.filter(item => item?.imageUrl);
+      renderProductImagePreviews();
+    }
+    showToast("Đã xóa ảnh", "Ảnh đã được xóa và xác minh trên server.", "success");
+  } catch (error) {
+    console.error("DELETE PRODUCT IMAGE FAILED:", { productId, imageId, error });
+    showToast("Không thể xóa ảnh", error?.message || "Vui lòng thử lại.", "error");
+  } finally {
+    window.jodokDeletingImageIds.delete(imageId);
+  }
 }
 
 function previewImage(event) {
@@ -2012,46 +2087,42 @@ async function saveProduct() {
 // ============================================
 
 function deleteProduct(id) {
+  const product = products.find(p => Number(p.productId) === Number(id));
+  const name = product?.productName || `#${id}`;
+
   showConfirm(
-    "Xóa vĩnh viễn sản phẩm này?",
+    `Bạn có chắc muốn xóa vĩnh viễn sản phẩm "${name}"? Sản phẩm đã có đơn hàng sẽ không được phép xóa; hãy dùng chức năng Ẩn thay thế.`,
     async () => {
       try {
-        const res = await fetch(
-          `${API_BASE}/products/${id}`,
-          {
-            method: "DELETE",
-            headers: adminAuthHeaders()
-          }
-        );
+        const res = await fetch(`${API_BASE}/products/${id}`, {
+          method: "DELETE",
+          headers: adminAuthHeaders()
+        });
 
         if (!res.ok) {
+          const detail = await jodokProductReadError(res);
           showToast(
-            "Lỗi",
-            await jodokProductReadError(res),
+            "Không thể xóa sản phẩm",
+            res.status === 403
+              ? "Tài khoản không có quyền xóa sản phẩm."
+              : detail || "Có lỗi xảy ra. Nếu sản phẩm đã có đơn hàng, hãy ẩn sản phẩm.",
             "error"
           );
           return;
         }
 
-        showToast(
-          "Thành công",
-          "Đã xóa sản phẩm."
-        );
-
-        await init();
-
+        products = products.filter(p => Number(p.productId) !== Number(id));
+        if (typeof variants !== "undefined" && Array.isArray(variants)) {
+          variants = variants.filter(v => Number(v.product?.productId ?? v.productId) !== Number(id));
+        }
+        showToast("Thành công", `Đã xóa sản phẩm "${name}".`);
         currentTab = "products";
         render();
-
       } catch (error) {
-        showToast(
-          "Lỗi",
-          error.message,
-          "error"
-        );
+        showToast("Lỗi", error.message || "Không kết nối được máy chủ.", "error");
       }
     },
-    "Xóa"
+    "Xóa sản phẩm"
   );
 }
 

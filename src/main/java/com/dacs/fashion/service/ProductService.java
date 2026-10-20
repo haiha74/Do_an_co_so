@@ -16,6 +16,8 @@ import com.dacs.fashion.repository.ProductViewRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 
 import java.util.List;
@@ -116,26 +118,29 @@ public class ProductService {
         return productRepository.save(product);
     }
 
-    @Transactional
-
     public Long getSoldCount(Long productId) {
         Long count = productRepository.getSoldCountByProductId(productId);
         return count != null ? count : 0L;
     }
 
+    @Transactional
     public void delete(Long id) {
 
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
 
         if (orderItemRepository.existsByVariant_Product_ProductId(id)) {
-            throw new RuntimeException("Sản phẩm đã phát sinh đơn hàng, chỉ có thể ẩn");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Sản phẩm có lịch sử đơn hàng (kể cả đơn chưa hoàn tất/đã hủy). Vui lòng ẩn sản phẩm để bảo toàn lịch sử.");
         }
 
+        // Gỡ liên kết với chiến dịch khuyến mãi trước khi xóa sản phẩm.
+        productRepository.deleteSaleEventProductLinks(id);
         cartItemRepository.deleteByProductId(id);
         productImageRepository.deleteByProductId(id);
         productViewRepository.deleteByProductId(id);
         productVariantRepository.deleteByProductId(id);
         productRepository.deleteProductByIdNative(id);
+        // Ép DB kiểm tra ràng buộc ngay trong transaction này.
+        productRepository.flush();
     }
 }

@@ -25,6 +25,11 @@ public class ReviewService {
         return reviewRepository.findAllByOrderByCreatedAtDesc();
     }
 
+    @Transactional(readOnly = true)
+    public List<Review> getByProductId(Long productId) {
+        return reviewRepository.findByProductId(productId);
+    }
+
     public List<Review> getByUser(Long userId) {
         return reviewRepository.findByUser_UserIdOrderByCreatedAtDesc(userId);
     }

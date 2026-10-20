@@ -11,6 +11,12 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
 
     List<ProductVariant> findByProduct_ProductId(Long productId);
 
+    // Fetch only columns required by admin table; avoid eager nested Product JSON.
+    @Query("select v.variantId, p.productId, p.productName, v.size, v.color, v.sku, " +
+           "v.price, v.stock, v.status, v.updatedByStaff " +
+           "from ProductVariant v join v.product p")
+    List<Object[]> findAdminVariantRows();
+
     @Modifying
     @Query(value = "DELETE FROM product_variants WHERE product_id = ?1", nativeQuery = true)
     void deleteByProductId(Long productId);

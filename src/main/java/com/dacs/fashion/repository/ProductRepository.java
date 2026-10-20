@@ -15,6 +15,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<Product> findByCategory_CategoryId(Long categoryId);
 
     @Modifying
+    @Query(value = "DELETE FROM sale_event_products WHERE product_id = ?1", nativeQuery = true)
+    int deleteSaleEventProductLinks(Long productId);
+
+    @Modifying
     @Query(value = "DELETE FROM products WHERE product_id = ?1", nativeQuery = true)
     void deleteProductByIdNative(Long productId);
 

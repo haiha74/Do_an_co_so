@@ -135,7 +135,12 @@ async function loadDetailRelatedProducts(productId) {
   detailRelatedProducts = [];
 
   try {
-    const catalog = await fetchJson(`${API_BASE}/products`);
+    const currentCategoryIdForQuery = Number(
+      selectedProduct.category?.categoryId ?? selectedProduct.categoryId
+    );
+    const catalog = currentCategoryIdForQuery > 0
+      ? await fetchJson(`${API_BASE}/products/category/${currentCategoryIdForQuery}`)
+      : [];
 
     allProducts = catalog.filter(p => p.status === "ACTIVE");
     products = allProducts;
@@ -698,14 +703,8 @@ async function loadDetailPage() {
     // REVIEWS
 
     try {
-      const allReviews = await fetchJson(
-        `${API_BASE}/reviews`
-      );
-
-      productFeedbacks = allReviews.filter(review =>
-        Number(
-          review.orderItem?.variant?.product?.productId
-        ) === productId
+      productFeedbacks = await fetchJson(
+        `${API_BASE}/reviews/product/${productId}`
       );
 
     } catch (error) {

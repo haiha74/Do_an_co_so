@@ -22,6 +22,11 @@ public class ReviewController {
         return reviewService.getAll();
     }
 
+    @GetMapping("/product/{productId}")
+    public List<Review> getByProductId(@PathVariable Long productId) {
+        return reviewService.getByProductId(productId);
+    }
+
     @GetMapping("/{id}")
     public Review getById(@PathVariable Long id) {
         return reviewService.getById(id);

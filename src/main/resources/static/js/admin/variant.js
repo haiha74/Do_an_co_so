@@ -478,6 +478,9 @@ function variantPanel(){
   // PAGINATION
   // ===============================
 
+  // Hien thi 15 bien the moi trang.
+  const pageSize = 15;
+
   const totalItems =
     list.length;
 
@@ -487,7 +490,7 @@ function variantPanel(){
       1,
       Math.ceil(
         totalItems /
-        variantPageSize
+        pageSize
       )
     );
 
@@ -503,14 +506,14 @@ function variantPanel(){
 
   const startIndex =
     (variantPage - 1) *
-    variantPageSize;
+    pageSize;
 
 
   const pageList =
     list.slice(
       startIndex,
       startIndex +
-      variantPageSize
+      pageSize
     );
 
 

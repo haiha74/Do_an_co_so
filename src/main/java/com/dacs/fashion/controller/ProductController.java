@@ -4,6 +4,9 @@ import com.dacs.fashion.dto.ProductDTO;
 import com.dacs.fashion.entity.Product;
 import com.dacs.fashion.service.ProductService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -56,7 +59,12 @@ public class ProductController {
 
     @DeleteMapping("/{id}")
     public String delete(@PathVariable Long id) {
-        productService.delete(id);
+        try {
+            productService.delete(id);
+        } catch (DataIntegrityViolationException ex) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Sản phẩm còn được dữ liệu khác tham chiếu. Vui lòng ẩn thay vì xóa.", ex);
+        }
         return "Xóa sản phẩm thành công";
     }
 }

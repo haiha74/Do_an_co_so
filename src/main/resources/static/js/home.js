@@ -38,15 +38,15 @@ let homeIsLoggedIn = false;
 function homeFeaturedItems() {
   const list = [...products];
   if (homeFeaturedTab === 'best') {
-    return list.sort((a, b) => getSoldCount(b.productId) - getSoldCount(a.productId)).slice(0, 8);
+    return list.sort((a, b) => getSoldCount(b.productId) - getSoldCount(a.productId)).slice(0, 10);
   }
   if (homeFeaturedTab === 'new') {
-    return list.sort((a, b) => (Number(b.productId) || 0) - (Number(a.productId) || 0)).slice(0, 8);
+    return list.sort((a, b) => (Number(b.productId) || 0) - (Number(a.productId) || 0)).slice(0, 10);
   }
   const ids = new Set(homeSaleEvents.flatMap(e =>
     Array.isArray(e.productIds) ? e.productIds.map(Number) : []
   ));
-  return list.filter(p => ids.has(Number(p.productId))).slice(0, 8);
+  return list.filter(p => ids.has(Number(p.productId))).slice(0, 10);
 }
 
 function homeFeaturedSection() {
@@ -382,7 +382,7 @@ function recommendSection() {
       </div>
 
       ${recommendations.length
-        ? productGrid(recommendations.slice(0, 8))
+        ? productGrid(recommendations.slice(0, 10))
         : `<div class="rounded-xl border border-dashed border-neutral-300
                        bg-white px-6 py-9 text-center text-neutral-500">
              Chưa có gợi ý dành riêng cho bạn. Hãy khám phá các sản phẩm

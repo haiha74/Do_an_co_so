@@ -227,7 +227,7 @@ public class OrderService {
 
         LocalDateTime expiredTime = LocalDateTime.now().minusMinutes(5);
 
-        List<Order> orders = orderRepository.findAll();
+        List<Order> orders = orderRepository.findByOrderStatusAndCreatedAtBefore("PENDING_PAYMENT", expiredTime);
 
         for (Order order : orders) {
 

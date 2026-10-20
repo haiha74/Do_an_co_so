@@ -326,46 +326,78 @@ async function safeFetch(url, fallback = []) {
   }
 }
 
+// Load only what's needed for the active admin page.
+// Dashboard uses a lightweight order projection, avoiding eager Order.items JSON.
+const adminLoaded = new Set();
+let adminCorePromise = null;
+let adminSectionRequests = {};
+
+async function loadAdminCore() {
+  if (adminLoaded.has('core')) return;
+  if (!adminCorePromise) {
+    // Start independent requests: a slow variants/users endpoint must not block KPIs.
+    const endpoints = [
+      ['products', `${API_BASE}/products?all=true`],
+      ['categories', `${API_BASE}/categories`],
+      ['users', `${API_BASE}/users`],
+      ['orders', `${API_BASE}/orders/admin-overview`],
+      ['brands', `${API_BASE}/brands`],
+      ['variants', `${API_BASE}/variants`]
+    ];
+    const assign = { products: d => products = d, categories: d => categories = d,
+      users: d => users = d, orders: d => orders = d,
+      brands: d => brands = d, variants: d => variants = d };
+    adminCorePromise = Promise.allSettled(endpoints.map(async ([key, url]) => {
+      // Share in-flight requests with tab navigation; no duplicate variant download.
+      const task = fetchJson(url).then(data => {
+        assign[key](Array.isArray(data) ? data : []);
+        adminLoaded.add(key);
+        if (currentTab === 'overview' ||
+            (currentTab === 'products' && (key === 'products' || key === 'variants')) ||
+            currentTab === key) render();
+      });
+      adminSectionRequests[key] = task;
+      try { await task; }
+      finally { if (adminSectionRequests[key] === task) delete adminSectionRequests[key]; }
+    })).then(results => {
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') console.error('ADMIN CORE LOAD FAILED:', endpoints[index][0], result.reason);
+      });
+      adminLoaded.add('core');
+    }).catch(error => { adminCorePromise = null; throw error; });
+  }
+  return adminCorePromise;
+}
+
+async function loadAdminSection(tab, force = false) {
+  const section = ({
+    variants: ['variants', 'variants'],
+    reviews: ['reviews', 'reviews'],
+    orders: ['orders', 'orders/admin-overview'],
+    vouchers: ['vouchers', 'vouchers'],
+    promo: ['vouchers', 'vouchers']
+  })[tab];
+  if (!section) return;
+  const [key, resource] = section;
+  if (!force && adminLoaded.has(key)) return;
+  if (adminSectionRequests[key]) return adminSectionRequests[key];
+  const task = (async () => {
+    const data = await fetchJson(`${API_BASE}/${resource}`);
+    if (key === 'variants') variants = data || [];
+    if (key === 'reviews') reviews = data || [];
+    if (key === 'orders') orders = data || [];
+    if (key === 'vouchers') vouchers = data || [];
+    adminLoaded.add(key);
+  })().finally(() => { delete adminSectionRequests[key]; });
+  adminSectionRequests[key] = task;
+  return task;
+}
+
 async function loadData() {
-  const [
-    productsData,
-    categoriesData,
-    usersData,
-    ordersData,
-    variantsData,
-    brandsData,
-    vouchersData,
-    reviewsData
-  ] = await Promise.all([
-    safeFetch(`${API_BASE}/products?all=true`, []),
-    safeFetch(`${API_BASE}/categories`, []),
-    safeFetch(`${API_BASE}/users`, []),
-    safeFetch(`${API_BASE}/orders`, []),
-    safeFetch(`${API_BASE}/variants`, []),
-    safeFetch(`${API_BASE}/brands`, []),
-    safeFetch(`${API_BASE}/vouchers`, []),
-    safeFetch(`${API_BASE}/reviews`, [])
-  ]);
-
-  products = productsData;
-  categories = categoriesData;
-  users = usersData;
-  orders = ordersData;
-  variants = variantsData;
-  brands = brandsData;
-  vouchers = vouchersData;
-  reviews = reviewsData;
-
-  console.log("ADMIN DATA LOADED:", {
-    products: products.length,
-    categories: categories.length,
-    users: users.length,
-    orders: orders.length,
-    variants: variants.length,
-    brands: brands.length,
-    vouchers: vouchers.length,
-    reviews: reviews.length
-  });
+  await loadAdminCore();
+  // Core requests already include orders and variants; do not load them twice.
+  if (['variants', 'orders', 'reviews', 'vouchers', 'promo'].includes(currentTab))
+    await loadAdminSection(currentTab, true);
 }
 
 function dateOnly(d){
