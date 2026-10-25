@@ -83,7 +83,7 @@ public class RecommendationController {
                 .filter(p -> p.getStatus() != null && p.getStatus().equals("ACTIVE"))
                 .filter(p -> p.getCategory() != null)
                 .filter(p -> p.getCategory().getCategoryId().equals(topCategoryId))
-                .limit(8)
+                .limit(10)
                 .toList();
     }
 }

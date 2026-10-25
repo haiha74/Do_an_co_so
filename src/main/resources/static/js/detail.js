@@ -288,11 +288,25 @@ function detailPage() {
     v => v.status === "ACTIVE"
   );
 
+
   const sizes = [
     ...new Set(
       activeVariants.map(v => v.size).filter(Boolean)
     )
   ];
+
+  // Sắp xếp Combo từ nhỏ đến lớn: 1 -> 3 -> 5
+  // Không ảnh hưởng đến size quần áo S, M, L, XL
+  if (
+    sizes.length &&
+    sizes.every(size => /^Combo\s+\d+$/i.test(size.trim()))
+  ) {
+    sizes.sort((a, b) =>
+      Number(a.trim().match(/\d+$/)[0]) -
+      Number(b.trim().match(/\d+$/)[0])
+    );
+  }
+
 
   const colors = selectedSize
     ? [

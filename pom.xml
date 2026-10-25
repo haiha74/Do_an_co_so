@@ -23,7 +23,7 @@
     <properties>
         <java.version>17</java.version>
         <maven.compiler.release>17</maven.compiler.release>
-        <lombok.version>1.18.36</lombok.version>
+        <lombok.version>1.18.42</lombok.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -139,6 +139,7 @@
             </plugin>
 
             <!-- MAVEN COMPILER PLUGIN -->
+           
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -153,7 +154,6 @@
                             <version>${lombok.version}</version>
                         </path>
                     </annotationProcessorPaths>
-
                 </configuration>
             </plugin>
 
