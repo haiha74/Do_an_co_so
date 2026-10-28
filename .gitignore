@@ -39,3 +39,4 @@ uploads/
 logs/
 *.log
 src/main/resources/application-local.properties
+uploads.zip

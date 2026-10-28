@@ -207,7 +207,6 @@ function renderOrders(){
 
           <div class="orders-heading">
             <h1>Đơn hàng của tôi</h1>
-            <p>Theo dõi trạng thái và quản lý các đơn hàng bạn đã đặt.</p>
           </div>
 
           <div class="orders-tabs">

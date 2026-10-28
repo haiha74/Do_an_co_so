@@ -582,7 +582,7 @@ function header() {
           class="
             flex flex-wrap items-center justify-center
             gap-3 md:gap-4 lg:gap-5
-            text-xs lg:text-[13px]
+            text-base
             font-medium
             flex-1
           "
@@ -604,11 +604,11 @@ function header() {
 
           <a
             href="/events"
-            class="text-base font-medium hover:text-red-800 transition-colors"
+            class="text-[15px] font-medium hover:text-red-800 transition-colors"
           >
             Bộ sưu tập
           </a>
-
+          
           <button
             onclick="go('promo')"
             class="hover:text-red-800"
@@ -855,9 +855,9 @@ function footer() {
 
           <div class="text-sm text-neutral-300 leading-7">
             <p>Hà Nội, Việt Nam</p>
-            <p>Hotline: 0900 888 999</p>
-            <p>Email: [Email chính thức của JODOK]</p>
-            <p>Giờ hỗ trợ: [Giờ làm việc thực tế]</p>
+            <p>Hotline: 0976 814 999</p>
+            <p>Email: eniuu127@gmail.com</p>
+            <p>Giờ hỗ trợ: 9:00 - 20:00</p>
           </div>
         </div>
 

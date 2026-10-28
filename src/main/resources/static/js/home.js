@@ -124,19 +124,19 @@ function homeOfferSection() {
 function hero() {
   const slides = [
     {
-      image: "https://res.cloudinary.com/t4cvynrt/image/upload/f_auto/q_auto/banner1.png",
-      title: "20/10 – Special For Her",
-      desc: "Tôn vinh vẻ đẹp của những người phụ nữ tuyệt vời."
+      image: "https://res.cloudinary.com/t4cvynrt/image/upload/f_auto/q_auto/BST_T%C3%BAi_X%C3%A1ch_20_11_Sang_Tr%E1%BB%8Dng.png",
+      title: "Trao Quà Tinh Tế – Gửi Lời Tri Ân 20/11",
+      desc: "Nhân ngày Nhà giáo Việt Nam 20/11, khám phá bộ sưu tập túi xách và phụ kiện thời trang thanh lịch, tinh tế"
     },
+    // {
+    //   image: "https://res.cloudinary.com/t4cvynrt/image/upload/f_auto/q_auto/banner2.png",
+    //   title: "Autumn Collection 2026",
+    //   desc: "Thu đến, lên đồ thật chất"
+    // },
     {
-      image: "https://res.cloudinary.com/t4cvynrt/image/upload/f_auto/q_auto/banner2.png",
-      title: "Autumn Collection 2026",
-      desc: "Thu đến, lên đồ thật chất."
-    },
-    {
-      image: "https://res.cloudinary.com/t4cvynrt/image/upload/f_auto/q_auto/banner3.png",
-      title: "Winter Collection 2026",
-      desc: "Đông về – Mặc ấm, vẫn thật chất."
+      image: "https://res.cloudinary.com/t4cvynrt/image/upload/f_auto/q_auto/BST_Thu_%C4%90%C3%B4ng_2026__Ch%E1%BA%A1m_Ch%E1%BA%A5t_Ri%C3%AAng.png",
+      title: "Chạm Thu Phong Cách",
+      desc: "Đón mùa se lạnh với bộ sưu tập Thu Đông 2026 dành cho cả nam và nữ"
     }
   ];
 

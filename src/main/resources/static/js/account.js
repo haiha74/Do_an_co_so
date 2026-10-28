@@ -54,7 +54,7 @@ function accountPage() {
 
                     <div class="orders-heading">
                         <h1>Thông tin tài khoản</h1>
-                        <p>Quản lý thông tin cá nhân và địa chỉ nhận hàng.</p>
+                        <p></p>
                     </div>
 
                     <div class="account-card">
