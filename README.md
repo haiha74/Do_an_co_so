@@ -1,12 +1,14 @@
 # JODOK - Website bán hàng thời trang
 
-**Đồ án cơ sở - Nhóm 04**
+**Đồ án liên ngành CNTT - Nhóm 05**
 
 ## 1. Giới thiệu đề tài
 
-JODOK là website bán hàng thời trang được nhóm xây dựng trong quá trình thực hiện đồ án cơ sở. Đề tài được chọn với mục đích vận dụng các kiến thức đã học về lập trình web, cơ sở dữ liệu và phân tích thiết kế hệ thống để xây dựng một website bán hàng có các chức năng cơ bản.
+JODOK là website bán hàng thời trang do nhóm xây dựng trong quá trình thực hiện đồ án liên ngành. Nhóm chọn đề tài này để vận dụng kiến thức về lập trình web, cơ sở dữ liệu và phân tích thiết kế hệ thống vào một sản phẩm thực tế.
 
-Website hỗ trợ khách hàng xem sản phẩm, tìm kiếm, mua hàng và theo dõi đơn hàng. Bên cạnh đó, hệ thống có trang quản trị để người quản lý cập nhật sản phẩm, xử lý đơn hàng và xem các thông tin thống kê của cửa hàng.
+Website có hai phần chính: trang mua sắm dành cho khách hàng và trang quản trị dành cho người quản lý. Khách hàng có thể tìm kiếm sản phẩm, chọn biến thể, đặt hàng và theo dõi đơn hàng. Quản trị viên có thể quản lý sản phẩm, đơn hàng, khuyến mãi và xem báo cáo thống kê.
+
+Dự án phục vụ mục đích học tập và nghiên cứu.
 
 ## 2. Thành viên thực hiện
 
@@ -22,98 +24,94 @@ Website hỗ trợ khách hàng xem sản phẩm, tìm kiếm, mua hàng và the
 | Backend | Java 17, Spring Boot 3.5.x |
 | Frontend | HTML, CSS, JavaScript, Thymeleaf |
 | Cơ sở dữ liệu | MySQL 8.0 |
-| Truy cập dữ liệu | Spring Data JPA, Hibernate |
+| Làm việc với dữ liệu | Spring Data JPA, Hibernate |
 | Bảo mật | Spring Security, JWT |
 | Quản lý thư viện | Maven |
 | Công cụ phát triển | Git, GitHub, IntelliJ IDEA / VS Code |
-| Kiểm thử | JUnit, Apache JMeter |
+| Kiểm thử chức năng | Kiểm thử hộp đen thủ công, quản lý các ca kiểm thử bằng Excel |
 
-Dự án được xây dựng theo **kiến trúc Monolithic**, trong đó các chức năng được phát triển và chạy trong cùng một ứng dụng Spring Boot. Mã nguồn được chia thành các lớp như Controller, Service, Repository để dễ quản lý và chỉnh sửa.
 
 ## 4. Chức năng chính
 
-### 4.1. Chức năng của khách hàng
+### 4.1. Khách hàng
 
-- Đăng ký, đăng nhập và quản lý thông tin tài khoản.
-- Xem danh sách sản phẩm, tìm kiếm và lọc sản phẩm.
-- Xem thông tin chi tiết, hình ảnh, màu sắc và kích cỡ của sản phẩm.
-- Thêm sản phẩm vào giỏ hàng, cập nhật số lượng hoặc xóa sản phẩm.
+- Đăng ký, đăng nhập và cập nhật thông tin tài khoản.
+- Xem, tìm kiếm và lọc sản phẩm.
+- Xem chi tiết sản phẩm, chọn màu sắc và kích cỡ.
+- Thêm sản phẩm vào giỏ hàng, thay đổi số lượng và xóa khỏi giỏ hàng.
 - Đặt hàng và theo dõi trạng thái đơn hàng.
-- Xem chương trình khuyến mãi và sử dụng mã giảm giá khi đủ điều kiện.
+- Xem khuyến mãi, sử dụng mã giảm giá theo điều kiện áp dụng.
 - Xem và đánh giá sản phẩm.
 - Nhận gợi ý sản phẩm và sử dụng chatbot hỗ trợ mua sắm.
 
-### 4.2. Chức năng của quản trị viên
+### 4.2. Quản trị viên
 
-- Xem trang tổng quan và các số liệu của cửa hàng.
-- Thêm, sửa, xóa sản phẩm và quản lý hình ảnh sản phẩm.
-- Quản lý danh mục, thương hiệu và biến thể sản phẩm (màu sắc, kích cỡ, giá, số lượng).
-- Xem thông tin đơn hàng và cập nhật trạng thái xử lý.
-- Quản lý các chương trình khuyến mãi, mã giảm giá.
+- Xem trang tổng quan của cửa hàng.
+- Quản lý sản phẩm, hình ảnh, danh mục, thương hiệu và biến thể sản phẩm.
+- Xem, xử lý và cập nhật trạng thái đơn hàng.
+- Quản lý khuyến mãi và mã giảm giá.
 - Quản lý đánh giá của khách hàng.
-- Thống kê doanh thu, sản phẩm bán chạy, khách hàng và xuất báo cáo Excel.
+- Xem thống kê doanh thu, sản phẩm bán chạy, khách hàng và xuất báo cáo Excel.
 
-*Một số chức năng kết nối dịch vụ ngoài, như thanh toán trực tuyến hoặc chatbot AI, cần cấu hình API để sử dụng.*
+*Một số chức năng có tích hợp dịch vụ bên ngoài cần được cấu hình API phù hợp để sử dụng.*
 
-## 5. Cấu trúc dự án
+## 5. Cấu trúc thư mục
 
 ```text
-DGKDPM/
+Do_an_co_so/
+├── .mvn/                       # Maven Wrapper
 ├── src/
 │   ├── main/
-│   │   ├── java/                  # Mã nguồn Java
-│   │   └── resources/
-│   │       ├── static/            # CSS, JavaScript, hình ảnh
-│   │       ├── templates/         # Các trang giao diện
-│   │       └── application.properties
-│   └── test/                      # Kiểm thử
-├── pom.xml                        # Cấu hình Maven
-├── mvnw                           # Maven Wrapper cho Linux/macOS
-├── mvnw.cmd                       # Maven Wrapper cho Windows
-└── README.md
+│   │   ├── java/               # Mã nguồn Java
+│   │   └── resources/          # Giao diện, file tĩnh và cấu hình
+│   └── test/                   # Thư mục dành cho mã kiểm thử (nếu có)
+├── uploads/                    # Thư mục ảnh/tệp tải lên của dự án
+├── docs/                       # Tài liệu của nhóm
+│   ├── meeting-minutes/        # Biên bản các buổi họp 
+│   ├── reports/                # Báo cáo đồ án 
+│   └── testcases/              # Danh sách ca kiểm thử 
+├── pom.xml                     # Cấu hình Maven
+├── mvnw                        # Chạy Maven trên Linux/macOS
+├── mvnw.cmd                    # Chạy Maven trên Windows
+└── README.md                   # Giới thiệu và hướng dẫn dự án
 ```
 
-Trong phần backend, chương trình được chia thành các thành phần chính:
+Các tài liệu của nhóm được đặt trong thư mục [`docs`](docs/):
 
-- **Controller:** nhận yêu cầu từ giao diện và trả về kết quả.
-- **Service:** xử lý các chức năng và nghiệp vụ của hệ thống.
-- **Repository:** thực hiện truy vấn và làm việc với cơ sở dữ liệu.
-- **Entity/DTO:** lưu trữ và truyền dữ liệu giữa các phần của chương trình.
+| Loại tài liệu | Thư mục lưu trữ | Nội dung |
+| --- | --- | --- |
+| Biên bản họp (Meeting Minutes) | [`docs/meeting-minutes/`](docs/meeting-minutes/) | Nội dung họp, các công việc được phân chia và tiến độ của nhóm |
+| Báo cáo (Report) | [`docs/reports/`](docs/reports/) | Báo cáo đồ án |
+| Ca kiểm thử (Test Cases) | [`docs/testcases/`](docs/testcases/) | File Excel mô tả testcase và kết quả kiểm thử thủ công |
 
-## 6. Hướng dẫn cài đặt và chạy chương trình
+## 6. Hướng dẫn cài đặt và chạy
 
-### Bước 1: Chuẩn bị môi trường
+### Bước 1: Chuẩn bị
 
-Cần cài đặt **JDK 17**, **MySQL 8.0** và **Git**. Có thể sử dụng IntelliJ IDEA hoặc VS Code để mở mã nguồn. Dự án đã có Maven Wrapper nên không bắt buộc phải cài Maven riêng.
+- Cài đặt JDK 17, MySQL 8.0 và Git.
+- Sử dụng IntelliJ IDEA hoặc VS Code để mở dự án.
+- Dự án có Maven Wrapper nên không bắt buộc phải cài Maven riêng.
 
 ### Bước 2: Tải mã nguồn
 
-Mở Terminal hoặc PowerShell và chạy:
-
 ```bash
-git clone https://github.com/haiha74/DGKDPM.git
-cd DGKDPM
+git clone https://github.com/haiha74/Do_an_co_so.git
+cd Do_an_co_so
 ```
 
 ### Bước 3: Cấu hình cơ sở dữ liệu
 
-Mở file `src/main/resources/application.properties`, kiểm tra và chỉnh sửa thông tin kết nối MySQL cho phù hợp với máy đang sử dụng.
-
-Ví dụ:
+Tạo hoặc chuẩn bị cơ sở dữ liệu MySQL, sau đó kiểm tra cấu hình trong `src/main/resources/application.properties` theo môi trường đang chạy. Ví dụ về thông tin kết nối:
 
 ```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/fashion_clone_demo?createDatabaseIfNotExist=true
+spring.datasource.url=jdbc:mysql://localhost:3306/ten_database?createDatabaseIfNotExist=true
 spring.datasource.username=root
-spring.datasource.password=MAT_KHAU_MYSQL
+spring.datasource.password=MAT_KHAU_CUA_BAN
 ```
-
-Thay `MAT_KHAU_MYSQL` bằng mật khẩu MySQL trên máy. Tên database và các cấu hình khác cần được đối chiếu với cấu hình đang sử dụng trong dự án. Nếu dự án có file SQL dữ liệu mẫu, có thể import vào MySQL trước khi chạy.
-
-**Lưu ý:** Không đưa mật khẩu cơ sở dữ liệu hoặc API key thật lên GitHub.
 
 ### Bước 4: Chạy dự án
 
-Trên Windows:
+Trên Windows (PowerShell):
 
 ```powershell
 .\mvnw.cmd spring-boot:run
@@ -125,34 +123,29 @@ Trên Linux/macOS:
 ./mvnw spring-boot:run
 ```
 
-Sau khi ứng dụng chạy thành công, mở trình duyệt và truy cập:
+Khi chương trình chạy thành công và sử dụng cổng mặc định `8080`, truy cập:
 
-- **Trang khách hàng:** http://localhost:8080/
-- **Trang quản trị:** http://localhost:8080/admin
+- Trang khách hàng: http://localhost:8080/
+- Trang quản trị: http://localhost:8080/admin
+- - Trang quản trị: http://localhost:8080/staff
 
-Địa chỉ trên áp dụng khi ứng dụng sử dụng cổng mặc định `8080`.
+## 7. Kiểm thử chức năng
 
-## 7. Kiểm thử
+Nhóm sử dụng **phương pháp kiểm thử hộp đen (Black-box Testing)** và thực hiện **kiểm thử thủ công** trên giao diện website. Khi kiểm thử, nhóm dựa vào dữ liệu đầu vào và kết quả mong đợi để kiểm tra xem chức năng có hoạt động đúng hay không, không dựa vào mã nguồn bên trong.
 
-Trong quá trình làm đồ án, nhóm tiến hành kiểm tra các chức năng như đăng nhập, đăng ký, quản lý sản phẩm, giỏ hàng, đặt hàng và quản lý đơn hàng. Ngoài kiểm thử chức năng, nhóm cũng sử dụng Apache JMeter để xây dựng kịch bản kiểm thử hiệu năng.
+Các chức năng được đưa vào danh sách kiểm thử gồm đăng ký, đăng nhập, tìm kiếm sản phẩm, giỏ hàng, đặt hàng và một số chức năng quản trị như quản lý sản phẩm, biến thể, danh mục và đơn hàng.
 
-Có thể chạy các bài kiểm thử tự động trong dự án bằng lệnh:
+Nhóm lập danh sách testcase bằng **Microsoft Excel (`.xlsx`)**. Mỗi testcase có thể ghi mã kiểm thử, chức năng, mục đích kiểm tra, dữ liệu đầu vào, các bước thực hiện, kết quả mong đợi, kết quả thực tế và trạng thái đạt/không đạt (Pass/Fail). Khi thực hiện, nhóm ghi lại kết quả và chỉnh sửa những lỗi phát hiện được.
 
-```powershell
-.\mvnw.cmd test
-```
+**File Excel testcase và kết quả kiểm thử được lưu tại:** [`docs/testcases/`](docs/testcases/).
 
-## 8. Hướng phát triển
+Các testcase được thực hiện thủ công; file Excel là tài liệu theo dõi kiểm thử, không phải mã kiểm thử tự động.
 
-Nếu có thêm thời gian, nhóm muốn tiếp tục hoàn thiện dự án theo các hướng sau:
+## 8. Tài liệu quá trình thực hiện
 
-- Tối ưu tốc độ tải trang và xử lý dữ liệu.
-- Cải thiện giao diện trên điện thoại và máy tính.
-- Bổ sung thêm các bài kiểm thử tự động.
-- Nâng cao khả năng tìm kiếm, gợi ý sản phẩm và hỗ trợ khách hàng.
+Ngoài mã nguồn, nhóm lưu các tài liệu liên quan đến quá trình làm đồ án trong thư mục [`docs`](docs/), gồm:
 
-## 9. Kết luận
+- **Meeting Minutes:** biên bản họp, trao đổi nội dung và phân chia công việc.
+- **Report:** tài liệu báo cáo các giai đoạn thực hiện và báo cáo đồ án.
+- **Test Cases:** bảng Excel ghi các trường hợp kiểm thử, các bước thực hiện và kết quả.
 
-Thông qua đồ án JODOK, nhóm có cơ hội áp dụng những kiến thức đã học vào việc xây dựng một website thương mại điện tử. Trong quá trình thực hiện, nhóm hiểu rõ hơn về cách tổ chức mã nguồn, kết nối cơ sở dữ liệu, xử lý các chức năng của website và kiểm tra lỗi trước khi hoàn thiện sản phẩm.
-
-Dự án được thực hiện nhằm phục vụ mục đích **học tập và nghiên cứu**.
